@@ -16,9 +16,9 @@ contract RegisterJob is TestHelper {
   PPAgentV2Lens internal lens;
   CounterJob internal counter;
 
-  PPAgentV2.RegisterJobParams internal params1;
-  PPAgentV2.RegisterJobParams internal params2;
-  PPAgentV2.RegisterJobParams internal params3;
+  IPPAgentV2JobOwner.RegisterJobParams internal params1;
+  IPPAgentV2JobOwner.RegisterJobParams internal params2;
+  IPPAgentV2JobOwner.RegisterJobParams internal params3;
   PPAgentV2.Resolver internal emptyResolver;
   PPAgentV2.Resolver internal resolver1;
 
@@ -31,7 +31,7 @@ contract RegisterJob is TestHelper {
     agents[0] = address(agent);
     counter = new CounterJob(agents);
 
-    params1 = PPAgentV2.RegisterJobParams({
+    params1 = IPPAgentV2JobOwner.RegisterJobParams({
       jobAddress: job1,
       jobSelector: CounterJob.increment.selector,
       maxBaseFeeGwei: 100,
@@ -45,7 +45,7 @@ contract RegisterJob is TestHelper {
       calldataSource: CALLDATA_SOURCE_SELECTOR,
       intervalSeconds: 10
     });
-    params2 = PPAgentV2.RegisterJobParams({
+    params2 = IPPAgentV2JobOwner.RegisterJobParams({
       jobAddress: job2,
       jobSelector: CounterJob.increment.selector,
       maxBaseFeeGwei: 100,
@@ -59,7 +59,7 @@ contract RegisterJob is TestHelper {
       calldataSource: CALLDATA_SOURCE_PRE_DEFINED,
       intervalSeconds: 180 days
     });
-    params3 = PPAgentV2.RegisterJobParams({
+    params3 = IPPAgentV2JobOwner.RegisterJobParams({
       jobAddress: job3,
       jobSelector: CounterJob.increment.selector,
       maxBaseFeeGwei: 100,
@@ -192,7 +192,7 @@ contract RegisterJob is TestHelper {
   }
 
   function testErrJobWithCvpAddress() public {
-    PPAgentV2.RegisterJobParams memory params = params1;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
     params.jobAddress = address(cvp);
 
     vm.expectRevert(
@@ -206,7 +206,7 @@ contract RegisterJob is TestHelper {
   }
 
   function testErrJobWithSelectorMissingInterval() public {
-    PPAgentV2.RegisterJobParams memory params = params1;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
     params.intervalSeconds = 0;
 
     vm.expectRevert(
@@ -220,7 +220,7 @@ contract RegisterJob is TestHelper {
   }
 
   function testErrJobWithSelectorMissingAddress() public {
-    PPAgentV2.RegisterJobParams memory params = params1;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
     params.jobAddress = address(0);
 
     vm.expectRevert(
@@ -234,7 +234,7 @@ contract RegisterJob is TestHelper {
   }
 
   function testErrJobWithSelectorMissingMaxGasFee() public {
-    PPAgentV2.RegisterJobParams memory params = params1;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
     params.maxBaseFeeGwei = 0;
 
     vm.expectRevert(
@@ -248,7 +248,7 @@ contract RegisterJob is TestHelper {
   }
 
   function testJobWithSelectorNoFixedReward() public {
-    PPAgentV2.RegisterJobParams memory params = params1;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
     params.fixedReward = 0;
 
     (bytes32 jobKey,) = agent.registerJob({
@@ -263,7 +263,7 @@ contract RegisterJob is TestHelper {
   }
 
   function testErrJobWithSelectorNoFixedNorPremium() public {
-    PPAgentV2.RegisterJobParams memory params = params1;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
     params.fixedReward = 0;
     params.rewardPct = 0;
 
@@ -278,7 +278,7 @@ contract RegisterJob is TestHelper {
   }
 
   function testErrJobInvalidCalldataSource() public {
-    PPAgentV2.RegisterJobParams memory params = params1;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
     params.calldataSource = 3;
 
     vm.expectRevert(
@@ -294,7 +294,7 @@ contract RegisterJob is TestHelper {
   // PRE-DEFINED CALLDATA
 
   function testJobWithPDCalldata() public {
-    PPAgentV2.RegisterJobParams memory params = params2;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params2;
 
     (bytes32 jobKey,) = agent.registerJob({
       params_: params,
@@ -337,7 +337,7 @@ contract RegisterJob is TestHelper {
   }
 
   function testErrJobWithPDCalldataMissingInterval() public {
-    PPAgentV2.RegisterJobParams memory params = params2;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params2;
     params.intervalSeconds = 0;
 
     vm.expectRevert(
@@ -353,7 +353,7 @@ contract RegisterJob is TestHelper {
   // RESOLVER
 
   function testJobWithResolverNoInterval() public {
-    PPAgentV2.RegisterJobParams memory params = params3;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params3;
 
     (bytes32 jobKey,) = agent.registerJob({
       params_: params,
@@ -391,7 +391,7 @@ contract RegisterJob is TestHelper {
   }
 
   function testJobWithResolverWithInterval() public {
-    PPAgentV2.RegisterJobParams memory params = params3;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params3;
     params.intervalSeconds = 1_000;
 
     (bytes32 jobKey,) = agent.registerJob({
@@ -408,7 +408,7 @@ contract RegisterJob is TestHelper {
   }
 
   function testErrJobWithResolverMissingAddress() public {
-    PPAgentV2.RegisterJobParams memory params = params3;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params3;
     PPAgentV2.Resolver memory resolver = resolver1;
     resolver.resolverAddress = address(0);
 
@@ -425,7 +425,7 @@ contract RegisterJob is TestHelper {
   // CREDITS
 
   function testShouldAllowDepositToTheJobBalanceNoFee() public {
-    PPAgentV2.RegisterJobParams memory params = params1;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
     params.useJobOwnerCredits = false;
 
     vm.prank(bob);
@@ -445,7 +445,7 @@ contract RegisterJob is TestHelper {
     vm.prank(owner);
     agent.setAgentParams(3_000 ether, 30 days, 4e4);
 
-    PPAgentV2.RegisterJobParams memory params = params1;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
     params.useJobOwnerCredits = false;
 
     (bytes32 jobKey,) = agent.registerJob{ value: 10 ether }({
@@ -460,7 +460,7 @@ contract RegisterJob is TestHelper {
   }
 
   function testShouldAllowDepositToTheOwnerBalanceNoFee() public {
-    PPAgentV2.RegisterJobParams memory params = params1;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
     params.useJobOwnerCredits = true;
 
     vm.prank(bob);
@@ -480,7 +480,7 @@ contract RegisterJob is TestHelper {
     vm.prank(owner);
     agent.setAgentParams(3_000 ether, 30 days, 4e4);
 
-    PPAgentV2.RegisterJobParams memory params = params1;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
     params.useJobOwnerCredits = true;
 
     vm.prank(bob);
@@ -498,7 +498,7 @@ contract RegisterJob is TestHelper {
   }
 
   function testErrDepositToTheJobBalanceOverflow() public {
-    PPAgentV2.RegisterJobParams memory params = params1;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
     params.useJobOwnerCredits = false;
 
     vm.expectRevert(PPAgentV2.CreditsDepositOverflow.selector);
@@ -512,7 +512,7 @@ contract RegisterJob is TestHelper {
   }
 
   function testErrDepositToTheOwnerBalanceOverflow() public {
-    PPAgentV2.RegisterJobParams memory params = params1;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
     params.useJobOwnerCredits = true;
 
     vm.expectRevert(PPAgentV2.CreditsDepositOverflow.selector);

@@ -43,7 +43,7 @@ contract ExecuteResolverTest is TestHelper {
       resolverAddress: job_,
       resolverCalldata: abi.encode("myPass")
     });
-    PPAgentV2.RegisterJobParams memory params = PPAgentV2.RegisterJobParams({
+    IPPAgentV2JobOwner.RegisterJobParams memory params = IPPAgentV2JobOwner.RegisterJobParams({
       jobAddress: job_,
       jobSelector: selector_,
       maxBaseFeeGwei: 100,

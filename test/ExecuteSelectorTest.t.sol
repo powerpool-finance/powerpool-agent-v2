@@ -36,7 +36,7 @@ contract ExecuteSelectorTest is TestHelper {
       resolverAddress: address(counter),
       resolverCalldata: new bytes(0)
     });
-    PPAgentV2.RegisterJobParams memory params = PPAgentV2.RegisterJobParams({
+    IPPAgentV2JobOwner.RegisterJobParams memory params = IPPAgentV2JobOwner.RegisterJobParams({
       jobAddress: address(counter),
       jobSelector: OnlySelectorTestJob.increment.selector,
       maxBaseFeeGwei: 100,
@@ -328,7 +328,7 @@ contract ExecuteSelectorTest is TestHelper {
       resolverAddress: address(topupJob),
       resolverCalldata: new bytes(0)
     });
-    PPAgentV2.RegisterJobParams memory params = PPAgentV2.RegisterJobParams({
+    IPPAgentV2JobOwner.RegisterJobParams memory params = IPPAgentV2JobOwner.RegisterJobParams({
       jobAddress: address(topupJob),
       jobSelector: JobTopupTestJob.execute.selector,
       maxBaseFeeGwei: 100,

@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./PPAgentV2Flags.sol";
+import "./PPAgentV2Interfaces.sol";
 
 library ConfigFlags {
   function check(uint256 cfg, uint256 flag) internal pure returns (bool) {
@@ -11,67 +12,11 @@ library ConfigFlags {
   }
 }
 
-interface IPPAgentV2Executor {
-  function execute_44g58pv() external;
-}
-
-interface IPPAgentV2Viewer {
-  struct Job {
-    uint8 config;
-    bytes4 selector;
-    uint88 credits;
-    uint16 maxBaseFeeGwei;
-    uint16 rewardPct;
-    uint32 fixedReward;
-    uint8 calldataSource;
-
-    // For interval jobs
-    uint24 intervalSeconds;
-    uint32 lastExecutionAt;
-  }
-
-  struct Resolver {
-    address resolverAddress;
-    bytes resolverCalldata;
-  }
-
-  function getConfig() external view returns (
-    uint256 minKeeperCvp_,
-    uint256 pendingWithdrawalTimeoutSeconds_,
-    uint256 feeTotal_,
-    uint256 feePpm_,
-    uint256 lastKeeperId_
-  );
-  function getKeeper(uint256 keeperId_) external view returns (
-    address admin,
-    address worker,
-    uint256 currentStake,
-    uint256 slashedStake,
-    uint256 compensation,
-    uint256 pendingWithdrawalAmount,
-    uint256 pendingWithdrawalEndAt
-  );
-  function getKeeperWorkerAndStake(uint256 keeperId_) external view returns (
-    address worker,
-    uint256 currentStake
-  );
-  function getJob(bytes32 jobKey_) external view returns (
-    address owner,
-    address pendingTransfer,
-    uint256 jobLevelMinKeeperCvp,
-    Job memory details,
-    bytes memory preDefinedCalldata,
-    Resolver memory resolver
-  );
-  function getJobRaw(bytes32 jobKey_) external view returns (uint256 rawJob);
-  function jobOwnerCredits(address owner_) external view returns (uint256 credits);
-}
-
 /**
  * @title PowerAgentLite
  * @author PowerPool
  */
-contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, PPAgentV2Flags, Ownable {
+contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, PPAgentV2Flags, Ownable {
   error OnlyOwner();
   error NonEOASender();
   error InsufficientKeeperStake();
@@ -113,7 +58,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, PPAgentV2Flags, Owna
   error OnlyPendingOwner();
   error WorkerAlreadyAssigned();
 
-  string public constant VERSION = "2.2.0";
+  string public constant VERSION = "2.3.0";
   uint256 internal constant MAX_PENDING_WITHDRAWAL_TIMEOUT_SECONDS = 30 days;
   uint256 internal constant MAX_FEE_PPM = 5e4;
   uint256 internal constant FIXED_PAYMENT_MULTIPLIER = 1e15;
@@ -292,6 +237,13 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, PPAgentV2Flags, Owna
     _transferOwnership(owner_);
   }
 
+  /*** HOOKS ***/
+  function _beforeExecute(bytes32 jobKey_, uint256 calleeKeeperId_, uint256 binJob_) internal view virtual {}
+  function _beforeInitiateRedeem(uint256 keeperId_) internal view virtual {}
+
+  function _afterExecute(bytes32 jobKey_, uint256 keeperId_) internal virtual {}
+  function _afterRegisterJob(bytes32 jobKey_) internal virtual {}
+
   /*** UPKEEP INTERFACE ***/
 
   /**
@@ -328,6 +280,10 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, PPAgentV2Flags, Owna
       keeperId := shr(232, calldataload(28))
     }
 
+    uint256 binJob = getJobRaw(jobKey);
+
+    _beforeExecute(jobKey, keeperId, binJob);
+
     // 0. Keeper has sufficient stake
     {
       Keeper memory keeper = keepers[keeperId];
@@ -338,8 +294,6 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, PPAgentV2Flags, Owna
         revert InsufficientKeeperStake();
       }
     }
-
-    uint256 binJob = getJobRaw(jobKey);
 
     // 1. Assert the job is active
     {
@@ -524,6 +478,8 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, PPAgentV2Flags, Owna
         revert(p, size)
       }
     }
+
+    _afterExecute(jobKey, keeperId);
   }
 
   function _calculateCompensation(uint256 job_, uint256 gasPrice_, uint256 gasUsed_) internal pure returns (uint256) {
@@ -541,19 +497,6 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, PPAgentV2Flags, Owna
     unchecked {
       jobOwnerCredits[jobOwners[jobKey_]] = jobOwnerCreditsBefore - compensation_;
     }
-  }
-
-  struct RegisterJobParams {
-    address jobAddress;
-    bytes4 jobSelector;
-    bool useJobOwnerCredits;
-    bool assertResolverSelector;
-    uint16 maxBaseFeeGwei;
-    uint16 rewardPct;
-    uint32 fixedReward;
-    uint256 jobMinCvp;
-    uint8 calldataSource;
-    uint24 intervalSeconds;
   }
 
   /*** JOB OWNER INTERFACE ***/
@@ -662,6 +605,8 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, PPAgentV2Flags, Owna
         _processJobCreditsDeposit(jobKey);
       }
     }
+
+    _afterRegisterJob(jobKey);
   }
 
   /**

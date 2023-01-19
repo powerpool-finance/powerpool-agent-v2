@@ -27,11 +27,11 @@ contract JobManagementTest is TestHelper {
   PPAgentV2Lens internal lens;
   bytes32 internal jobKey;
 
-  PPAgentV2.RegisterJobParams internal params1;
+  IPPAgentV2JobOwner.RegisterJobParams internal params1;
   PPAgentV2.Resolver internal resolver1;
 
   modifier jobWithResolverCalldataSource() {
-    PPAgentV2.RegisterJobParams memory params = params1;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
     params.calldataSource = CALLDATA_SOURCE_RESOLVER;
     vm.prank(alice);
     (jobKey,) = agent.registerJob(params, resolver1, new bytes(0));
@@ -39,7 +39,7 @@ contract JobManagementTest is TestHelper {
   }
 
   modifier jobWithPreDefinedCalldataSource() {
-    PPAgentV2.RegisterJobParams memory params = params1;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
     params.calldataSource = CALLDATA_SOURCE_PRE_DEFINED;
     vm.prank(alice);
     (jobKey,) = agent.registerJob(params, resolver1, new bytes(0));
@@ -53,7 +53,7 @@ contract JobManagementTest is TestHelper {
     lens = new PPAgentV2Lens(owner, address(cvp), 3_000 ether, 3 days);
     vm.deal(address(agent), 1000 ether);
     cvp.transfer(alice, 10_000 ether);
-    params1 = PPAgentV2.RegisterJobParams({
+    params1 = IPPAgentV2JobOwner.RegisterJobParams({
       jobAddress: alice,
       jobSelector: hex"00000001",
       maxBaseFeeGwei: 100,
@@ -519,7 +519,7 @@ contract JobManagementTest is TestHelper {
   }
 
   function testErrUpdateJobWithPreDefinedCalldataShouldHaveInterval() public {
-    PPAgentV2.RegisterJobParams memory params = params1;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
     params.calldataSource = CALLDATA_SOURCE_PRE_DEFINED;
     vm.prank(alice);
     (bytes32 myJobKey,) = agent.registerJob(params, resolver1, new bytes(0));
@@ -532,7 +532,7 @@ contract JobManagementTest is TestHelper {
   }
 
   function testUpdateJobWithResolverCanHaveZeroInterval() public {
-    PPAgentV2.RegisterJobParams memory params = params1;
+    IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
     params.calldataSource = CALLDATA_SOURCE_RESOLVER;
     vm.prank(alice);
     (bytes32 myJobKey,) = agent.registerJob(params, resolver1, new bytes(0));
