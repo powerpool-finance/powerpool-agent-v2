@@ -43,7 +43,8 @@ interface IPPAgentV2Viewer {
   );
   function getKeeperWorkerAndStake(uint256 keeperId_) external view returns (
     address worker,
-    uint256 currentStake
+    uint256 currentStake,
+    bool isActive
   );
   function getJob(bytes32 jobKey_) external view returns (
     address owner,

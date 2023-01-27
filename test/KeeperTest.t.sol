@@ -183,7 +183,7 @@ contract KeeperTest is TestHelper {
     assertEq(_workerOf(kid), keeperWorker);
     assertEq(_stakeOf(kid), 3000 ether);
 
-    (address worker, uint256 stake) = agent.getKeeperWorkerAndStake(kid);
+    (address worker, uint256 stake,) = agent.getKeeperWorkerAndStake(kid);
     assertEq(worker, keeperWorker);
     assertEq(stake, 3000 ether);
 

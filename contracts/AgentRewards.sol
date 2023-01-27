@@ -60,7 +60,7 @@ contract AgentRewards is Ownable, Pausable {
 
   function claim(uint256 keeperId_, address to_) external whenNotPaused {
     require(tx.origin == msg.sender, "EOA only");
-    (address worker, uint256 currentStake) = AGENT.getKeeperWorkerAndStake(keeperId_);
+    (address worker, uint256 currentStake,) = AGENT.getKeeperWorkerAndStake(keeperId_);
     require(worker == msg.sender, "Only keeper worker allowed");
     require(whitelist[keeperId_], "Keeper should be whitelisted");
     require(cooldownPassed(keeperId_), "Interval");

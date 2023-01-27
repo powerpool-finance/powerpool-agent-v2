@@ -32,6 +32,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   error MissingMaxBaseFeeGwei();
   error NoFixedNorPremiumPctReward();
   error CreditsDepositOverflow();
+  error StakeAmountOverflow();
   error CreditsWithdrawalUnderflow();
   error MissingDeposit();
   error IntervalNotReached(uint256 lastExecutedAt, uint256 interval, uint256 _now);
@@ -62,7 +63,6 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   uint256 internal constant MAX_PENDING_WITHDRAWAL_TIMEOUT_SECONDS = 30 days;
   uint256 internal constant MAX_FEE_PPM = 5e4;
   uint256 internal constant FIXED_PAYMENT_MULTIPLIER = 1e15;
-  uint256 internal constant JOB_RUN_GAS_OVERHEAD = 40_000;
 
   enum CalldataSourceType {
     SELECTOR,
@@ -118,7 +118,8 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
 
   struct Keeper {
     address worker;
-    uint96 cvpStake;
+    uint88 cvpStake;
+    bool isActive;
   }
 
   uint256 internal minKeeperCvp;
@@ -238,11 +239,14 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   }
 
   /*** HOOKS ***/
-  function _beforeExecute(bytes32 jobKey_, uint256 calleeKeeperId_, uint256 binJob_) internal view virtual {}
+  function _beforeExecute(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal view virtual {}
   function _beforeInitiateRedeem(uint256 keeperId_) internal view virtual {}
 
-  function _afterExecute(bytes32 jobKey_, uint256 keeperId_) internal virtual {}
+  function _afterExecute(bytes32 jobKey_, uint256 actualKeeperId_) internal virtual {}
   function _afterRegisterJob(bytes32 jobKey_) internal virtual {}
+  function _getJobGasOverhead() internal pure virtual returns (uint256) {
+    return 40_000;
+  }
 
   /*** UPKEEP INTERFACE ***/
 
@@ -270,23 +274,23 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
 
     address jobAddress;
-    uint256 keeperId;
+    uint256 actualKeeperId;
     uint256 cfg;
 
     assembly ("memory-safe") {
       // load jobAddress, cfg, and keeperId from calldata to the stack
       jobAddress := shr(96, calldataload(4))
       cfg := shr(248, calldataload(27))
-      keeperId := shr(232, calldataload(28))
+      actualKeeperId := shr(232, calldataload(28))
     }
 
     uint256 binJob = getJobRaw(jobKey);
 
-    _beforeExecute(jobKey, keeperId, binJob);
+    _beforeExecute(jobKey, actualKeeperId, binJob);
 
     // 0. Keeper has sufficient stake
     {
-      Keeper memory keeper = keepers[keeperId];
+      Keeper memory keeper = keepers[actualKeeperId];
       if (keeper.worker != msg.sender) {
         revert KeeperWorkerNotAuthorized();
       }
@@ -303,7 +307,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
 
     // 2. Assert job-scoped keeper's minimum CVP deposit
-    if (ConfigFlags.check(binJob, CFG_CHECK_KEEPER_MIN_CVP_DEPOSIT) && keepers[keeperId].cvpStake < jobMinKeeperCvp[jobKey]) {
+    if (ConfigFlags.check(binJob, CFG_CHECK_KEEPER_MIN_CVP_DEPOSIT) && keepers[actualKeeperId].cvpStake < jobMinKeeperCvp[jobKey]) {
       revert InsufficientJobScopedKeeperStake();
     }
 
@@ -431,7 +435,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
         }
 
         if (ConfigFlags.check(cfg, FLAG_ACCRUE_REWARD)) {
-          compensations[keeperId] += compensation;
+          compensations[actualKeeperId] += compensation;
         } else {
           payable(msg.sender).transfer(compensation);
         }
@@ -454,7 +458,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       emit Execute(
         jobKey,
         jobAddress,
-        keeperId,
+        actualKeeperId,
         gasUsed,
         block.basefee,
         tx.gasprice,
@@ -479,7 +483,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       }
     }
 
-    _afterExecute(jobKey, keeperId);
+    _afterExecute(jobKey, actualKeeperId);
   }
 
   function _calculateCompensation(uint256 job_, uint256 gasPrice_, uint256 gasUsed_) internal pure returns (uint256) {
@@ -521,7 +525,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     RegisterJobParams calldata params_,
     Resolver calldata resolver_,
     bytes calldata preDefinedCalldata_
-  ) external payable returns (bytes32 jobKey, uint256 jobId){
+  ) public payable virtual returns (bytes32 jobKey, uint256 jobId){
     jobId = jobLastIds[params_.jobAddress] + 1;
 
     if (jobId > type(uint24).max) {
@@ -908,7 +912,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
 
     keeperId = ++lastKeeperId;
     keeperAdmins[keeperId] = msg.sender;
-    keepers[keeperId] = Keeper(worker_, 0);
+    keepers[keeperId] = Keeper(worker_, 0, true);
     workerKeeperIds[worker_] = keeperId;
     emit RegisterAsKeeper(keeperId, msg.sender, worker_);
 
@@ -975,8 +979,12 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   }
 
   function _stake(uint256 keeperId_, uint256 amount_) internal {
+    uint256 amountAfter = keepers[keeperId_].cvpStake + amount_;
+    if (amountAfter > type(uint88).max) {
+      revert StakeAmountOverflow();
+    }
     CVP.transferFrom(msg.sender, address(this), amount_);
-    keepers[keeperId_].cvpStake += uint96(amount_);
+    keepers[keeperId_].cvpStake += uint88(amount_);
 
     emit Stake(keeperId_, amount_, msg.sender);
   }
@@ -998,6 +1006,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   function initiateRedeem(uint256 keeperId_, uint256 amount_) external returns (uint256 pendingWithdrawalAfter) {
     _assertOnlyKeeperAdmin(keeperId_);
     _assertNonZeroAmount(amount_);
+    _beforeInitiateRedeem(keeperId_);
 
     uint256 stakeOfBefore = keepers[keeperId_].cvpStake;
     uint256 slashedStakeOfBefore = slashedStakeOf[keeperId_];
@@ -1016,7 +1025,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     uint256 stakeOfToReduceAmount;
     unchecked {
       stakeOfToReduceAmount = amount_ - slashedStakeOfBefore;
-      keepers[keeperId_].cvpStake = uint96(stakeOfBefore - stakeOfToReduceAmount);
+      keepers[keeperId_].cvpStake = uint88(stakeOfBefore - stakeOfToReduceAmount);
       pendingWithdrawalAmounts[keeperId_] += stakeOfToReduceAmount;
     }
 
@@ -1067,7 +1076,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     _assertNonZeroAmount(totalAmount);
 
     if (currentAmount_ > 0) {
-      keepers[keeperId_].cvpStake -= uint96(currentAmount_);
+      keepers[keeperId_].cvpStake -= uint88(currentAmount_);
       slashedStakeOf[keeperId_] += currentAmount_;
     }
 
@@ -1142,7 +1151,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     uint256 gasUsed_
   ) public pure returns (uint256) {
     unchecked {
-      return (gasUsed_ + JOB_RUN_GAS_OVERHEAD) * blockBaseFee_ * rewardPct_ / 100
+      return (gasUsed_ + _getJobGasOverhead()) * blockBaseFee_ * rewardPct_ / 100
              + fixedReward_ * FIXED_PAYMENT_MULTIPLIER;
     }
   }
@@ -1150,14 +1159,16 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   function getKeeperWorkerAndStake(uint256 keeperId_)
     external view returns (
       address worker,
-      uint256 currentStake
+      uint256 currentStake,
+      bool isActive
     )
   {
     Keeper memory keeper = keepers[keeperId_];
 
     return (
       keeper.worker,
-      keeper.cvpStake
+      keeper.cvpStake,
+      keeper.isActive
     );
   }
 
