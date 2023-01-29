@@ -137,45 +137,45 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     _executeJob(1, cd);
 
     // time: 11, block: 43. Initiate slashing
-    vm.prank(bob, bob);
-    agent.initiateSlashing(address(counter), );
-    return;
+    assertEq(agent.jobReservedSlasherId(jobKey), 0);
+    assertEq(agent.jobSlashingPossibleAfter(jobKey), 0);
 
-    // time: 26, block: 63. Should allow slashing
+    vm.prank(bob, bob);
+    agent.initiateSlashing(address(job), jobId, kid3, false, cd);
+    assertEq(agent.jobReservedSlasherId(jobKey), kid3);
+    assertEq(agent.jobSlashingPossibleAfter(jobKey), 1600000026);
+
+    // time: 26, block: 63. Too early for slashing
+    vm.expectRevert(abi.encodeWithSelector(
+      PPAgentV2Randao.TooEarlyForSlashing.selector, 1600000011, 1600000026
+    ));
+    _executeJob(kid3, cd);
+
     vm.roll(63);
     vm.warp(1600000000 + 26);
     assertEq(block.number, 63);
-    assertEq(_jobNextExecutionAt(jobKey), 1600000010);
     assertEq(agent.getCurrentSlasherId(), 1);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.jobReservedSlasherId(jobKey), 3);
 
-    // kid3 attempt should fail
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.OnlyCurrentSlasher.selector, 1));
-    vm.prank(bob, bob);
-    _callExecuteHelper(
-      agent,
-      address(counter),
-      jobId,
-      defaultFlags,
-      kid3,
-      new bytes(0)
-    );
+    // kid1 attempt should fail
+    vm.expectRevert(abi.encodeWithSelector(
+        PPAgentV2Randao.OnlyReservedSlasher.selector, 3
+      ));
+    _executeJob(kid1, cd);
 
+    // time: 26, block: 63. Should allow slashing
     assertEq(_stakeOf(kid1), 5_000 ether);
     assertEq(_stakeOf(kid2), 5_000 ether);
 
-    vm.prank(alice, alice);
-    _callExecuteHelper(
-      agent,
-      address(counter),
-      jobId,
-      defaultFlags,
-      kid1,
-      new bytes(0)
-    );
+    vm.prank(bob, bob);
+    (ok, cd) = job.myResolver("myPass");
+    vm.difficulty(41);
+
+    _executeJob(kid3, cd);
 
     // 50 + 5000 * 0.03 = 200
-    assertEq(_stakeOf(kid1), 5_200 ether);
+    assertEq(_stakeOf(kid3), 5_200 ether);
     assertEq(_stakeOf(kid2), 4_800 ether);
   }
 }

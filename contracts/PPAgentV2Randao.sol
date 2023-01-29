@@ -4,13 +4,13 @@ pragma solidity ^0.8.13;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import { PPAgentV2, ConfigFlags } from "./PPAgentV2.sol";
 import "./PPAgentV2Flags.sol";
 import "./PPAgentV2Interfaces.sol";
-import { PPAgentV2, ConfigFlags } from "./PPAgentV2.sol";
 import "../lib/forge-std/src/console.sol";
 
 /**
- * @title PPAgentV2
+ * @title PPAgentV2Randao
  * @author PowerPool
  */
 contract PPAgentV2Randao is PPAgentV2 {
@@ -27,6 +27,7 @@ contract PPAgentV2Randao is PPAgentV2 {
   error OnlyReservedSlasher(uint256 reservedSlasherId);
   error TooEarlyForSlashing(uint256 now_, uint256 possibleAfter);
   error SlashingNotInitiated();
+  error KeeperCantSlash();
   error KeeperIsAlreadyActive();
   error KeeperIsAlreadyInactive();
   error UnexpectedBlock();
@@ -37,7 +38,12 @@ contract PPAgentV2Randao is PPAgentV2 {
   error JobCheckCanBeExecuted();
   error JobCheckCanNotBeExecuted(bytes errReason);
   error JobCanNotBeExecuted(bytes errReason);
-  event InitiateSlashing(bytes32 indexed jobKey, uint256 indexed slasherKeeperId, bool useResolver);
+  event InitiateSlashing(
+    bytes32 indexed jobKey,
+    uint256 indexed slasherKeeperId,
+    bool useResolver,
+    uint256 jobSlashingPossibleAfter
+  );
   error OnlyNextKeeper(
     uint256 expectedKeeperId,
     uint256 lastExecutedAt,
@@ -82,12 +88,22 @@ contract PPAgentV2Randao is PPAgentV2 {
   mapping(bytes32 => uint256) public jobNextKeeperId;
   // keccak256(jobAddress, id) => nextSlasherId
   mapping(bytes32 => uint256) public jobReservedSlasherId;
+  // keccak256(jobAddress, id) => timestamp, for non-interval jobs
+  mapping(bytes32 => uint256) public jobSlashingPossibleAfter;
   // keccak256(jobAddress, id) => timestamp
   mapping(bytes32 => uint256) internal jobCreatedAt;
-  // keccak256(jobAddress, id) => timestamp, for non-interval jobs
-  mapping(bytes32 => uint256) internal jobSlashingPossibleAfter;
   // keeperId => (pending jobs)
   mapping(uint256 => EnumerableSet.Bytes32Set) internal keeperLocksByJob;
+
+  function _assertOnlyKeeperWorker(uint256 keeperId_) internal view {
+    if (msg.sender != keeperAdmins[keeperId_]) {
+      revert OnlyKeeperAdmin();
+    }
+  }
+
+  function _getJobGasOverhead() internal pure override returns (uint256) {
+    return 55_000;
+  }
 
   constructor(
     address owner_,
@@ -145,12 +161,6 @@ contract PPAgentV2Randao is PPAgentV2 {
     emit SetKeeperActiveStatus(keeperId_, isActive_);
   }
 
-  function _assertOnlyKeeperWorker(uint256 keeperId_) internal view {
-    if (msg.sender != keeperAdmins[keeperId_]) {
-      revert OnlyKeeperAdmin();
-    }
-  }
-
   function initiateSlashing(
     address jobAddress_,
     uint256 jobId_,
@@ -180,7 +190,8 @@ contract PPAgentV2Randao is PPAgentV2 {
     }
 
     // 2. Assert job-scoped keeper's minimum CVP deposit
-    if (ConfigFlags.check(binJob, CFG_CHECK_KEEPER_MIN_CVP_DEPOSIT) && keepers[slasherKeeperId_].cvpStake < jobMinKeeperCvp[jobKey]) {
+    if (ConfigFlags.check(binJob, CFG_CHECK_KEEPER_MIN_CVP_DEPOSIT) &&
+      keepers[slasherKeeperId_].cvpStake < jobMinKeeperCvp[jobKey]) {
       revert InsufficientJobScopedKeeperStake();
     }
 
@@ -192,9 +203,9 @@ contract PPAgentV2Randao is PPAgentV2 {
       }
     }
 
-    // 4.
+    // 4. keeper can't slash
     if (jobNextKeeperId[jobKey] == slasherKeeperId_) {
-      revert("keeper can't slash");
+      revert KeeperCantSlash();
     }
 
     // 5. current slasher
@@ -238,33 +249,10 @@ contract PPAgentV2Randao is PPAgentV2 {
     }
 
     jobReservedSlasherId[jobKey] = slasherKeeperId_;
-    jobSlashingPossibleAfter[jobKey] = block.timestamp + rdConfig.intervalJobSlashingDelaySeconds;
-    
-    emit InitiateSlashing(jobKey, slasherKeeperId_, useResolver_);
-  }
+    _jobSlashingPossibleAfter = block.timestamp + rdConfig.intervalJobSlashingDelaySeconds;
+    jobSlashingPossibleAfter[jobKey] = _jobSlashingPossibleAfter;
 
-  // The function reverts
-  function checkCouldBeExecuted(address jobAddress_, bytes memory jobCalldata_) external {
-    (bool ok, bytes memory result) = jobAddress_.call(jobCalldata_);
-    if (ok) {
-      revert JobCheckCanBeExecuted();
-    } else {
-      revert JobCheckCanNotBeExecuted(result);
-    }
-  }
-
-  /*** GETTERS ***/
-
-  function getKeeperLocksByJob(uint256 keeperId_) external view returns (bytes32[] memory jobKeys) {
-    return keeperLocksByJob[keeperId_].values();
-  }
-
-  function getCurrentSlasherId() public view returns (uint256) {
-    return getSlasherIdByBlock(block.number);
-  }
-
-  function getSlasherIdByBlock(uint256 blockNumber_) public view returns (uint256) {
-    return ((blockNumber_ / rdConfig.slashingEpochBlocks) % lastKeeperId) + 1;
+    emit InitiateSlashing(jobKey, slasherKeeperId_, useResolver_, _jobSlashingPossibleAfter);
   }
 
   /*** OVERRIDES ***/
@@ -319,17 +307,6 @@ contract PPAgentV2Randao is PPAgentV2 {
     }
   }
 
-  function _beforeInitiateRedeem(uint256 keeperId_) internal view override {
-    _ensureCanReleaseKeeper(keeperId_);
-  }
-
-  function _ensureCanReleaseKeeper(uint256 keeperId_) internal view {
-    uint256 len = keeperLocksByJob[keeperId_].length();
-    if (len > 0) {
-      revert KeeperIsAssignedToJobs(len);
-    }
-  }
-
   function _afterExecute(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal override {
     uint256 expectedKeeperId = jobNextKeeperId[jobKey_];
     keeperLocksByJob[expectedKeeperId].remove(jobKey_);
@@ -361,8 +338,19 @@ contract PPAgentV2Randao is PPAgentV2 {
     _assignNextKeeper(jobKey_);
   }
 
+  function _beforeInitiateRedeem(uint256 keeperId_) internal view override {
+    _ensureCanReleaseKeeper(keeperId_);
+  }
+
   function _afterRegisterJob(bytes32 jobKey_) internal override {
     _assignNextKeeper(jobKey_);
+  }
+
+  function _ensureCanReleaseKeeper(uint256 keeperId_) internal view {
+    uint256 len = keeperLocksByJob[keeperId_].length();
+    if (len > 0) {
+      revert KeeperIsAssignedToJobs(len);
+    }
   }
 
   function _getPseudoRandom() internal view returns (uint256) {
@@ -398,7 +386,27 @@ contract PPAgentV2Randao is PPAgentV2 {
     emit KeeperJobLock(_nextExecutionKeeperId, _jobKey);
   }
 
-  function _getJobGasOverhead() internal pure override returns (uint256) {
-    return 55_000;
+  /*** GETTERS ***/
+
+  function getKeeperLocksByJob(uint256 keeperId_) external view returns (bytes32[] memory jobKeys) {
+    return keeperLocksByJob[keeperId_].values();
+  }
+
+  function getCurrentSlasherId() public view returns (uint256) {
+    return getSlasherIdByBlock(block.number);
+  }
+
+  function getSlasherIdByBlock(uint256 blockNumber_) public view returns (uint256) {
+    return ((blockNumber_ / rdConfig.slashingEpochBlocks) % lastKeeperId) + 1;
+  }
+
+  // The function that always reverts
+  function checkCouldBeExecuted(address jobAddress_, bytes memory jobCalldata_) external {
+    (bool ok, bytes memory result) = jobAddress_.call(jobCalldata_);
+    if (ok) {
+      revert JobCheckCanBeExecuted();
+    } else {
+      revert JobCheckCanNotBeExecuted(result);
+    }
   }
 }
