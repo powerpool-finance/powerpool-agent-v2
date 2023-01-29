@@ -242,7 +242,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   function _beforeExecute(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal view virtual {}
   function _beforeInitiateRedeem(uint256 keeperId_) internal view virtual {}
 
-  function _afterExecute(bytes32 jobKey_, uint256 actualKeeperId_) internal virtual {}
+  function _afterExecute(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal virtual {}
   function _afterRegisterJob(bytes32 jobKey_) internal virtual {}
   function _getJobGasOverhead() internal pure virtual returns (uint256) {
     return 40_000;
@@ -483,7 +483,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       }
     }
 
-    _afterExecute(jobKey, actualKeeperId);
+    _afterExecute(jobKey, actualKeeperId, binJob);
   }
 
   function _calculateCompensation(uint256 job_, uint256 gasPrice_, uint256 gasUsed_) internal pure returns (uint256) {

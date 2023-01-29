@@ -34,6 +34,7 @@ contract RandaoExecuteSelectorThreeKeepersTest is TestHelperRandao {
     PPAgentV2Randao.RandaoConfig memory rdConfig = PPAgentV2Randao.RandaoConfig({
       slashingEpochBlocks: 10,
       intervalJobSlashingDelaySeconds: 15,
+      nonIntervalJobSlashingValiditySeconds: 30,
       slashingFeeFixedCVP: 50,
       slashingFeeBps: 300
     });
@@ -185,7 +186,7 @@ contract RandaoExecuteSelectorThreeKeepersTest is TestHelperRandao {
     assertEq(_stakeOf(kid2), 0);
   }
 
-  function testRdCanBeSlashed() public {
+  function testRdIntervalSlashing() public {
     // first execution
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     vm.prank(keeperWorker, keeperWorker);

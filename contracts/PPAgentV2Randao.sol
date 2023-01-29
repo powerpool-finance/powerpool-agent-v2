@@ -5,7 +5,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "./PPAgentV2Flags.sol";
-import { PPAgentV2 } from "./PPAgentV2.sol";
+import "./PPAgentV2Interfaces.sol";
+import { PPAgentV2, ConfigFlags } from "./PPAgentV2.sol";
 import "../lib/forge-std/src/console.sol";
 
 /**
@@ -15,12 +16,35 @@ import "../lib/forge-std/src/console.sol";
 contract PPAgentV2Randao is PPAgentV2 {
   using EnumerableSet for EnumerableSet.Bytes32Set;
 
+  error SlashingEpochBlocksTooLow();
+  error InvalidSlashingPeriod();
+  error InvalidSlashingValidityPeriod();
+  error InvalidSlashingFeeFixedCVP();
+  error SlashingBpsGt5000Bps();
   error SetRdConfigInvalidSlashingPeriod();
   error KeeperIsAssignedToJobs(uint256 amountOfJobs);
-  error OnlyNextKeeper(uint256 expectedKeeperId, uint256 lastExecutedAt, uint256 interval, uint256 slashingInterval, uint256 _now);
   error OnlyCurrentSlasher(uint256 expectedSlasherId);
+  error OnlyReservedSlasher(uint256 reservedSlasherId);
+  error TooEarlyForSlashing(uint256 now_, uint256 possibleAfter);
+  error SlashingNotInitiated();
   error KeeperIsAlreadyActive();
   error KeeperIsAlreadyInactive();
+  error UnexpectedBlock();
+  error InitiateSlashingUnexpectedError();
+  error NonIntervalJob();
+  error JobCheckResolverError(bytes errReason);
+  error TooEarlyToReinitiateSlashing();
+  error JobCheckCanBeExecuted();
+  error JobCheckCanNotBeExecuted(bytes errReason);
+  error JobCanNotBeExecuted(bytes errReason);
+  event InitiateSlashing(bytes32 indexed jobKey, uint256 indexed slasherKeeperId, bool useResolver);
+  error OnlyNextKeeper(
+    uint256 expectedKeeperId,
+    uint256 lastExecutedAt,
+    uint256 interval,
+    uint256 slashingInterval,
+    uint256 _now
+  );
   error InsufficientKeeperStakeToSlash(
     bytes32 jobKey,
     uint256 expectedKeeperId,
@@ -42,8 +66,10 @@ contract PPAgentV2Randao is PPAgentV2 {
   struct RandaoConfig {
     // max: 2^8 - 1 = 255 blocks
     uint8 slashingEpochBlocks;
-    // max: 2^24 - 1 = 16777215 hours ~ 194 days
+    // max: 2^24 - 1 = 16777215 seconds ~ 194 days
     uint24 intervalJobSlashingDelaySeconds;
+    // max: 2^16 - 1 = 65535 seconds ~ 18 hours
+    uint16 nonIntervalJobSlashingValiditySeconds;
     // in 1 CVP. max: 16_777_215 CVP. The value here is multiplied by 1e18 in calculations.
     uint24 slashingFeeFixedCVP; // should be lte MIN_CVP_STAKE / 2
     // In BPS
@@ -54,8 +80,12 @@ contract PPAgentV2Randao is PPAgentV2 {
 
   // keccak256(jobAddress, id) => nextKeeperId
   mapping(bytes32 => uint256) public jobNextKeeperId;
+  // keccak256(jobAddress, id) => nextSlasherId
+  mapping(bytes32 => uint256) public jobReservedSlasherId;
   // keccak256(jobAddress, id) => timestamp
   mapping(bytes32 => uint256) internal jobCreatedAt;
+  // keccak256(jobAddress, id) => timestamp, for non-interval jobs
+  mapping(bytes32 => uint256) internal jobSlashingPossibleAfter;
   // keeperId => (pending jobs)
   mapping(uint256 => EnumerableSet.Bytes32Set) internal keeperLocksByJob;
 
@@ -81,6 +111,9 @@ contract PPAgentV2Randao is PPAgentV2 {
     if (rdConfig_.intervalJobSlashingDelaySeconds < 15 seconds) {
       revert InvalidSlashingPeriod();
     }
+    if (rdConfig_.nonIntervalJobSlashingValiditySeconds < rdConfig_.intervalJobSlashingDelaySeconds) {
+      revert InvalidSlashingValidityPeriod();
+    }
     if (rdConfig.slashingFeeFixedCVP > (minKeeperCvp / 2)) {
       revert InvalidSlashingFeeFixedCVP();
     }
@@ -90,10 +123,6 @@ contract PPAgentV2Randao is PPAgentV2 {
 
     rdConfig = rdConfig_;
   }
-  error SlashingEpochBlocksTooLow();
-  error InvalidSlashingPeriod();
-  error InvalidSlashingFeeFixedCVP();
-  error SlashingBpsGt5000Bps();
 
   /*** KEEPER METHODS ***/
   function setKeeperActiveStatus(uint256 keeperId_, bool isActive_) external {
@@ -114,6 +143,114 @@ contract PPAgentV2Randao is PPAgentV2 {
     keepers[keeperId_].isActive = isActive_;
 
     emit SetKeeperActiveStatus(keeperId_, isActive_);
+  }
+
+  function _assertOnlyKeeperWorker(uint256 keeperId_) internal view {
+    if (msg.sender != keeperAdmins[keeperId_]) {
+      revert OnlyKeeperAdmin();
+    }
+  }
+
+  function initiateSlashing(
+    address jobAddress_,
+    uint256 jobId_,
+    uint256 slasherKeeperId_,
+    bool useResolver_,
+    bytes memory jobCalldata_
+  ) external {
+    bytes32 jobKey = getJobKey(jobAddress_, jobId_);
+    uint256 binJob = getJobRaw(jobKey);
+
+    // 0. Keeper has sufficient stake
+    {
+      Keeper memory keeper = keepers[slasherKeeperId_];
+      if (keeper.worker != msg.sender) {
+        revert KeeperWorkerNotAuthorized();
+      }
+      if (keeper.cvpStake < minKeeperCvp) {
+        revert InsufficientKeeperStake();
+      }
+    }
+
+    // 1. Assert the job is active
+    {
+      if (!ConfigFlags.check(binJob, CFG_ACTIVE)) {
+        revert InactiveJob(jobKey);
+      }
+    }
+
+    // 2. Assert job-scoped keeper's minimum CVP deposit
+    if (ConfigFlags.check(binJob, CFG_CHECK_KEEPER_MIN_CVP_DEPOSIT) && keepers[slasherKeeperId_].cvpStake < jobMinKeeperCvp[jobKey]) {
+      revert InsufficientJobScopedKeeperStake();
+    }
+
+    // 3. Not an interval job
+    {
+      uint256 intervalSeconds = (binJob << 32) >> 232;
+      if (intervalSeconds != 0) {
+        revert NonIntervalJob();
+      }
+    }
+
+    // 4.
+    if (jobNextKeeperId[jobKey] == slasherKeeperId_) {
+      revert("keeper can't slash");
+    }
+
+    // 5. current slasher
+    {
+      uint256 currentSlasherId = getCurrentSlasherId();
+      if (slasherKeeperId_ != currentSlasherId) {
+        revert OnlyCurrentSlasher(currentSlasherId);
+      }
+    }
+
+    // 6. Slashing not initiated yet
+    uint256 _jobSlashingPossibleAfter = jobSlashingPossibleAfter[jobKey];
+    // if is already initiated
+    if (_jobSlashingPossibleAfter != 0 &&
+      // but not overdue yet
+      (_jobSlashingPossibleAfter + rdConfig.nonIntervalJobSlashingValiditySeconds) > block.timestamp
+      ) {
+      revert TooEarlyToReinitiateSlashing();
+    }
+
+    // 7. check if could be executed
+    if (useResolver_) {
+      IPPAgentV2Viewer.Resolver memory resolver = resolvers[jobKey];
+      (bool ok, bytes memory result) = resolver.resolverAddress.call(resolver.resolverCalldata);
+      if (!ok) {
+        revert JobCheckResolverError(result);
+      } // else can be executed
+    } else {
+      (bool ok, bytes memory result) = address(this).call(
+        abi.encodeWithSelector(PPAgentV2Randao.checkCouldBeExecuted.selector, jobAddress_, jobCalldata_)
+      );
+      if (ok) {
+        revert UnexpectedBlock();
+      }
+      bytes4 selector = bytes4(result);
+      if (selector == PPAgentV2Randao.JobCheckCanNotBeExecuted.selector) {
+        revert JobCanNotBeExecuted(result);
+      } else if (selector != PPAgentV2Randao.JobCheckCanBeExecuted.selector) {
+        revert InitiateSlashingUnexpectedError();
+      } // else can be executed
+    }
+
+    jobReservedSlasherId[jobKey] = slasherKeeperId_;
+    jobSlashingPossibleAfter[jobKey] = block.timestamp + rdConfig.intervalJobSlashingDelaySeconds;
+    
+    emit InitiateSlashing(jobKey, slasherKeeperId_, useResolver_);
+  }
+
+  // The function reverts
+  function checkCouldBeExecuted(address jobAddress_, bytes memory jobCalldata_) external {
+    (bool ok, bytes memory result) = jobAddress_.call(jobCalldata_);
+    if (ok) {
+      revert JobCheckCanBeExecuted();
+    } else {
+      revert JobCheckCanNotBeExecuted(result);
+    }
   }
 
   /*** GETTERS ***/
@@ -165,9 +302,20 @@ contract PPAgentV2Randao is PPAgentV2 {
       if (actualKeeperId_ != currentSlasherId) {
         revert OnlyCurrentSlasher(currentSlasherId);
       }
-    // if non-interval task is called by a slasher
+    // if a resolver job is called by a slasher
     } else  if (intervalSeconds == 0 && jobNextKeeperId[jobKey_] != actualKeeperId_) {
+      uint256 _jobSlashingPossibleAfter = jobSlashingPossibleAfter[jobKey_];
+      if (_jobSlashingPossibleAfter == 0) {
+        revert SlashingNotInitiated();
+      }
+      if (_jobSlashingPossibleAfter > block.timestamp) {
+        revert TooEarlyForSlashing(block.timestamp, jobSlashingPossibleAfter[jobKey_]);
+      }
 
+      uint256 _jobReservedSlasherId = jobReservedSlasherId[jobKey_];
+      if (_jobReservedSlasherId != actualKeeperId_) {
+        revert OnlyReservedSlasher(_jobReservedSlasherId);
+      }
     }
   }
 
@@ -182,10 +330,17 @@ contract PPAgentV2Randao is PPAgentV2 {
     }
   }
 
-  function _afterExecute(bytes32 jobKey_, uint256 actualKeeperId_) internal override {
+  function _afterExecute(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal override {
     uint256 expectedKeeperId = jobNextKeeperId[jobKey_];
     keeperLocksByJob[expectedKeeperId].remove(jobKey_);
     emit KeeperJobUnlock(expectedKeeperId, actualKeeperId_, jobKey_);
+
+    uint256 intervalSeconds = (binJob_ << 32) >> 232;
+
+    if (intervalSeconds == 0) {
+      jobReservedSlasherId[jobKey_] = 0;
+      jobSlashingPossibleAfter[jobKey_] = 0;
+    }
 
     // if slashing
     if (jobNextKeeperId[jobKey_] != actualKeeperId_) {
@@ -226,14 +381,14 @@ contract PPAgentV2Randao is PPAgentV2 {
     // TODO: in the case when the loop repeats more than one cycle return an explicit error
     while (true) {
       _nextExecutionKeeperId += 1;
-      // TODO: pay attention to activity flag
       if (_nextExecutionKeeperId  > _lastKeeperId) {
         _nextExecutionKeeperId = 1;
       }
 
       uint256 requiredStake = _jobMinKeeperCvp > 0 ? _jobMinKeeperCvp : minKeeperCvp;
+      Keeper memory keeper = keepers[_nextExecutionKeeperId];
 
-      if (keepers[_nextExecutionKeeperId].cvpStake >= requiredStake) {
+      if (keeper.isActive && keeper.cvpStake >= requiredStake) {
         jobNextKeeperId[_jobKey] = _nextExecutionKeeperId;
         break;
       }
