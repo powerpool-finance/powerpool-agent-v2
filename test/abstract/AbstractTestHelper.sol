@@ -103,6 +103,11 @@ abstract contract AbstractTestHelper is Test, PPAgentV2Flags {
     return details;
   }
 
+  function _jobCredits(bytes32 jobKey_) internal view returns (uint256) {
+    (,,,IPPAgentV2Viewer.Job memory details,,) = _agentViewer().getJob(jobKey_);
+    return details.credits;
+  }
+
   function _jobPreDefinedCalldata(bytes32 jobKey_) internal view returns (bytes memory) {
     (,,,,bytes memory preDefinedCalldata,) = _agentViewer().getJob(jobKey_);
     return preDefinedCalldata;

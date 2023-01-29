@@ -40,7 +40,8 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
       intervalJobSlashingDelaySeconds: 15,
       nonIntervalJobSlashingValiditySeconds: 30,
       slashingFeeFixedCVP: 50,
-      slashingFeeBps: 300
+      slashingFeeBps: 300,
+      jobMinCredits: 0.1 ether
     });
     agent = new PPAgentV2Randao(owner, address(cvp), 3_000 ether, 3 days, rdConfig);
     counter = new OnlySelectorTestJob(address(agent));

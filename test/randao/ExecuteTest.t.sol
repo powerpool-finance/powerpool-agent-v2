@@ -36,7 +36,8 @@ contract RandaoExecuteSelectorThreeKeepersTest is TestHelperRandao {
       intervalJobSlashingDelaySeconds: 15,
       nonIntervalJobSlashingValiditySeconds: 30,
       slashingFeeFixedCVP: 50,
-      slashingFeeBps: 300
+      slashingFeeBps: 300,
+      jobMinCredits: 0.1 ether
     });
     agent = new PPAgentV2Randao(owner, address(cvp), 3_000 ether, 3 days, rdConfig);
     counter = new OnlySelectorTestJob(address(agent));
@@ -259,5 +260,47 @@ contract RandaoExecuteSelectorThreeKeepersTest is TestHelperRandao {
     // 50 + 5000 * 0.03 = 200
     assertEq(_stakeOf(kid1), 5_200 ether);
     assertEq(_stakeOf(kid2), 4_800 ether);
+  }
+
+  function testRdShouldAssignZeroKeeperNotEnoughJobCredits() public {
+    assertEq(_jobCredits(jobKey), 1 ether);
+    vm.prank(alice, alice);
+    agent.withdrawJobCredits(jobKey, alice, 0.91 ether);
+
+    // first execution
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    vm.difficulty(42);
+    vm.prank(keeperWorker, keeperWorker);
+    _callExecuteHelper(
+      agent,
+      address(counter),
+      jobId,
+      defaultFlags,
+      kid2,
+      new bytes(0)
+    );
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+  }
+
+  function testRdShouldAssignZeroKeeperNotEnoughJobOwnerCredits() public {
+    assertEq(_jobCredits(jobKey), 1 ether);
+    vm.prank(alice, alice);
+    agent.setJobConfig(jobKey, true, true, false);
+    vm.prank(alice, alice);
+    agent.depositJobOwnerCredits{value: 0.09 ether}(alice);
+
+    // first execution
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    vm.difficulty(42);
+    vm.prank(keeperWorker, keeperWorker);
+    _callExecuteHelper(
+      agent,
+      address(counter),
+      jobId,
+      defaultFlags,
+      kid2,
+      new bytes(0)
+    );
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
   }
 }

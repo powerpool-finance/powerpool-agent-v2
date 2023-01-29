@@ -69,6 +69,7 @@ contract PPAgentV2Randao is PPAgentV2 {
   );
   event SetRdConfig(RandaoConfig rdConfig);
   event KeeperJobLock(uint256 indexed keeperId, bytes32 indexed jobKey);
+  event JobKeeperUnassigned(bytes32 indexed jobKey);
   event KeeperJobUnlock(uint256 indexed expectedkeeperId, uint256 indexed actualKeeperId, bytes32 indexed jobKey);
   event SetKeeperActiveStatus(uint256 indexed keeperId, bool isActive);
 
@@ -83,6 +84,8 @@ contract PPAgentV2Randao is PPAgentV2 {
     uint24 slashingFeeFixedCVP;
     // In BPS
     uint16 slashingFeeBps;
+    // max: 2^96-1 ~= 7.92e28
+    uint96 jobMinCredits;
   }
 
   RandaoConfig public rdConfig;
@@ -372,13 +375,30 @@ contract PPAgentV2Randao is PPAgentV2 {
     return block.difficulty;
   }
 
-  function _assignNextKeeper(bytes32 _jobKey) internal {
+  function _assignNextKeeper(bytes32 jobKey_) internal {
+    uint256 binJob = getJobRaw(jobKey_);
+
+    if (ConfigFlags.check(binJob, CFG_USE_JOB_OWNER_CREDITS)) {
+      if (jobOwnerCredits[jobOwners[jobKey_]] < rdConfig.jobMinCredits) {
+        jobNextKeeperId[jobKey_] = 0;
+        emit JobKeeperUnassigned(jobKey_);
+        return;
+      }
+    } else {
+      uint256 jobCredits = (binJob << 128) >> 168;
+      if (jobCredits < rdConfig.jobMinCredits) {
+        jobNextKeeperId[jobKey_] = 0;
+        emit JobKeeperUnassigned(jobKey_);
+        return;
+      }
+    }
+
     uint256 pseudoRandom = _getPseudoRandom();
     uint256 _lastKeeperId = lastKeeperId;
-    uint256 _jobMinKeeperCvp = jobMinKeeperCvp[_jobKey];
+    uint256 _jobMinKeeperCvp = jobMinKeeperCvp[jobKey_];
     uint256 _nextExecutionKeeperId;
     unchecked {
-      _nextExecutionKeeperId = ((pseudoRandom + uint256(_jobKey)) % _lastKeeperId);
+      _nextExecutionKeeperId = ((pseudoRandom + uint256(jobKey_)) % _lastKeeperId);
     }
 
     // TODO: use set for active keepers & slasher.
@@ -394,13 +414,13 @@ contract PPAgentV2Randao is PPAgentV2 {
       Keeper memory keeper = keepers[_nextExecutionKeeperId];
 
       if (keeper.isActive && keeper.cvpStake >= requiredStake) {
-        jobNextKeeperId[_jobKey] = _nextExecutionKeeperId;
+        jobNextKeeperId[jobKey_] = _nextExecutionKeeperId;
         break;
       }
     }
 
-    keeperLocksByJob[_nextExecutionKeeperId].add(_jobKey);
-    emit KeeperJobLock(_nextExecutionKeeperId, _jobKey);
+    keeperLocksByJob[_nextExecutionKeeperId].add(jobKey_);
+    emit KeeperJobLock(_nextExecutionKeeperId, jobKey_);
   }
 
   /*** GETTERS ***/
