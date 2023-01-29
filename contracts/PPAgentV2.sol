@@ -777,7 +777,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    *
    * @param jobKey_ The jobKey to deposit for
    */
-  function depositJobCredits(bytes32 jobKey_) external payable {
+  function depositJobCredits(bytes32 jobKey_) public virtual payable {
     _assertNonZeroValue();
 
     if (jobOwners[jobKey_] == address(0)) {

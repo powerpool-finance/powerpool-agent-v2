@@ -33,8 +33,8 @@ contract RandaoExecuteSelectorThreeKeepersTest is TestHelperRandao {
     cvp = new MockCVP();
     PPAgentV2Randao.RandaoConfig memory rdConfig = PPAgentV2Randao.RandaoConfig({
       slashingEpochBlocks: 10,
-      intervalJobSlashingDelaySeconds: 15,
-      nonIntervalJobSlashingValiditySeconds: 30,
+      period1: 15,
+      period2: 30,
       slashingFeeFixedCVP: 50,
       slashingFeeBps: 300,
       jobMinCredits: 0.1 ether
