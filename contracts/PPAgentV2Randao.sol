@@ -34,6 +34,7 @@ contract PPAgentV2Randao is PPAgentV2 {
   error InitiateSlashingUnexpectedError();
   error NonIntervalJob();
   error JobCheckResolverError(bytes errReason);
+  error JobCheckResolverReturnedFalse();
   error TooEarlyToReinitiateSlashing();
   error JobCheckCanBeExecuted();
   error JobCheckCanNotBeExecuted(bytes errReason);
@@ -65,6 +66,7 @@ contract PPAgentV2Randao is PPAgentV2 {
     uint256 fixedSlashAmount,
     uint256 dynamicSlashAmount
   );
+  event SetRdConfig(RandaoConfig rdConfig);
   event KeeperJobLock(uint256 indexed keeperId, bytes32 indexed jobKey);
   event KeeperJobUnlock(uint256 indexed expectedkeeperId, uint256 indexed actualKeeperId, bytes32 indexed jobKey);
   event SetKeeperActiveStatus(uint256 indexed keeperId, bool isActive);
@@ -91,7 +93,7 @@ contract PPAgentV2Randao is PPAgentV2 {
   // keccak256(jobAddress, id) => timestamp, for non-interval jobs
   mapping(bytes32 => uint256) public jobSlashingPossibleAfter;
   // keccak256(jobAddress, id) => timestamp
-  mapping(bytes32 => uint256) internal jobCreatedAt;
+  mapping(bytes32 => uint256) public jobCreatedAt;
   // keeperId => (pending jobs)
   mapping(uint256 => EnumerableSet.Bytes32Set) internal keeperLocksByJob;
 
@@ -136,6 +138,7 @@ contract PPAgentV2Randao is PPAgentV2 {
     if (rdConfig.slashingFeeBps > 5000) {
       revert SlashingBpsGt5000Bps();
     }
+    emit SetRdConfig(rdConfig);
 
     rdConfig = rdConfig_;
   }
@@ -232,6 +235,10 @@ contract PPAgentV2Randao is PPAgentV2 {
       (bool ok, bytes memory result) = resolver.resolverAddress.call(resolver.resolverCalldata);
       if (!ok) {
         revert JobCheckResolverError(result);
+      }
+      (bool canExecute,) = abi.decode(result, (bool, bytes));
+      if (!canExecute) {
+        revert JobCheckResolverReturnedFalse();
       } // else can be executed
     } else {
       (bool ok, bytes memory result) = address(this).call(
@@ -242,7 +249,9 @@ contract PPAgentV2Randao is PPAgentV2 {
       }
       bytes4 selector = bytes4(result);
       if (selector == PPAgentV2Randao.JobCheckCanNotBeExecuted.selector) {
-        revert JobCanNotBeExecuted(result);
+        assembly {
+            revert(add(32, result), mload(result))
+        }
       } else if (selector != PPAgentV2Randao.JobCheckCanBeExecuted.selector) {
         revert InitiateSlashingUnexpectedError();
       } // else can be executed

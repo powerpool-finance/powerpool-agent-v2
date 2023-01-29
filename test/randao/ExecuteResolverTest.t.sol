@@ -7,6 +7,7 @@ import "../jobs/JobTopupTestJob.sol";
 import "../jobs/OnlySelectorTestJob.sol";
 import "../TestHelperRandao.sol";
 import "../jobs/SimpleCalldataTestJob.sol";
+import "../jobs/SimpleCustomizableCalldataTestJob.sol";
 
 contract RandaoExecuteResolverTest is TestHelperRandao {
   ICounter internal job;
@@ -61,7 +62,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
   function _setupJob(address job_, bytes4 selector_, bool assertSelector_) internal {
     PPAgentV2.Resolver memory resolver = IPPAgentV2Viewer.Resolver({
       resolverAddress: job_,
-      resolverCalldata: abi.encode("myPass")
+      resolverCalldata: abi.encodeWithSelector(SimpleCustomizableCalldataTestJob.myResolver.selector, "myPass")
     });
     IPPAgentV2JobOwner.RegisterJobParams memory params = IPPAgentV2JobOwner.RegisterJobParams({
       jobAddress: job_,
@@ -177,5 +178,53 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     // 50 + 5000 * 0.03 = 200
     assertEq(_stakeOf(kid3), 5_200 ether);
     assertEq(_stakeOf(kid2), 4_800 ether);
+  }
+
+  function testRdResolverSlashingResolverReject() public {
+    job = new SimpleCustomizableCalldataTestJob(address(agent));
+    _setupJob(address(job), SimpleCalldataTestJob.increment.selector, true);
+    // first execution
+    vm.difficulty(41);
+    (bool ok, bytes memory cd) = job.myResolver("myPass");
+    assertEq(ok, true);
+    _executeJob(3, cd);
+
+    SimpleCustomizableCalldataTestJob(address(job)).setResolverReturnFalse(true);
+
+    // resolver false
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.JobCheckResolverReturnedFalse.selector));
+    vm.prank(alice, alice);
+    agent.initiateSlashing(address(job), jobId, kid1, true, cd);
+
+    SimpleCustomizableCalldataTestJob(address(job)).setResolverReturnFalse(false);
+    SimpleCustomizableCalldataTestJob(address(job)).setRevertResolver(true);
+
+    // resolver revert
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.JobCheckResolverError.selector,
+      abi.encodeWithSelector(0x08c379a0, "forced resolver revert")
+      ));
+    vm.prank(alice, alice);
+    agent.initiateSlashing(address(job), jobId, kid1, true, cd);
+  }
+
+  function testRdResolverSlashingExecutionRevert() public {
+    job = new SimpleCustomizableCalldataTestJob(address(agent));
+    _setupJob(address(job), SimpleCalldataTestJob.increment.selector, true);
+    // first execution
+    vm.difficulty(41);
+    (bool ok, bytes memory cd) = job.myResolver("myPass");
+    assertEq(ok, true);
+    _executeJob(3, cd);
+
+    SimpleCustomizableCalldataTestJob(address(job)).setRevertExecution(true);
+
+    // resolver false
+    vm.expectRevert(
+      abi.encodeWithSelector(PPAgentV2Randao.JobCheckCanNotBeExecuted.selector,
+        abi.encodeWithSelector(0x08c379a0, "forced execution revert")
+      )
+    );
+    vm.prank(alice, alice);
+    agent.initiateSlashing(address(job), jobId, kid1, false, cd);
   }
 }
