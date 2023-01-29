@@ -180,6 +180,40 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     assertEq(_stakeOf(kid2), 4_800 ether);
   }
 
+  function testRdResolverSlashingKeeperCanExecuteAfterInitiated() public {
+    job = new SimpleCustomizableCalldataTestJob(address(agent));
+    assertEq(job.current(), 0);
+    _setupJob(address(job), SimpleCalldataTestJob.increment.selector, true);
+    // first execution
+    vm.difficulty(41);
+    (bool ok, bytes memory cd) = job.myResolver("myPass");
+    assertEq(ok, true);
+    _executeJob(3, cd);
+    assertEq(job.current(), 1);
+
+    // resolver false
+    vm.prank(alice, alice);
+    agent.initiateSlashing(address(job), jobId, kid1, false, cd);
+
+    // time: 11, block: 43. Slashing not initiated
+    vm.roll(52);
+    vm.warp(1600000000 + 11);
+    assertEq(job.current(), 1);
+    assertEq(block.number, 52);
+    assertEq(agent.getCurrentSlasherId(), 3);
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.jobReservedSlasherId(jobKey), 1);
+    assertEq(agent.jobSlashingPossibleAfter(jobKey), 1600000015);
+
+    _executeJob(2, cd);
+
+    assertEq(_stakeOf(kid1), 5_000 ether);
+    assertEq(_stakeOf(kid2), 5_000 ether);
+    assertEq(job.current(), 2);
+    assertEq(agent.jobReservedSlasherId(jobKey), 0);
+    assertEq(agent.jobSlashingPossibleAfter(jobKey), 0);
+  }
+
   function testRdResolverSlashingResolverReject() public {
     job = new SimpleCustomizableCalldataTestJob(address(agent));
     _setupJob(address(job), SimpleCalldataTestJob.increment.selector, true);
@@ -215,6 +249,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     (bool ok, bytes memory cd) = job.myResolver("myPass");
     assertEq(ok, true);
     _executeJob(3, cd);
+    assertEq(job.current(), 1);
 
     SimpleCustomizableCalldataTestJob(address(job)).setRevertExecution(true);
 
@@ -226,5 +261,6 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     );
     vm.prank(alice, alice);
     agent.initiateSlashing(address(job), jobId, kid1, false, cd);
+    assertEq(job.current(), 1);
   }
 }
