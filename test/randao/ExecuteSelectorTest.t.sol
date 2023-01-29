@@ -7,7 +7,7 @@ import "../jobs/JobTopupTestJob.sol";
 import "../jobs/OnlySelectorTestJob.sol";
 import "../TestHelperRandao.sol";
 
-contract RandaoExecuteSelectorThreeKeepersTest is TestHelperRandao {
+contract RandaoExecuteSelectorTest is TestHelperRandao {
   event Execute(bytes32 indexed jobKey, address indexed job, bool indexed success, uint256 gasUsed, uint256 baseFee, uint256 gasPrice, uint256 compensation);
 
   OnlySelectorTestJob internal counter;
