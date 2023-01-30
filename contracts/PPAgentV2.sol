@@ -903,7 +903,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    * @param initialDepositAmount_ The initial CVP deposit. Should be no less than `minKeepCvp`
    * @return keeperId The registered keeper ID
    */
-  function registerAsKeeper(address worker_, uint256 initialDepositAmount_) external returns (uint256 keeperId) {
+  function registerAsKeeper(address worker_, uint256 initialDepositAmount_) public virtual returns (uint256 keeperId) {
     _assertWorkerNotAssigned(worker_);
 
     if (initialDepositAmount_ < minKeeperCvp) {

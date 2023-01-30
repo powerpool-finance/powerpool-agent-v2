@@ -15,6 +15,7 @@ import "../lib/forge-std/src/console.sol";
  */
 contract PPAgentV2Randao is PPAgentV2 {
   using EnumerableSet for EnumerableSet.Bytes32Set;
+  using EnumerableSet for EnumerableSet.UintSet;
 
   error JobHasKeeperAssigned(uint256 keeperId);
   error SlashingEpochBlocksTooLow();
@@ -105,6 +106,8 @@ contract PPAgentV2Randao is PPAgentV2 {
   // keeperId => (pending jobs)
   mapping(uint256 => EnumerableSet.Bytes32Set) internal keeperLocksByJob;
 
+  EnumerableSet.UintSet internal activeKeepers;
+
   function _assertOnlyKeeperWorker(uint256 keeperId_) internal view {
     if (msg.sender != keeperAdmins[keeperId_]) {
       revert OnlyKeeperAdmin();
@@ -166,6 +169,7 @@ contract PPAgentV2Randao is PPAgentV2 {
   }
 
   /*** KEEPER METHODS ***/
+
   function releaseJob(uint256 keeperId_, bytes32 jobKey_) external {
     _assertOnlyKeeperAdmin(keeperId_);
     uint256 assignedKeeperId = jobNextKeeperId[jobKey_];
@@ -213,8 +217,11 @@ contract PPAgentV2Randao is PPAgentV2 {
     }
 
     // TODO: test
-    if (!isActive_) {
+    if (isActive_) {
+      activeKeepers.add(keeperId_);
+    } else {
       _ensureCanReleaseKeeper(keeperId_);
+      activeKeepers.remove(keeperId_);
     }
 
     keepers[keeperId_].isActive = isActive_;
@@ -274,7 +281,7 @@ contract PPAgentV2Randao is PPAgentV2 {
 
     // 5. current slasher
     {
-      uint256 currentSlasherId = getCurrentSlasherId();
+      uint256 currentSlasherId = getCurrentSlasherId(jobKey);
       if (slasherKeeperId_ != currentSlasherId) {
         revert OnlyCurrentSlasher(currentSlasherId);
       }
@@ -343,6 +350,11 @@ contract PPAgentV2Randao is PPAgentV2 {
     }
   }
 
+  function registerAsKeeper(address worker_, uint256 initialDepositAmount_) public override returns (uint256 keeperId) {
+    keeperId = super.registerAsKeeper(worker_, initialDepositAmount_);
+    activeKeepers.add(keeperId);
+  }
+
   /*** HOOKS ***/
   function _beforeExecute(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal view override {
     uint256 nextKeeper = jobNextKeeperId[jobKey_];
@@ -364,7 +376,7 @@ contract PPAgentV2Randao is PPAgentV2 {
         revert OnlyNextKeeper(nextKeeper, lastExecutionAt, intervalSeconds, rdConfig.period1, block.timestamp);
       }
 
-      uint256 currentSlasherId = getCurrentSlasherId();
+      uint256 currentSlasherId = getCurrentSlasherId(jobKey_);
       if (actualKeeperId_ != currentSlasherId) {
         revert OnlyCurrentSlasher(currentSlasherId);
       }
@@ -456,34 +468,33 @@ contract PPAgentV2Randao is PPAgentV2 {
       }
     }
 
+    // TODO: remove keeper on deactivating job
     uint256 pseudoRandom = _getPseudoRandom();
-    uint256 _lastKeeperId = lastKeeperId;
+    uint256 totalActiveKeepers = activeKeepers.length();
     uint256 _jobMinKeeperCvp = jobMinKeeperCvp[jobKey_];
-    uint256 _nextExecutionKeeperId;
+    uint256 index;
     unchecked {
-      _nextExecutionKeeperId = ((pseudoRandom + uint256(jobKey_)) % _lastKeeperId);
+      index = ((pseudoRandom + uint256(jobKey_)) % totalActiveKeepers);
     }
 
-    // TODO: use set for active keepers & slasher.
-    // TODO: in the case when the loop repeats more than one cycle return an explicit error
-    // TODO: remove keeper on deactivating job
     while (true) {
-      _nextExecutionKeeperId += 1;
-      if (_nextExecutionKeeperId  > _lastKeeperId) {
-        _nextExecutionKeeperId = 1;
+      if (index  > totalActiveKeepers) {
+        index = 0;
       }
+      uint256 _nextExecutionKeeperId = activeKeepers.at(index);
 
       uint256 requiredStake = _jobMinKeeperCvp > 0 ? _jobMinKeeperCvp : minKeeperCvp;
       Keeper memory keeper = keepers[_nextExecutionKeeperId];
 
       if (keeper.isActive && keeper.cvpStake >= requiredStake) {
         jobNextKeeperId[jobKey_] = _nextExecutionKeeperId;
-        break;
-      }
-    }
 
-    keeperLocksByJob[_nextExecutionKeeperId].add(jobKey_);
-    emit KeeperJobLock(_nextExecutionKeeperId, jobKey_);
+        keeperLocksByJob[_nextExecutionKeeperId].add(jobKey_);
+        emit KeeperJobLock(_nextExecutionKeeperId, jobKey_);
+        return;
+      }
+      index += 1;
+    }
   }
 
   /*** GETTERS ***/
@@ -492,13 +503,14 @@ contract PPAgentV2Randao is PPAgentV2 {
     return keeperLocksByJob[keeperId_].values();
   }
 
-  function getCurrentSlasherId() public view returns (uint256) {
-    return getSlasherIdByBlock(block.number);
+  function getCurrentSlasherId(bytes32 jobKey_) public view returns (uint256) {
+    return getSlasherIdByBlock(block.number, jobKey_);
   }
 
-  // tODO: randomize using jobKey+ uint256(jobKey)
-  function getSlasherIdByBlock(uint256 blockNumber_) public view returns (uint256) {
-    return ((blockNumber_ / rdConfig.slashingEpochBlocks) % lastKeeperId) + 1;
+  function getSlasherIdByBlock(uint256 blockNumber_, bytes32 jobKey_) public view returns (uint256) {
+    uint256 totalActiveKeepers = activeKeepers.length();
+    uint256 index = ((blockNumber_ / rdConfig.slashingEpochBlocks + uint256(jobKey_)) % totalActiveKeepers);
+    return activeKeepers.at(index);
   }
 
   // The function that always reverts

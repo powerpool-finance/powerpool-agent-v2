@@ -205,7 +205,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     vm.warp(1600000000 + 11);
     assertEq(block.number, 52);
     assertEq(_jobNextExecutionAt(jobKey), 1600000010);
-    assertEq(agent.getCurrentSlasherId(), 3);
+    assertEq(agent.getCurrentSlasherId(jobKey), 1);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
 
     vm.prank(alice, alice);
@@ -225,28 +225,15 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     );
 
     // time: 26, block: 63. Should allow slashing
-    vm.roll(63);
+    vm.roll(73);
     vm.warp(1600000000 + 26);
-    assertEq(block.number, 63);
+    assertEq(block.number, 73);
     assertEq(_jobNextExecutionAt(jobKey), 1600000010);
-    assertEq(agent.getCurrentSlasherId(), 1);
+    assertEq(agent.getCurrentSlasherId(jobKey), 3);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
 
     // kid3 attempt should fail
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.OnlyCurrentSlasher.selector, 1));
-    vm.prank(bob, bob);
-    _callExecuteHelper(
-      agent,
-      address(counter),
-      jobId,
-      defaultFlags,
-      kid3,
-      new bytes(0)
-    );
-
-    assertEq(_stakeOf(kid1), 5_000 ether);
-    assertEq(_stakeOf(kid2), 5_000 ether);
-
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.OnlyCurrentSlasher.selector, 3));
     vm.prank(alice, alice);
     _callExecuteHelper(
       agent,
@@ -257,8 +244,21 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
       new bytes(0)
     );
 
+    assertEq(_stakeOf(kid1), 5_000 ether);
+    assertEq(_stakeOf(kid2), 5_000 ether);
+
+    vm.prank(bob, bob);
+    _callExecuteHelper(
+      agent,
+      address(counter),
+      jobId,
+      defaultFlags,
+      kid3,
+      new bytes(0)
+    );
+
     // 50 + 5000 * 0.03 = 200
-    assertEq(_stakeOf(kid1), 5_200 ether);
+    assertEq(_stakeOf(kid3), 5_200 ether);
     assertEq(_stakeOf(kid2), 4_800 ether);
   }
 
