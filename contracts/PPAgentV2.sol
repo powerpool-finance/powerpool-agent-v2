@@ -716,7 +716,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     bool isActive_,
     bool useJobOwnerCredits_,
     bool assertResolverSelector_
-  ) external {
+  ) public virtual {
     _assertOnlyJobOwner(jobKey_);
     uint256 newConfig = 0;
 

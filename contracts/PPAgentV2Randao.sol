@@ -309,7 +309,6 @@ contract PPAgentV2Randao is PPAgentV2 {
         revert JobCheckResolverReturnedFalse();
       } // else can be executed
     } else {
-      // TODO: check that value not changed
       (bool ok, bytes memory result) = address(this).call(
         abi.encodeWithSelector(PPAgentV2Randao.checkCouldBeExecuted.selector, jobAddress_, jobCalldata_)
       );
@@ -353,6 +352,20 @@ contract PPAgentV2Randao is PPAgentV2 {
   function registerAsKeeper(address worker_, uint256 initialDepositAmount_) public override returns (uint256 keeperId) {
     keeperId = super.registerAsKeeper(worker_, initialDepositAmount_);
     activeKeepers.add(keeperId);
+  }
+
+  function setJobConfig(
+    bytes32 jobKey_,
+    bool isActive_,
+    bool useJobOwnerCredits_,
+    bool assertResolverSelector_
+  ) public override {
+    super.setJobConfig(jobKey_, isActive_, useJobOwnerCredits_, assertResolverSelector_);
+    if (!isActive_) {
+      jobNextKeeperId[jobKey_] = 0;
+      jobSlashingPossibleAfter[jobKey_] = 0;
+      jobReservedSlasherId[jobKey_] = 0;
+    }
   }
 
   /*** HOOKS ***/
@@ -468,7 +481,6 @@ contract PPAgentV2Randao is PPAgentV2 {
       }
     }
 
-    // TODO: remove keeper on deactivating job
     uint256 pseudoRandom = _getPseudoRandom();
     uint256 totalActiveKeepers = activeKeepers.length();
     uint256 _jobMinKeeperCvp = jobMinKeeperCvp[jobKey_];
