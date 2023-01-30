@@ -232,9 +232,8 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   }
 
   constructor(address owner_, address cvp_, uint256 minKeeperCvp_, uint256 pendingWithdrawalTimeoutSeconds_) {
-    minKeeperCvp = minKeeperCvp_;
     CVP = IERC20(cvp_);
-    pendingWithdrawalTimeoutSeconds = pendingWithdrawalTimeoutSeconds_;
+    _setAgentParams(minKeeperCvp_, pendingWithdrawalTimeoutSeconds_, 0);
     _transferOwnership(owner_);
   }
 
@@ -1116,7 +1115,14 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     uint256 feePpm_
   ) external {
     _assertOnlyOwner();
+    _setAgentParams(minKeeperCvp_, timeoutSeconds_, feePpm_);
+  }
 
+  function _setAgentParams(
+    uint256 minKeeperCvp_,
+    uint256 timeoutSeconds_,
+    uint256 feePpm_
+  ) internal {
     if (timeoutSeconds_ > MAX_PENDING_WITHDRAWAL_TIMEOUT_SECONDS) {
       revert TimeoutTooBig();
     }
