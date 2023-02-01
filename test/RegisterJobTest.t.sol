@@ -390,21 +390,18 @@ contract RegisterJob is TestHelper {
     );
   }
 
-  function testJobWithResolverWithInterval() public {
+  function testJobWithResolverWithIntervalNotSupported() public {
     IPPAgentV2JobOwner.RegisterJobParams memory params = params3;
     params.intervalSeconds = 1_000;
 
+    vm.expectRevert(
+      abi.encodeWithSelector(PPAgentV2.ResolverJobCantHaveInterval.selector)
+    );
     (bytes32 jobKey,) = agent.registerJob({
       params_: params,
       resolver_: resolver1,
       preDefinedCalldata_: hex"313373"
     });
-
-    PPAgentV2.Job memory job = _jobDetails(jobKey);
-    assertEq(lens.isJobActivePure(agent.getJobRaw(jobKey)), true);
-    assertEq(job.selector, bytes4(0xd09de08a));
-    assertEq(job.intervalSeconds, 1_000);
-    assertEq(job.calldataSource, CALLDATA_SOURCE_RESOLVER);
   }
 
   function testErrJobWithResolverMissingAddress() public {

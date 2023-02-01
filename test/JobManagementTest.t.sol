@@ -32,6 +32,7 @@ contract JobManagementTest is TestHelper {
 
   modifier jobWithResolverCalldataSource() {
     IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
+    params.intervalSeconds = 0;
     params.calldataSource = CALLDATA_SOURCE_RESOLVER;
     vm.prank(alice);
     (jobKey,) = agent.registerJob(params, resolver1, new bytes(0));
@@ -531,14 +532,18 @@ contract JobManagementTest is TestHelper {
     agent.updateJob(myJobKey, 200, 55, 20, 0, 0);
   }
 
-  function testUpdateJobWithResolverCanHaveZeroInterval() public {
+  function testUpdateJobWithResolverCantHaveNonZeroInterval() public {
     IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
+    params.intervalSeconds = 0;
     params.calldataSource = CALLDATA_SOURCE_RESOLVER;
     vm.prank(alice);
     (bytes32 myJobKey,) = agent.registerJob(params, resolver1, new bytes(0));
 
+    vm.expectRevert(
+      abi.encodeWithSelector(PPAgentV2.ResolverJobCantHaveInterval.selector)
+    );
     vm.prank(alice);
-    agent.updateJob(myJobKey, 200, 55, 20, 0, 0);
+    agent.updateJob(myJobKey, 200, 55, 20, 0, 1);
   }
 
   // setJobResolver()

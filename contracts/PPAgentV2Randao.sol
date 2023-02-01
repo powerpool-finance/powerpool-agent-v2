@@ -24,7 +24,6 @@ contract PPAgentV2Randao is PPAgentV2 {
   error InvalidSlashingFeeFixedCVP();
   error SlashingBpsGt5000Bps();
   error InactiveKeeper();
-  error SetRdConfigInvalidPeriod1();
   error KeeperIsAssignedToJobs(uint256 amountOfJobs);
   error KeeperNotAssignedToJob(uint256 assignedKeeperId);
   error OnlyCurrentSlasher(uint256 expectedSlasherId);
@@ -42,7 +41,6 @@ contract PPAgentV2Randao is PPAgentV2 {
   error TooEarlyToReinitiateSlashing();
   error JobCheckCanBeExecuted();
   error JobCheckCanNotBeExecuted(bytes errReason);
-  error JobCanNotBeExecuted(bytes errReason);
   error TooEarlyToRelease(bytes32 jobKey, uint256 period2End);
   error CantRelease();
   event InitiateSlashing(
@@ -517,6 +515,10 @@ contract PPAgentV2Randao is PPAgentV2 {
 
   function getCurrentSlasherId(bytes32 jobKey_) public view returns (uint256) {
     return getSlasherIdByBlock(block.number, jobKey_);
+  }
+
+  function getActiveKeepers() public view returns (uint256[] memory) {
+    return activeKeepers.values();
   }
 
   function getSlasherIdByBlock(uint256 blockNumber_, bytes32 jobKey_) public view returns (uint256) {

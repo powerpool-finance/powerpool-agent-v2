@@ -340,7 +340,7 @@ contract ExecuteSelectorTest is TestHelper {
 
       // For interval jobs
       calldataSource: CALLDATA_SOURCE_RESOLVER,
-      intervalSeconds: 10
+      intervalSeconds: 0
     });
     vm.prank(alice);
     vm.deal(alice, 10 ether);

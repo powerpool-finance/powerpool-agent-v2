@@ -48,6 +48,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   error MissingAmount();
   error WithdrawAmountExceedsAvailable(uint256 wanted, uint256 actual);
   error JobShouldHaveInterval();
+  error ResolverJobCantHaveInterval();
   error InvalidJobAddress();
   error MissingResolverAddress();
   error NotSupportedByJobCalldataSource();
@@ -228,6 +229,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     if (interval_ == 0 &&
       (calldataSource_ == CalldataSourceType.SELECTOR || calldataSource_ == CalldataSourceType.PRE_DEFINED)) {
       revert JobShouldHaveInterval();
+    }
+    if (interval_ != 0 && calldataSource_ == CalldataSourceType.RESOLVER) {
+      revert ResolverJobCantHaveInterval();
     }
   }
 
