@@ -83,10 +83,10 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
   }
 
   function testRdExecWithSelector1() public {
-    bytes32[] memory jobKeys = agent.getKeeperLocksByJob(kid1);
+    bytes32[] memory jobKeys = agent.getJobsAssignedToKeeper(kid1);
     assertEq(jobKeys.length, 0);
 
-    jobKeys = agent.getKeeperLocksByJob(kid2);
+    jobKeys = agent.getJobsAssignedToKeeper(kid2);
     assertEq(jobKeys.length, 1);
     assertEq(jobKeys[0], jobKey);
 
@@ -102,11 +102,11 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     );
 
     {
-      jobKeys = agent.getKeeperLocksByJob(kid1);
+      jobKeys = agent.getJobsAssignedToKeeper(kid1);
       assertEq(jobKeys.length, 1);
       assertEq(jobKeys[0], jobKey);
 
-      jobKeys = agent.getKeeperLocksByJob(kid2);
+      jobKeys = agent.getJobsAssignedToKeeper(kid2);
       assertEq(jobKeys.length, 0);
     }
 
@@ -155,7 +155,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
   function testRdCantRedeem() public {
     assertEq(_keeperCount(), 3);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
-    bytes32[] memory lockedJobs = agent.getKeeperLocksByJob(kid2);
+    bytes32[] memory lockedJobs = agent.getJobsAssignedToKeeper(kid2);
     assertEq(lockedJobs.length, 1);
     assertEq(lockedJobs[0], jobKey);
 
@@ -182,7 +182,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
 
     vm.prank(keeperAdmin, keeperAdmin);
     agent.initiateRedeem(kid2, 5_000 ether);
-    lockedJobs = agent.getKeeperLocksByJob(kid2);
+    lockedJobs = agent.getJobsAssignedToKeeper(kid2);
     assertEq(lockedJobs.length, 0);
     assertEq(_stakeOf(kid2), 0);
   }

@@ -360,6 +360,7 @@ contract PPAgentV2Randao is PPAgentV2 {
   ) public override {
     super.setJobConfig(jobKey_, isActive_, useJobOwnerCredits_, assertResolverSelector_);
     if (!isActive_) {
+      // TODO: unassign keeper
       jobNextKeeperId[jobKey_] = 0;
       jobSlashingPossibleAfter[jobKey_] = 0;
       jobReservedSlasherId[jobKey_] = 0;
@@ -488,7 +489,7 @@ contract PPAgentV2Randao is PPAgentV2 {
     }
 
     while (true) {
-      if (index  > totalActiveKeepers) {
+      if (index  >= totalActiveKeepers) {
         index = 0;
       }
       uint256 _nextExecutionKeeperId = activeKeepers.at(index);
@@ -509,12 +510,20 @@ contract PPAgentV2Randao is PPAgentV2 {
 
   /*** GETTERS ***/
 
-  function getKeeperLocksByJob(uint256 keeperId_) external view returns (bytes32[] memory jobKeys) {
+  function getJobsAssignedToKeeper(uint256 keeperId_) external view returns (bytes32[] memory jobKeys) {
     return keeperLocksByJob[keeperId_].values();
+  }
+
+  function getJobsAssignedToKeeperLength(uint256 keeperId_) external view returns (uint256) {
+    return keeperLocksByJob[keeperId_].length();
   }
 
   function getCurrentSlasherId(bytes32 jobKey_) public view returns (uint256) {
     return getSlasherIdByBlock(block.number, jobKey_);
+  }
+
+  function getActiveKeepersLength() public view returns (uint256) {
+    return activeKeepers.length();
   }
 
   function getActiveKeepers() public view returns (uint256[] memory) {
