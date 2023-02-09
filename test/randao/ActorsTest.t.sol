@@ -109,4 +109,86 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     assertEq(slashingFeeBps, 400);
     assertEq(jobMinCredits, 0);
   }
+
+  function testRdJobOwnerDisableJob() public {
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
+
+    vm.prank(alice, alice);
+    agent.setJobConfig(jobKey, false, false, false);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 0);
+
+    vm.prank(alice, alice);
+    agent.setJobConfig(jobKey, false, false, false);
+  }
+
+  function testRdJobOwnerEnableJobWithJobCreditSource() public {
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
+
+    vm.prank(alice, alice);
+    agent.setJobConfig(jobKey, false, false, false);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 0);
+
+    vm.prank(alice, alice);
+    agent.setJobConfig(jobKey, true, false, false);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
+  }
+
+  function testRdJobOwnerEnableJobWithJobOwnerCreditSource() public {
+    vm.prank(alice, alice);
+    agent.setJobConfig(jobKey, true, true, false);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
+
+    vm.prank(alice, alice);
+    agent.setJobConfig(jobKey, false, false, false);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 0);
+
+    vm.prank(alice, alice);
+    agent.setJobConfig(jobKey, true, false, false);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
+  }
+
+  function testRdKeeperSetActiveInactive() public {
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.getJobsAssignedToKeeperLength(3), 0);
+    assertEq(_keeperIsActive(3), true);
+
+    vm.prank(keeperAdmin, keeperAdmin);
+    agent.setKeeperActiveStatus(kid3, false);
+    assertEq(_keeperIsActive(3), false);
+
+    vm.prank(keeperAdmin, keeperAdmin);
+    agent.setKeeperActiveStatus(kid3, true);
+    assertEq(_keeperIsActive(3), true);
+  }
+
+  function testRdKeeperCantSetActiveAgain() public {
+    assertEq(_keeperIsActive(3), true);
+
+    vm.expectRevert(PPAgentV2Randao.KeeperIsAlreadyActive.selector);
+    vm.prank(keeperAdmin, keeperAdmin);
+    agent.setKeeperActiveStatus(kid3, true);
+  }
+
+  function testRdKeeperCantSetInactiveAgain() public {
+    vm.prank(keeperAdmin, keeperAdmin);
+    agent.setKeeperActiveStatus(kid3, false);
+
+    vm.expectRevert(PPAgentV2Randao.KeeperIsAlreadyInactive.selector);
+    vm.prank(keeperAdmin, keeperAdmin);
+    agent.setKeeperActiveStatus(kid3, false);
+  }
 }

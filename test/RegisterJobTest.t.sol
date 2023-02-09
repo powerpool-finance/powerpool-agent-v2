@@ -397,7 +397,7 @@ contract RegisterJob is TestHelper {
     vm.expectRevert(
       abi.encodeWithSelector(PPAgentV2.ResolverJobCantHaveInterval.selector)
     );
-    (bytes32 jobKey,) = agent.registerJob({
+    agent.registerJob({
       params_: params,
       resolver_: resolver1,
       preDefinedCalldata_: hex"313373"

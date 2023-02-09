@@ -214,7 +214,6 @@ contract PPAgentV2Randao is PPAgentV2 {
       revert KeeperIsAlreadyInactive();
     }
 
-    // TODO: test
     if (isActive_) {
       activeKeepers.add(keeperId_);
     } else {
@@ -342,9 +341,7 @@ contract PPAgentV2Randao is PPAgentV2 {
 
   function depositJobCredits(bytes32 jobKey_) public override payable {
     super.depositJobCredits(jobKey_);
-    if (jobNextKeeperId[jobKey_] == 0 && jobs[jobKey_].credits > rdConfig.jobMinCredits) {
-      _assignNextKeeper(jobKey_);
-    }
+    _assignNextKeeperIfRequired(jobKey_);
   }
 
   function registerAsKeeper(address worker_, uint256 initialDepositAmount_) public override returns (uint256 keeperId) {
@@ -358,9 +355,26 @@ contract PPAgentV2Randao is PPAgentV2 {
     bool useJobOwnerCredits_,
     bool assertResolverSelector_
   ) public override {
+    uint256 rawJobBefore = getJobRaw(jobKey_);
     super.setJobConfig(jobKey_, isActive_, useJobOwnerCredits_, assertResolverSelector_);
-    if (!isActive_) {
-      // TODO: unassign keeper
+    bool wasActiveBefore = ConfigFlags.check(rawJobBefore, CFG_ACTIVE);
+
+    // inactive => active: assign if required
+    if(!wasActiveBefore && isActive_)  {
+      _assignNextKeeperIfRequired(jobKey_);
+    }
+
+    // job was and remain active, but the credits source has changed: assign if required
+    if (wasActiveBefore && isActive_ &&
+      (ConfigFlags.check(rawJobBefore, CFG_USE_JOB_OWNER_CREDITS) != useJobOwnerCredits_)) {
+      _assignNextKeeperIfRequired(jobKey_);
+    }
+
+    // active => inactive: unassign
+    if (wasActiveBefore && !isActive_) {
+      uint256 expectedKeeperId = jobNextKeeperId[jobKey_];
+      _releaseJob(jobKey_, expectedKeeperId);
+
       jobNextKeeperId[jobKey_] = 0;
       jobSlashingPossibleAfter[jobKey_] = 0;
       jobReservedSlasherId[jobKey_] = 0;
@@ -460,6 +474,13 @@ contract PPAgentV2Randao is PPAgentV2 {
 
   function _getPseudoRandom() internal view returns (uint256) {
     return block.difficulty;
+  }
+
+  function _assignNextKeeperIfRequired(bytes32 jobKey_) internal {
+    // TODO: make job owner credist case valid
+    if (jobNextKeeperId[jobKey_] == 0 && jobs[jobKey_].credits > rdConfig.jobMinCredits) {
+      _assignNextKeeper(jobKey_);
+    }
   }
 
   function _assignNextKeeper(bytes32 jobKey_) internal {

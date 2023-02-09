@@ -76,7 +76,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   event Execute(
     bytes32 indexed jobKey,
     address indexed job,
-    uint256 keeperId,
+    uint256 indexed keeperId,
     uint256 gasUsed,
     uint256 baseFee,
     uint256 gasPrice,
@@ -1204,6 +1204,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     external view returns (
       address admin,
       address worker,
+      bool isActive,
       uint256 currentStake,
       uint256 slashedStake,
       uint256 compensation,
@@ -1211,15 +1212,17 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       uint256 pendingWithdrawalEndAt
     )
   {
-    return (
-      keeperAdmins[keeperId_],
-      keepers[keeperId_].worker,
-      keepers[keeperId_].cvpStake,
-      slashedStakeOf[keeperId_],
-      compensations[keeperId_],
-      pendingWithdrawalAmounts[keeperId_],
-      pendingWithdrawalEndsAt[keeperId_]
-    );
+    pendingWithdrawalEndAt = pendingWithdrawalEndsAt[keeperId_];
+    pendingWithdrawalAmount = pendingWithdrawalAmounts[keeperId_];
+    compensation = compensations[keeperId_];
+    slashedStake = slashedStakeOf[keeperId_];
+
+    Keeper memory keeper = keepers[keeperId_];
+    currentStake = keeper.cvpStake;
+    isActive = keeper.isActive;
+    worker = keeper.worker;
+
+    admin = keeperAdmins[keeperId_];
   }
 
   function getJob(bytes32 jobKey_)

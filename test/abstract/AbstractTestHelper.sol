@@ -48,33 +48,38 @@ abstract contract AbstractTestHelper is Test, PPAgentV2Flags {
   }
 
   function _stakeOf(uint256 keeperId_) internal view returns (uint256) {
-    (,,uint256 stake,,,,) = _agentViewer().getKeeper(keeperId_);
+    (,,,uint256 stake,,,,) = _agentViewer().getKeeper(keeperId_);
     return stake;
   }
 
   function _slashedStakeOf(uint256 keeperId_) internal view returns (uint256) {
-    (,,,uint256 slashedStake,,,) = _agentViewer().getKeeper(keeperId_);
+    (,,,,uint256 slashedStake,,,) = _agentViewer().getKeeper(keeperId_);
     return slashedStake;
   }
 
   function _compensationOf(uint256 keeperId_) internal view returns (uint256) {
-    (,,,,uint256 compensation,,) = _agentViewer().getKeeper(keeperId_);
+    (,,,,,uint256 compensation,,) = _agentViewer().getKeeper(keeperId_);
     return compensation;
   }
 
   function _pendingWithdrawalAmountOf(uint256 keeperId_) internal view returns (uint256) {
-    (,,,,,uint256 amount,) = _agentViewer().getKeeper(keeperId_);
+    (,,,,,,uint256 amount,) = _agentViewer().getKeeper(keeperId_);
     return amount;
   }
 
   function _pendingWithdrawalEndsAt(uint256 keeperId_) internal view returns (uint256) {
-    (,,,,,,uint256 endsAt) = _agentViewer().getKeeper(keeperId_);
+    (,,,,,,,uint256 endsAt) = _agentViewer().getKeeper(keeperId_);
     return endsAt;
   }
 
   function _workerOf(uint256 keeperId_) internal view returns (address) {
-    (,address worker,,,,,) = _agentViewer().getKeeper(keeperId_);
+    (,address worker,,,,,,) = _agentViewer().getKeeper(keeperId_);
     return worker;
+  }
+
+  function _keeperIsActive(uint256 keeperId_) internal view returns (bool) {
+    (,,bool isActive,,,,,) = _agentViewer().getKeeper(keeperId_);
+    return isActive;
   }
 
   function _jobNextExecutionAt(bytes32 jobKey_) internal view returns (uint256) {

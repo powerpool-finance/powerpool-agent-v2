@@ -35,6 +35,7 @@ interface IPPAgentV2Viewer {
   function getKeeper(uint256 keeperId_) external view returns (
     address admin,
     address worker,
+    bool isActive,
     uint256 currentStake,
     uint256 slashedStake,
     uint256 compensation,
