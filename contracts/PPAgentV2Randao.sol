@@ -178,14 +178,28 @@ contract PPAgentV2Randao is PPAgentV2 {
     uint256 binJob = getJobRaw(jobKey_);
     uint256 intervalSeconds = (binJob << 32) >> 232;
 
-    // if interval job
+    // 1. Release if insufficient credits
+    {
+      uint256 credits = (binJob << 128) >> 168;
+      if (ConfigFlags.check(binJob, CFG_USE_JOB_OWNER_CREDITS)) {
+        credits = jobOwnerCredits[jobOwners[jobKey_]];
+      }
+
+      if (jobNextKeeperId[jobKey_] != 0 && credits < rdConfig.jobMinCredits) {
+        _releaseJob(jobKey_, keeperId_);
+        return;
+      }
+    }
+
+    // 2. Check interval timeouts otherwise
+    // 2.1 If interval job
     if (intervalSeconds != 0) {
       uint256 lastExecutionAt = binJob >> 224;
       uint256 period2EndsAt = lastExecutionAt + rdConfig.period1 + rdConfig.period2;
       if (period2EndsAt > block.timestamp) {
         revert TooEarlyToRelease(jobKey_, period2EndsAt);
       } // else can release
-    // if resolver job
+    // 2.2 If resolver job
     } else {
       // if slashing process initiated
       uint256 _jobSlashingPossibleAfter = jobSlashingPossibleAfter[jobKey_];
@@ -424,6 +438,7 @@ contract PPAgentV2Randao is PPAgentV2 {
   }
   function _releaseJob(bytes32 jobKey_, uint256 keeperId_) internal {
     keeperLocksByJob[keeperId_].remove(jobKey_);
+    jobNextKeeperId[jobKey_] = 0;
     emit KeeperJobUnlock(keeperId_, jobKey_);
   }
 
@@ -477,8 +492,13 @@ contract PPAgentV2Randao is PPAgentV2 {
   }
 
   function _assignNextKeeperIfRequired(bytes32 jobKey_) internal {
-    // TODO: make job owner credist case valid
-    if (jobNextKeeperId[jobKey_] == 0 && jobs[jobKey_].credits > rdConfig.jobMinCredits) {
+    uint256 binJob = getJobRaw(jobKey_);
+    uint256 credits = (binJob << 128) >> 168;
+    if (ConfigFlags.check(binJob, CFG_USE_JOB_OWNER_CREDITS)) {
+      credits = jobOwnerCredits[jobOwners[jobKey_]];
+    }
+
+    if (jobNextKeeperId[jobKey_] == 0 && credits >= rdConfig.jobMinCredits) {
       _assignNextKeeper(jobKey_);
     }
   }
