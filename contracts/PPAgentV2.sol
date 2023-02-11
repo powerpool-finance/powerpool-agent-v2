@@ -247,6 +247,10 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
 
   function _afterExecute(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal virtual {}
   function _afterRegisterJob(bytes32 jobKey_) internal virtual {}
+  function _afterDepositJobCredits(bytes32 jobKey_) internal virtual {}
+  function _afterWithdrawJobCredits(bytes32 jobKey_) internal virtual {}
+
+  /*** CONSTANT GETTERS ***/
   function _getJobGasOverhead() internal pure virtual returns (uint256) {
     return 40_000;
   }
@@ -780,7 +784,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    *
    * @param jobKey_ The jobKey to deposit for
    */
-  function depositJobCredits(bytes32 jobKey_) public virtual payable {
+  function depositJobCredits(bytes32 jobKey_) external virtual payable {
     _assertNonZeroValue();
 
     if (jobOwners[jobKey_] == address(0)) {
@@ -788,6 +792,8 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
 
     _processJobCreditsDeposit(jobKey_);
+
+    _afterDepositJobCredits(jobKey_);
   }
 
   function _processJobCreditsDeposit(bytes32 jobKey_) internal {
@@ -841,6 +847,8 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     to_.transfer(amount_);
 
     emit WithdrawJobCredits(jobKey_, msg.sender, to_, amount_);
+
+    _afterWithdrawJobCredits(jobKey_);
   }
 
   /**

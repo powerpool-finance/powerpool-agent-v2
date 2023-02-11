@@ -15,7 +15,7 @@ contract MockExposedAgent is PPAgentV2Randao {
 
   function assignNextKeeper(bytes32 jobKey_) external {
     uint256 expectedKeeperId = jobNextKeeperId[jobKey_];
-    _releaseJob(jobKey_, expectedKeeperId);
+    _releaseKeeper(jobKey_, expectedKeeperId);
     _assignNextKeeper(jobKey_);
   }
 }

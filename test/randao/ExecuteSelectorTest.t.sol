@@ -20,6 +20,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
   uint256 internal kid2;
   uint256 internal kid3;
   uint256 internal latestKeeperStub;
+  PPAgentV2Randao.RandaoConfig rdConfig;
 
   function setUp() public override {
     defaultFlags = _config({
@@ -31,7 +32,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
       accrueReward: true
     });
     cvp = new MockCVP();
-    PPAgentV2Randao.RandaoConfig memory rdConfig = PPAgentV2Randao.RandaoConfig({
+    rdConfig = PPAgentV2Randao.RandaoConfig({
       slashingEpochBlocks: 10,
       period1: 15,
       period2: 30,
@@ -264,8 +265,13 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
 
   function testRdShouldAssignZeroKeeperNotEnoughJobCredits() public {
     assertEq(_jobCredits(jobKey), 1 ether);
+
+    vm.prank(owner);
+    rdConfig.jobMinCredits = 0.5 ether;
+    agent.setRdConfig(rdConfig);
+
     vm.prank(alice, alice);
-    agent.withdrawJobCredits(jobKey, alice, 0.91 ether);
+    agent.withdrawJobCredits(jobKey, alice, 0.5 ether);
 
     // first execution
     assertEq(agent.jobNextKeeperId(jobKey), 2);

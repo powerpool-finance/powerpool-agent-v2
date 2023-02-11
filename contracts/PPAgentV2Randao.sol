@@ -179,16 +179,8 @@ contract PPAgentV2Randao is PPAgentV2 {
     uint256 intervalSeconds = (binJob << 32) >> 232;
 
     // 1. Release if insufficient credits
-    {
-      uint256 credits = (binJob << 128) >> 168;
-      if (ConfigFlags.check(binJob, CFG_USE_JOB_OWNER_CREDITS)) {
-        credits = jobOwnerCredits[jobOwners[jobKey_]];
-      }
-
-      if (jobNextKeeperId[jobKey_] != 0 && credits < rdConfig.jobMinCredits) {
-        _releaseJob(jobKey_, keeperId_);
-        return;
-      }
+    if (_releaseKeeperIfRequired(jobKey_, keeperId_)) {
+      return;
     }
 
     // 2. Check interval timeouts otherwise
@@ -214,7 +206,7 @@ contract PPAgentV2Randao is PPAgentV2 {
       }
     }
 
-    _releaseJob(jobKey_, keeperId_);
+    _releaseKeeper(jobKey_, keeperId_);
   }
 
   function setKeeperActiveStatus(uint256 keeperId_, bool isActive_) external {
@@ -353,11 +345,6 @@ contract PPAgentV2Randao is PPAgentV2 {
     jobCreatedAt[jobKey] = block.timestamp;
   }
 
-  function depositJobCredits(bytes32 jobKey_) public override payable {
-    super.depositJobCredits(jobKey_);
-    _assignNextKeeperIfRequired(jobKey_);
-  }
-
   function registerAsKeeper(address worker_, uint256 initialDepositAmount_) public override returns (uint256 keeperId) {
     keeperId = super.registerAsKeeper(worker_, initialDepositAmount_);
     activeKeepers.add(keeperId);
@@ -387,11 +374,7 @@ contract PPAgentV2Randao is PPAgentV2 {
     // active => inactive: unassign
     if (wasActiveBefore && !isActive_) {
       uint256 expectedKeeperId = jobNextKeeperId[jobKey_];
-      _releaseJob(jobKey_, expectedKeeperId);
-
-      jobNextKeeperId[jobKey_] = 0;
-      jobSlashingPossibleAfter[jobKey_] = 0;
-      jobReservedSlasherId[jobKey_] = 0;
+      _releaseKeeper(jobKey_, expectedKeeperId);
     }
   }
 
@@ -436,15 +419,19 @@ contract PPAgentV2Randao is PPAgentV2 {
       }
     }
   }
-  function _releaseJob(bytes32 jobKey_, uint256 keeperId_) internal {
-    keeperLocksByJob[keeperId_].remove(jobKey_);
-    jobNextKeeperId[jobKey_] = 0;
-    emit KeeperJobUnlock(keeperId_, jobKey_);
+
+  function _afterDepositJobCredits(bytes32 jobKey_) internal override {
+    _assignNextKeeperIfRequired(jobKey_);
+  }
+
+  function _afterWithdrawJobCredits(bytes32 jobKey_) internal override {
+    uint256 expectedKeeperId = jobNextKeeperId[jobKey_];
+    _releaseKeeperIfRequired(jobKey_, expectedKeeperId);
   }
 
   function _afterExecute(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal override {
     uint256 expectedKeeperId = jobNextKeeperId[jobKey_];
-    _releaseJob(jobKey_, expectedKeeperId);
+    _releaseKeeper(jobKey_, expectedKeeperId);
 
     uint256 intervalSeconds = (binJob_ << 32) >> 232;
 
@@ -480,6 +467,17 @@ contract PPAgentV2Randao is PPAgentV2 {
     _assignNextKeeper(jobKey_);
   }
 
+  /*** HELPERS ***/
+  function _releaseKeeper(bytes32 jobKey_, uint256 keeperId_) internal {
+    keeperLocksByJob[keeperId_].remove(jobKey_);
+
+    jobNextKeeperId[jobKey_] = 0;
+    jobSlashingPossibleAfter[jobKey_] = 0;
+    jobReservedSlasherId[jobKey_] = 0;
+
+    emit KeeperJobUnlock(keeperId_, jobKey_);
+  }
+
   function _ensureCanReleaseKeeper(uint256 keeperId_) internal view {
     uint256 len = keeperLocksByJob[keeperId_].length();
     if (len > 0) {
@@ -489,6 +487,30 @@ contract PPAgentV2Randao is PPAgentV2 {
 
   function _getPseudoRandom() internal view returns (uint256) {
     return block.difficulty;
+  }
+
+  function _releaseKeeperIfRequired(bytes32 jobKey_, uint256 keeperId_) internal returns (bool released) {
+    uint256 binJob = getJobRaw(jobKey_);
+    return _releaseKeeperIfRequiredBinJob(jobKey_, keeperId_, binJob, false);
+  }
+
+  function _releaseKeeperIfRequiredBinJob(
+    bytes32 jobKey_,
+    uint256 keeperId_,
+    uint256 binJob_,
+    bool checkAlreadyReleased
+  ) internal returns (bool released) {
+    uint256 credits = (binJob_ << 128) >> 168;
+    if (ConfigFlags.check(binJob_, CFG_USE_JOB_OWNER_CREDITS)) {
+      credits = jobOwnerCredits[jobOwners[jobKey_]];
+    }
+
+    if ((!checkAlreadyReleased || jobNextKeeperId[jobKey_] != 0) && credits < rdConfig.jobMinCredits) {
+      _releaseKeeper(jobKey_, keeperId_);
+      return true;
+    }
+
+    return false;
   }
 
   function _assignNextKeeperIfRequired(bytes32 jobKey_) internal {
@@ -504,21 +526,8 @@ contract PPAgentV2Randao is PPAgentV2 {
   }
 
   function _assignNextKeeper(bytes32 jobKey_) internal {
-    uint256 binJob = getJobRaw(jobKey_);
-
-    if (ConfigFlags.check(binJob, CFG_USE_JOB_OWNER_CREDITS)) {
-      if (jobOwnerCredits[jobOwners[jobKey_]] < rdConfig.jobMinCredits) {
-        jobNextKeeperId[jobKey_] = 0;
-        emit JobKeeperUnassigned(jobKey_);
-        return;
-      }
-    } else {
-      uint256 jobCredits = (binJob << 128) >> 168;
-      if (jobCredits < rdConfig.jobMinCredits) {
-        jobNextKeeperId[jobKey_] = 0;
-        emit JobKeeperUnassigned(jobKey_);
-        return;
-      }
+    if (_releaseKeeperIfRequiredBinJob(jobKey_, jobNextKeeperId[jobKey_], getJobRaw(jobKey_), false)) {
+      return;
     }
 
     uint256 pseudoRandom = _getPseudoRandom();

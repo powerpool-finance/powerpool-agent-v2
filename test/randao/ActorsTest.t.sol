@@ -340,4 +340,42 @@ contract RandaoActorsTest is TestHelperRandao {
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
     assertEq(agent.getJobsAssignedToKeeperLength(3), 0);
   }
+
+  function testRdKeeperNotChangedAfterJobCreditsWithdrawal() public {
+    vm.prank(owner);
+    rdConfig.jobMinCredits = 0.5 ether;
+    agent.setRdConfig(rdConfig);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
+    assertEq(agent.getJobsAssignedToKeeperLength(3), 0);
+
+    vm.prank(alice);
+    agent.withdrawJobCredits(jobKey, alice, 0.50 ether);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
+    assertEq(agent.getJobsAssignedToKeeperLength(3), 0);
+  }
+
+  function testRdKeeperUnassignedAfterJobCreditsWithdrawal() public {
+    vm.prank(owner);
+    rdConfig.jobMinCredits = 0.5 ether;
+    agent.setRdConfig(rdConfig);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
+    assertEq(agent.getJobsAssignedToKeeperLength(3), 0);
+
+    vm.prank(alice);
+    agent.withdrawJobCredits(jobKey, alice, 0.51 ether);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(3), 0);
+  }
 }
