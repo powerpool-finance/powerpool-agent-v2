@@ -240,4 +240,181 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     _setDifficultyExpectKid(15, 2);
     _setDifficultyExpectKid(16, 2);
   }
+
+  function testRdReleaseAssignKeeperIfJobActivitySwitch() public {
+    assertEq(agent.jobNextKeeperId(jobKey), 1);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
+    assertEq(_jobIsActive(jobKey), true);
+
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, false, false, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(0), 0);
+    assertEq(_jobIsActive(jobKey), false);
+
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, false, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 1);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
+    assertEq(_jobIsActive(jobKey), true);
+  }
+
+  function testRdNotAssignKeeperIfUseOwnerBalanceAfter() public {
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, false, false, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(0), 0);
+    assertEq(agent.jobOwnerCredits(alice), 0);
+    assertEq(_jobIsActive(jobKey), false);
+
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, true, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
+    assertEq(_jobIsActive(jobKey), true);
+  }
+
+  function testRdNotAssignKeeperIfInsufficientCredits() public {
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, false, false, true);
+    vm.prank(alice);
+    agent.withdrawJobCredits(jobKey, alice, 0.95 ether);
+
+    assertEq(_jobIsActive(jobKey), false);
+    assertEq(_jobCredits(jobKey), 0.05 ether);
+
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, false, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
+    assertEq(_jobIsActive(jobKey), true);
+  }
+
+  function testRdSwitchCSJobToJobOwnerSufficient() public {
+    vm.prank(alice);
+    agent.depositJobOwnerCredits{ value: 0.1 ether }(alice);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 1);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
+
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, true, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 1);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
+    assertEq(_jobIsActive(jobKey), true);
+  }
+
+  function testRdSwitchCSJobToJobOwnerInsufficient() public {
+    vm.prank(alice);
+    agent.depositJobOwnerCredits{ value: 0.09 ether }(alice);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 1);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
+    assertEq(agent.jobOwnerCredits(alice), 0.09 ether);
+
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, true, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
+    assertEq(_jobIsActive(jobKey), true);
+  }
+
+  function testRdSwitchFromInsufficientCSJobOwnerToJobSufficient() public {
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, true, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
+
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, false, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 1);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
+  }
+
+  function testRdSwitchFromInsufficientCSJobOwnerToJobInsufficient() public {
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, true, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
+
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, false, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 1);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
+  }
+
+  function testRdSwitchFromSufficientCSJobOwnerToJobSufficient() public {
+    vm.prank(alice);
+    agent.depositJobOwnerCredits{value: 0.1 ether }(alice);
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, true, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 1);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
+
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, false, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 1);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
+  }
+
+  function testRdSwitchFromSufficientCSJobOwnerToJobInsufficient() public {
+    vm.prank(alice);
+    agent.depositJobOwnerCredits{value: 0.1 ether }(alice);
+    vm.prank(alice);
+    agent.withdrawJobCredits(jobKey, alice, 0.91 ether);
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, true, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 1);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
+
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, false, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
+  }
+
+  function testRdNotChangedJobCredits() public {
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, false, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 1);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
+
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, false, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 1);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
+  }
+
+  function testRdNotChangedJobOwnerCredits() public {
+    vm.prank(alice);
+    agent.depositJobOwnerCredits{value: 0.1 ether }(alice);
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, true, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 1);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
+
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, true, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 1);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
+  }
 }

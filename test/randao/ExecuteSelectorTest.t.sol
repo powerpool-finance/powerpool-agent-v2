@@ -291,9 +291,9 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
   function testRdShouldAssignZeroKeeperNotEnoughJobOwnerCredits() public {
     assertEq(_jobCredits(jobKey), 1 ether);
     vm.prank(alice, alice);
-    agent.setJobConfig(jobKey, true, true, false);
+    agent.depositJobOwnerCredits{value: 0.1 ether}(alice);
     vm.prank(alice, alice);
-    agent.depositJobOwnerCredits{value: 0.09 ether}(alice);
+    agent.setJobConfig(jobKey, true, true, false);
 
     // first execution
     assertEq(agent.jobNextKeeperId(jobKey), 2);

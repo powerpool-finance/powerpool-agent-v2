@@ -144,26 +144,6 @@ contract RandaoActorsTest is TestHelperRandao {
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
   }
 
-  function testRdJobOwnerEnableJobWithJobOwnerCreditSource() public {
-    vm.prank(alice, alice);
-    agent.setJobConfig(jobKey, true, true, false);
-
-    assertEq(agent.jobNextKeeperId(jobKey), 2);
-    assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
-
-    vm.prank(alice, alice);
-    agent.setJobConfig(jobKey, false, false, false);
-
-    assertEq(agent.jobNextKeeperId(jobKey), 0);
-    assertEq(agent.getJobsAssignedToKeeperLength(2), 0);
-
-    vm.prank(alice, alice);
-    agent.setJobConfig(jobKey, true, false, false);
-
-    assertEq(agent.jobNextKeeperId(jobKey), 2);
-    assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
-  }
-
   function testRdKeeperSetActiveInactive() public {
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(agent.getJobsAssignedToKeeperLength(3), 0);

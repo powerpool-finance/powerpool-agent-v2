@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "../../contracts/PPAgentV2Flags.sol";
+import { ConfigFlags } from "../../contracts/PPAgentV2.sol";
 import "../../lib/forge-std/src/Test.sol";
 import "./../mocks/MockCVP.sol";
 import "../../contracts/PPAgentV2Interfaces.sol";
@@ -106,6 +107,11 @@ abstract contract AbstractTestHelper is Test, PPAgentV2Flags {
   function _jobDetails(bytes32 jobKey_) internal view returns (IPPAgentV2Viewer.Job memory) {
     (,,,IPPAgentV2Viewer.Job memory details,,) = _agentViewer().getJob(jobKey_);
     return details;
+  }
+
+  function _jobIsActive(bytes32 jobKey_) internal view returns (bool) {
+    (,,,IPPAgentV2Viewer.Job memory details,,) = _agentViewer().getJob(jobKey_);
+    return ConfigFlags.check(details.config, CFG_ACTIVE);
   }
 
   function _jobCredits(bytes32 jobKey_) internal view returns (uint256) {

@@ -43,6 +43,7 @@ contract PPAgentV2Randao is PPAgentV2 {
   error JobCheckCanNotBeExecuted(bytes errReason);
   error TooEarlyToRelease(bytes32 jobKey, uint256 period2End);
   error CantRelease();
+
   event InitiateSlashing(
     bytes32 indexed jobKey,
     uint256 indexed slasherKeeperId,
@@ -167,7 +168,6 @@ contract PPAgentV2Randao is PPAgentV2 {
   }
 
   /*** KEEPER METHODS ***/
-
   function releaseJob(uint256 keeperId_, bytes32 jobKey_) external {
     _assertOnlyKeeperAdmin(keeperId_);
     uint256 assignedKeeperId = jobNextKeeperId[jobKey_];
@@ -365,10 +365,14 @@ contract PPAgentV2Randao is PPAgentV2 {
       _assignNextKeeperIfRequired(jobKey_);
     }
 
-    // job was and remain active, but the credits source has changed: assign if required
+    // job was and remain active, but the credits source has changed: assign or release if requried
     if (wasActiveBefore && isActive_ &&
       (ConfigFlags.check(rawJobBefore, CFG_USE_JOB_OWNER_CREDITS) != useJobOwnerCredits_)) {
-      _assignNextKeeperIfRequired(jobKey_);
+
+      if (!_assignNextKeeperIfRequired(jobKey_)) {
+        uint256 expectedKeeperId = jobNextKeeperId[jobKey_];
+        _releaseKeeperIfRequired(jobKey_, expectedKeeperId);
+      }
     }
 
     // active => inactive: unassign
@@ -513,7 +517,7 @@ contract PPAgentV2Randao is PPAgentV2 {
     return false;
   }
 
-  function _assignNextKeeperIfRequired(bytes32 jobKey_) internal {
+  function _assignNextKeeperIfRequired(bytes32 jobKey_) internal returns (bool assigned) {
     uint256 binJob = getJobRaw(jobKey_);
     uint256 credits = (binJob << 128) >> 168;
     if (ConfigFlags.check(binJob, CFG_USE_JOB_OWNER_CREDITS)) {
@@ -522,7 +526,10 @@ contract PPAgentV2Randao is PPAgentV2 {
 
     if (jobNextKeeperId[jobKey_] == 0 && credits >= rdConfig.jobMinCredits) {
       _assignNextKeeper(jobKey_);
+      return true;
     }
+
+    return false;
   }
 
   function _assignNextKeeper(bytes32 jobKey_) internal {
