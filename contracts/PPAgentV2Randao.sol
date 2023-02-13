@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { PPAgentV2, ConfigFlags } from "./PPAgentV2.sol";
 import "./PPAgentV2Flags.sol";
 import "./PPAgentV2Interfaces.sol";
-import "../lib/forge-std/src/console.sol";
 
 /**
  * @title PPAgentV2Randao
