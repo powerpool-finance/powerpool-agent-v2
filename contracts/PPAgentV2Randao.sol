@@ -112,6 +112,10 @@ contract PPAgentV2Randao is PPAgentV2 {
     }
   }
 
+  function getStrategy() public pure override returns (string memory) {
+    return "randao";
+  }
+
   function _getJobGasOverhead() internal pure override returns (uint256) {
     return 55_000;
   }

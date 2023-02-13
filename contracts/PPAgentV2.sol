@@ -251,6 +251,10 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   function _afterWithdrawJobCredits(bytes32 jobKey_) internal virtual {}
 
   /*** CONSTANT GETTERS ***/
+  function getStrategy() public pure virtual returns (string memory) {
+    return "basic";
+  }
+
   function _getJobGasOverhead() internal pure virtual returns (uint256) {
     return 40_000;
   }
