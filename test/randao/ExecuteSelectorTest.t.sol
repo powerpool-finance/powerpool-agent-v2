@@ -38,7 +38,10 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
       period2: 30,
       slashingFeeFixedCVP: 50,
       slashingFeeBps: 300,
-      jobMinCredits: 0.1 ether
+      jobMinCreditsFinney: 100,
+      agentMaxCvpStake: 50_000,
+      jobCompensationMultiplierBps: 1,
+      stakeDivisor: 50_000_000
     });
     agent = new PPAgentV2Randao(owner, address(cvp), 3_000 ether, 3 days, rdConfig);
     counter = new OnlySelectorTestJob(address(agent));
@@ -267,7 +270,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     assertEq(_jobCredits(jobKey), 1 ether);
 
     vm.prank(owner);
-    rdConfig.jobMinCredits = 0.5 ether;
+    rdConfig.jobMinCreditsFinney = 500;
     agent.setRdConfig(rdConfig);
 
     vm.prank(alice, alice);

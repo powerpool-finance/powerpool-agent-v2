@@ -40,7 +40,10 @@ contract RandaoActorsTest is TestHelperRandao {
       period2: 30,
       slashingFeeFixedCVP: 50,
       slashingFeeBps: 300,
-      jobMinCredits: 0.1 ether
+      jobMinCreditsFinney: 100,
+      agentMaxCvpStake: 50_000,
+      jobCompensationMultiplierBps: 1,
+      stakeDivisor: 50_000_000
     });
     agent = new PPAgentV2Randao(owner, address(cvp), 3_000 ether, 3 days, rdConfig);
     counter = new OnlySelectorTestJob(address(agent));
@@ -93,7 +96,10 @@ contract RandaoActorsTest is TestHelperRandao {
       period2: 40,
       slashingFeeFixedCVP: 60,
       slashingFeeBps: 400,
-      jobMinCredits: 0 ether
+      jobMinCreditsFinney: 0 ether,
+      agentMaxCvpStake: 50_000,
+      jobCompensationMultiplierBps: 1,
+      stakeDivisor: 50_000_000
     });
     vm.prank(owner, owner);
     agent.setRdConfig(config);
@@ -103,14 +109,20 @@ contract RandaoActorsTest is TestHelperRandao {
       uint16 period2,
       uint24 slashingFeeFixedCVP,
       uint16 slashingFeeBps,
-      uint96 jobMinCredits
+      uint16 jobMinCreditsFinney,
+      uint40 agentMaxCvpStake,
+      uint16 jobCompensationMultiplierBps,
+      uint32 stakeDivisor
     ) = agent.rdConfig();
     assertEq(slashingEpochBlocks, 20);
     assertEq(period1, 25);
     assertEq(period2, 40);
     assertEq(slashingFeeFixedCVP, 60);
     assertEq(slashingFeeBps, 400);
-    assertEq(jobMinCredits, 0);
+    assertEq(jobMinCreditsFinney, 0);
+    assertEq(agentMaxCvpStake, 50_000);
+    assertEq(jobCompensationMultiplierBps, 1);
+    assertEq(stakeDivisor, 50_000_000);
   }
 
   function testRdJobOwnerDisableJob() public {
@@ -182,7 +194,7 @@ contract RandaoActorsTest is TestHelperRandao {
 
   function testRdKeeperNotAssignedAfterJobCreationLowJobCredits() public {
     vm.prank(owner);
-    rdConfig.jobMinCredits = 0.5 ether;
+    rdConfig.jobMinCreditsFinney = 500;
     agent.setRdConfig(rdConfig);
 
     (jobKey,jobId) = agent.registerJob{ value: 0.4 ether }({
@@ -199,7 +211,7 @@ contract RandaoActorsTest is TestHelperRandao {
 
   function testRdKeeperNotAssignedAfterJobCreationLowJobOwnerCredits() public {
     vm.prank(owner);
-    rdConfig.jobMinCredits = 0.5 ether;
+    rdConfig.jobMinCreditsFinney = 500;
     agent.setRdConfig(rdConfig);
 
     params.useJobOwnerCredits = true;
@@ -218,7 +230,7 @@ contract RandaoActorsTest is TestHelperRandao {
 
   function testRdKeeperAssignedAfterJobCreationSufficientJobCredits() public {
     vm.prank(owner);
-    rdConfig.jobMinCredits = 0.5 ether;
+    rdConfig.jobMinCreditsFinney = 500;
     agent.setRdConfig(rdConfig);
 
     (jobKey,jobId) = agent.registerJob{ value: 0.5 ether }({
@@ -235,7 +247,7 @@ contract RandaoActorsTest is TestHelperRandao {
 
   function testRdKeeperAssignedAfterJobCreationSufficientJobOwnerCredits() public {
     vm.prank(owner);
-    rdConfig.jobMinCredits = 0.5 ether;
+    rdConfig.jobMinCreditsFinney = 500;
     agent.setRdConfig(rdConfig);
 
     params.useJobOwnerCredits = true;
@@ -254,7 +266,7 @@ contract RandaoActorsTest is TestHelperRandao {
 
   function testRdKeeperKeptAfterJobCreditsTopup() public {
     vm.prank(owner);
-    rdConfig.jobMinCredits = 1.5 ether;
+    rdConfig.jobMinCreditsFinney = 1500;
     agent.setRdConfig(rdConfig);
 
     vm.prank(alice);
@@ -268,7 +280,7 @@ contract RandaoActorsTest is TestHelperRandao {
 
   function testRdKeeperAssignedAfterJobCreditsTopup() public {
     vm.prank(owner);
-    rdConfig.jobMinCredits = 1.5 ether;
+    rdConfig.jobMinCreditsFinney = 1500;
     agent.setRdConfig(rdConfig);
 
     vm.prank(keeperAdmin);
@@ -289,7 +301,7 @@ contract RandaoActorsTest is TestHelperRandao {
 
   function testRdKeeperAssignedAfterJobOwnerCreditsTopup() public {
     vm.prank(owner);
-    rdConfig.jobMinCredits = 1.5 ether;
+    rdConfig.jobMinCreditsFinney = 1500;
     agent.setRdConfig(rdConfig);
 
     params.useJobOwnerCredits = true;
@@ -323,7 +335,7 @@ contract RandaoActorsTest is TestHelperRandao {
 
   function testRdKeeperNotChangedAfterJobCreditsWithdrawal() public {
     vm.prank(owner);
-    rdConfig.jobMinCredits = 0.5 ether;
+    rdConfig.jobMinCreditsFinney = 500;
     agent.setRdConfig(rdConfig);
 
     assertEq(agent.jobNextKeeperId(jobKey), 2);
@@ -342,7 +354,7 @@ contract RandaoActorsTest is TestHelperRandao {
 
   function testRdKeeperUnassignedAfterJobCreditsWithdrawal() public {
     vm.prank(owner);
-    rdConfig.jobMinCredits = 0.5 ether;
+    rdConfig.jobMinCreditsFinney = 500;
     agent.setRdConfig(rdConfig);
 
     assertEq(agent.jobNextKeeperId(jobKey), 2);

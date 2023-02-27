@@ -22,6 +22,7 @@ contract PPAgentV2Randao is PPAgentV2 {
   error InvalidPeriod2();
   error InvalidSlashingFeeFixedCVP();
   error SlashingBpsGt5000Bps();
+  error InvalidStakeDivisor();
   error InactiveKeeper();
   error KeeperIsAssignedToJobs(uint256 amountOfJobs);
   error KeeperNotAssignedToJob(uint256 assignedKeeperId);
@@ -43,12 +44,6 @@ contract PPAgentV2Randao is PPAgentV2 {
   error TooEarlyToRelease(bytes32 jobKey, uint256 period2End);
   error CantRelease();
 
-  event InitiateSlashing(
-    bytes32 indexed jobKey,
-    uint256 indexed slasherKeeperId,
-    bool useResolver,
-    uint256 jobSlashingPossibleAfter
-  );
   error OnlyNextKeeper(
     uint256 expectedKeeperId,
     uint256 lastExecutedAt,
@@ -63,6 +58,12 @@ contract PPAgentV2Randao is PPAgentV2 {
     uint256 amountToSlash
   );
 
+  event InitiateSlashing(
+    bytes32 indexed jobKey,
+    uint256 indexed slasherKeeperId,
+    bool useResolver,
+    uint256 jobSlashingPossibleAfter
+  );
   event SlashIntervalJob(
     bytes32 indexed jobKey,
     uint256 indexed expectedKeeperId,
@@ -76,6 +77,7 @@ contract PPAgentV2Randao is PPAgentV2 {
   event KeeperJobUnlock(uint256 indexed keeperId, bytes32 indexed jobKey);
   event SetKeeperActiveStatus(uint256 indexed keeperId, bool isActive);
 
+  // 8+24+16+24+16+16+40+16+32 = 192
   struct RandaoConfig {
     // max: 2^8 - 1 = 255 blocks
     uint8 slashingEpochBlocks;
@@ -87,8 +89,15 @@ contract PPAgentV2Randao is PPAgentV2 {
     uint24 slashingFeeFixedCVP;
     // In BPS
     uint16 slashingFeeBps;
-    // max: 2^96-1 ~= 7.92e28
-    uint96 jobMinCredits;
+    // max: 2^16 - 1 = 65535, in calculations is multiplied by 0.001 ether (1 finney),
+    // thus the min is 0.001 ether and max is 65.535 ether
+    uint16 jobMinCreditsFinney;
+    // max 2^40 ~= 1.1e12, in calculations is multiplied by 1 ether
+    uint40 agentMaxCvpStake;
+    // max: 2^16 - 1 = 65535, where 10_000 is 100%
+    uint16 jobCompensationMultiplierBps;
+    // max: 2^32 - 1 = 4_294_967_295
+    uint32 stakeDivisor;
   }
 
   RandaoConfig public rdConfig;
@@ -101,6 +110,8 @@ contract PPAgentV2Randao is PPAgentV2 {
   mapping(bytes32 => uint256) public jobSlashingPossibleAfter;
   // keccak256(jobAddress, id) => timestamp
   mapping(bytes32 => uint256) public jobCreatedAt;
+  // keccak256(jobAddress, id) => maxCvpStake
+  mapping(bytes32 => uint256) public jobMaxCvpStake;
   // keeperId => (pending jobs)
   mapping(uint256 => EnumerableSet.Bytes32Set) internal keeperLocksByJob;
 
@@ -145,11 +156,14 @@ contract PPAgentV2Randao is PPAgentV2 {
     if (rdConfig_.period2 < 15 seconds) {
       revert InvalidPeriod2();
     }
-    if (rdConfig.slashingFeeFixedCVP > (minKeeperCvp / 2)) {
+    if (rdConfig_.slashingFeeFixedCVP > (minKeeperCvp / 2)) {
       revert InvalidSlashingFeeFixedCVP();
     }
-    if (rdConfig.slashingFeeBps > 5000) {
+    if (rdConfig_.slashingFeeBps > 5000) {
       revert SlashingBpsGt5000Bps();
+    }
+    if (rdConfig_.stakeDivisor == 0) {
+      revert InvalidStakeDivisor();
     }
     emit SetRdConfig(rdConfig);
 
@@ -450,7 +464,7 @@ contract PPAgentV2Randao is PPAgentV2 {
     // if slashing
     if (expectedKeeperId != actualKeeperId_) {
       Keeper memory eKeeper = keepers[expectedKeeperId];
-      uint256 dynamicSlashAmount = eKeeper.cvpStake * uint256(rdConfig.slashingFeeBps) / 10000;
+      uint256 dynamicSlashAmount = eKeeper.cvpStake * uint256(rdConfig.slashingFeeBps) / 10_000;
       uint256 fixedSlashAmount = uint256(rdConfig.slashingFeeFixedCVP) * 1 ether;
       // NOTICE: totalSlashAmount can't be >= uint88
       uint88 totalSlashAmount = uint88(fixedSlashAmount + dynamicSlashAmount);
@@ -512,7 +526,7 @@ contract PPAgentV2Randao is PPAgentV2 {
       credits = jobOwnerCredits[jobOwners[jobKey_]];
     }
 
-    if ((!checkAlreadyReleased || jobNextKeeperId[jobKey_] != 0) && credits < rdConfig.jobMinCredits) {
+    if ((!checkAlreadyReleased || jobNextKeeperId[jobKey_] != 0) && credits < (uint256(rdConfig.jobMinCreditsFinney) * 0.001 ether)) {
       _releaseKeeper(jobKey_, keeperId_);
       return true;
     }
@@ -527,7 +541,7 @@ contract PPAgentV2Randao is PPAgentV2 {
       credits = jobOwnerCredits[jobOwners[jobKey_]];
     }
 
-    if (jobNextKeeperId[jobKey_] == 0 && credits >= rdConfig.jobMinCredits) {
+    if (jobNextKeeperId[jobKey_] == 0 && credits >= (uint256(rdConfig.jobMinCreditsFinney) * 0.001 ether)) {
       _assignNextKeeper(jobKey_);
       return true;
     }
@@ -566,6 +580,29 @@ contract PPAgentV2Randao is PPAgentV2 {
       }
       index += 1;
     }
+  }
+
+  function _calculateCompensation(
+    bytes32 jobKey_,
+    uint256 job_,
+    uint256 keeperId_,
+    uint256 gasPrice_,
+    uint256 gasUsed_
+  ) internal view override returns (uint256) {
+    job_; // silence unused param warning
+    RandaoConfig memory _rdConfig = rdConfig;
+
+    uint256 stake = keepers[keeperId_].cvpStake;
+    uint256 _jobMaxCvpStake = jobMaxCvpStake[jobKey_];
+    if (_jobMaxCvpStake > 0  && _jobMaxCvpStake < stake) {
+      stake = _jobMaxCvpStake;
+    }
+    if (_rdConfig.agentMaxCvpStake > 0 && _rdConfig.agentMaxCvpStake < stake) {
+      stake = _rdConfig.agentMaxCvpStake;
+    }
+
+    return (gasPrice_ * gasUsed_ * _rdConfig.jobCompensationMultiplierBps / 10_000) +
+      (stake / _rdConfig.stakeDivisor);
   }
 
   /*** GETTERS ***/

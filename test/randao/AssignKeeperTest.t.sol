@@ -46,7 +46,10 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
       period2: 30,
       slashingFeeFixedCVP: 50,
       slashingFeeBps: 300,
-      jobMinCredits: 0.1 ether
+      jobMinCreditsFinney: 100,
+      agentMaxCvpStake: 50_000,
+      jobCompensationMultiplierBps: 1,
+      stakeDivisor: 50_000_000
     });
     agent = new MockExposedAgent(owner, address(cvp), 3_000 ether, 3 days, rdConfig);
 
