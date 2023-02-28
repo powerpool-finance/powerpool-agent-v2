@@ -49,7 +49,8 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
       jobMinCreditsFinney: 100,
       agentMaxCvpStake: 50_000,
       jobCompensationMultiplierBps: 1,
-      stakeDivisor: 50_000_000
+      stakeDivisor: 50_000_000,
+      keeperActivationTimeoutHours: 8
     });
     agent = new MockExposedAgent(owner, address(cvp), 3_000 ether, 3 days, rdConfig);
 
@@ -150,9 +151,9 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     assertEq(agent.getJobsAssignedToKeeperLength(3), 1);
 
     vm.prank(a1);
-    agent.setKeeperActiveStatus(kid1, false);
+    agent.disableKeeper(kid1);
     vm.prank(a5);
-    agent.setKeeperActiveStatus(kid5, false);
+    agent.disableKeeper(kid5);
 
     assertEq(agent.getActiveKeepersLength(), 3);
     assertEq(_keeperCount(), 5);
@@ -171,7 +172,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
 
     vm.prank(a5);
-    agent.setKeeperActiveStatus(kid5, false);
+    agent.disableKeeper(kid5);
     vm.prank(a4);
     agent.initiateRedeem(kid4, 5_000 ether);
     vm.prank(a3);
@@ -199,9 +200,9 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
 
     vm.prank(a5);
-    agent.setKeeperActiveStatus(kid5, false);
+    agent.disableKeeper(kid5);
     vm.prank(a4);
-    agent.setKeeperActiveStatus(kid4, false);
+    agent.disableKeeper(kid4);
     vm.prank(a3);
     agent.initiateRedeem(kid3, 5_000 ether);
 
@@ -226,9 +227,9 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     vm.prank(a5);
     agent.initiateRedeem(kid5, 5_000 ether);
     vm.prank(a4);
-    agent.setKeeperActiveStatus(kid4, false);
+    agent.disableKeeper(kid4);
     vm.prank(a3);
-    agent.setKeeperActiveStatus(kid3, false);
+    agent.disableKeeper(kid3);
     vm.prank(a1);
     agent.initiateRedeem(kid1, 5_000 ether);
 

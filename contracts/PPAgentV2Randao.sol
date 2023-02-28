@@ -42,6 +42,7 @@ contract PPAgentV2Randao is PPAgentV2 {
   error JobCheckCanBeExecuted();
   error JobCheckCanNotBeExecuted(bytes errReason);
   error TooEarlyToRelease(bytes32 jobKey, uint256 period2End);
+  error TooEarlyForActivationFinalization(uint256 now, uint256 availableAt);
   error CantRelease();
 
   error OnlyNextKeeper(
@@ -58,6 +59,9 @@ contract PPAgentV2Randao is PPAgentV2 {
     uint256 amountToSlash
   );
 
+  event DisableKeeper(uint256 keeperId);
+  event InitiateKeeperActivation(uint256 keeperId, uint256 canBeFinalizedAt);
+  event FinalizeKeeperActivation(uint256 keeperId);
   event InitiateSlashing(
     bytes32 indexed jobKey,
     uint256 indexed slasherKeeperId,
@@ -75,7 +79,6 @@ contract PPAgentV2Randao is PPAgentV2 {
   event KeeperJobLock(uint256 indexed keeperId, bytes32 indexed jobKey);
   event JobKeeperUnassigned(bytes32 indexed jobKey);
   event KeeperJobUnlock(uint256 indexed keeperId, bytes32 indexed jobKey);
-  event SetKeeperActiveStatus(uint256 indexed keeperId, bool isActive);
 
   // 8+24+16+24+16+16+40+16+32 = 192
   struct RandaoConfig {
@@ -98,6 +101,8 @@ contract PPAgentV2Randao is PPAgentV2 {
     uint16 jobCompensationMultiplierBps;
     // max: 2^32 - 1 = 4_294_967_295
     uint32 stakeDivisor;
+    // max: 2^8 - 1 = 255 hours, or ~10.5 days
+    uint8 keeperActivationTimeoutHours;
   }
 
   RandaoConfig public rdConfig;
@@ -112,6 +117,8 @@ contract PPAgentV2Randao is PPAgentV2 {
   mapping(bytes32 => uint256) public jobCreatedAt;
   // keeperId => (pending jobs)
   mapping(uint256 => EnumerableSet.Bytes32Set) internal keeperLocksByJob;
+  // keeperId => timestamp
+  mapping(uint256 => uint256) public keeperActivationCanBeFinalizedAt;
 
   EnumerableSet.UintSet internal activeKeepers;
 
@@ -224,27 +231,46 @@ contract PPAgentV2Randao is PPAgentV2 {
     _releaseKeeper(jobKey_, keeperId_);
   }
 
-  function setKeeperActiveStatus(uint256 keeperId_, bool isActive_) external {
+  function disableKeeper(uint256 keeperId_) external {
     _assertOnlyKeeperAdmin(keeperId_);
 
-    bool prev = keepers[keeperId_].isActive;
-    if (prev && isActive_) {
-      revert KeeperIsAlreadyActive();
-    }
-    if (!prev && !isActive_) {
+    if (!keepers[keeperId_].isActive) {
       revert KeeperIsAlreadyInactive();
     }
 
-    if (isActive_) {
-      activeKeepers.add(keeperId_);
-    } else {
-      _ensureCanReleaseKeeper(keeperId_);
-      activeKeepers.remove(keeperId_);
+    _ensureCanReleaseKeeper(keeperId_);
+    activeKeepers.remove(keeperId_);
+    keepers[keeperId_].isActive = false;
+
+    emit DisableKeeper(keeperId_);
+  }
+
+  function initiateKeeperActivation(uint256 keeperId_) external {
+    _assertOnlyKeeperAdmin(keeperId_);
+
+    if (keepers[keeperId_].isActive) {
+      revert KeeperIsAlreadyActive();
     }
 
-    keepers[keeperId_].isActive = isActive_;
+    uint256 canBeFinalizedAt = block.timestamp + rdConfig.keeperActivationTimeoutHours * 1 hours;
+    keeperActivationCanBeFinalizedAt[keeperId_] = canBeFinalizedAt;
 
-    emit SetKeeperActiveStatus(keeperId_, isActive_);
+    emit InitiateKeeperActivation(keeperId_, canBeFinalizedAt);
+  }
+
+  function finalizeKeeperActivation(uint256 keeperId_) external {
+    _assertOnlyKeeperAdmin(keeperId_);
+
+    uint256 availableAt = keeperActivationCanBeFinalizedAt[keeperId_];
+    if (availableAt > block.timestamp) {
+      revert TooEarlyForActivationFinalization(block.timestamp, availableAt);
+    }
+
+    activeKeepers.add(keeperId_);
+    keepers[keeperId_].isActive = true;
+    keeperActivationCanBeFinalizedAt[keeperId_] = 0;
+
+    emit FinalizeKeeperActivation(keeperId_);
   }
 
   function initiateSlashing(

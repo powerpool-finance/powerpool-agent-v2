@@ -43,7 +43,8 @@ contract RandaoActorsTest is TestHelperRandao {
       jobMinCreditsFinney: 100,
       agentMaxCvpStake: 50_000,
       jobCompensationMultiplierBps: 1,
-      stakeDivisor: 50_000_000
+      stakeDivisor: 50_000_000,
+      keeperActivationTimeoutHours: 8
     });
     agent = new PPAgentV2Randao(owner, address(cvp), 3_000 ether, 3 days, rdConfig);
     counter = new OnlySelectorTestJob(address(agent));
@@ -99,7 +100,8 @@ contract RandaoActorsTest is TestHelperRandao {
       jobMinCreditsFinney: 0 ether,
       agentMaxCvpStake: 50_000,
       jobCompensationMultiplierBps: 1,
-      stakeDivisor: 50_000_000
+      stakeDivisor: 50_000_000,
+      keeperActivationTimeoutHours: 8
     });
     vm.prank(owner, owner);
     agent.setRdConfig(config);
@@ -112,7 +114,8 @@ contract RandaoActorsTest is TestHelperRandao {
       uint16 jobMinCreditsFinney,
       uint40 agentMaxCvpStake,
       uint16 jobCompensationMultiplierBps,
-      uint32 stakeDivisor
+      uint32 stakeDivisor,
+      uint8 keeperActivationTimeoutHours
     ) = agent.rdConfig();
     assertEq(slashingEpochBlocks, 20);
     assertEq(period1, 25);
@@ -123,6 +126,7 @@ contract RandaoActorsTest is TestHelperRandao {
     assertEq(agentMaxCvpStake, 50_000);
     assertEq(jobCompensationMultiplierBps, 1);
     assertEq(stakeDivisor, 50_000_000);
+    assertEq(keeperActivationTimeoutHours, 8);
   }
 
   function testRdJobOwnerDisableJob() public {
@@ -162,11 +166,16 @@ contract RandaoActorsTest is TestHelperRandao {
     assertEq(_keeperIsActive(3), true);
 
     vm.prank(keeperAdmin, keeperAdmin);
-    agent.setKeeperActiveStatus(kid3, false);
+    agent.disableKeeper(kid3);
     assertEq(_keeperIsActive(3), false);
 
     vm.prank(keeperAdmin, keeperAdmin);
-    agent.setKeeperActiveStatus(kid3, true);
+    agent.initiateKeeperActivation(kid3);
+    assertEq(_keeperIsActive(3), false);
+
+    vm.warp(block.timestamp + 9 hours);
+    vm.prank(keeperAdmin, keeperAdmin);
+    agent.finalizeKeeperActivation(kid3);
     assertEq(_keeperIsActive(3), true);
   }
 
@@ -175,16 +184,20 @@ contract RandaoActorsTest is TestHelperRandao {
 
     vm.expectRevert(PPAgentV2Randao.KeeperIsAlreadyActive.selector);
     vm.prank(keeperAdmin, keeperAdmin);
-    agent.setKeeperActiveStatus(kid3, true);
+    agent.initiateKeeperActivation(kid3);
+    vm.roll(9 hours);
+    vm.prank(keeperAdmin, keeperAdmin);
+    agent.finalizeKeeperActivation(kid3);
+    assertEq(_keeperIsActive(3), true);
   }
 
   function testRdKeeperCantSetInactiveAgain() public {
     vm.prank(keeperAdmin, keeperAdmin);
-    agent.setKeeperActiveStatus(kid3, false);
+    agent.disableKeeper(kid3);
 
     vm.expectRevert(PPAgentV2Randao.KeeperIsAlreadyInactive.selector);
     vm.prank(keeperAdmin, keeperAdmin);
-    agent.setKeeperActiveStatus(kid3, false);
+    agent.disableKeeper(kid3);
   }
 
   function testRdKeeperAssignedAfterJobCreditsTopupZero() public {
