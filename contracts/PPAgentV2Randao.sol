@@ -110,8 +110,6 @@ contract PPAgentV2Randao is PPAgentV2 {
   mapping(bytes32 => uint256) public jobSlashingPossibleAfter;
   // keccak256(jobAddress, id) => timestamp
   mapping(bytes32 => uint256) public jobCreatedAt;
-  // keccak256(jobAddress, id) => maxCvpStake
-  mapping(bytes32 => uint256) public jobMaxCvpStake;
   // keeperId => (pending jobs)
   mapping(uint256 => EnumerableSet.Bytes32Set) internal keeperLocksByJob;
 
@@ -583,7 +581,6 @@ contract PPAgentV2Randao is PPAgentV2 {
   }
 
   function _calculateCompensation(
-    bytes32 jobKey_,
     uint256 job_,
     uint256 keeperId_,
     uint256 gasPrice_,
@@ -593,7 +590,8 @@ contract PPAgentV2Randao is PPAgentV2 {
     RandaoConfig memory _rdConfig = rdConfig;
 
     uint256 stake = keepers[keeperId_].cvpStake;
-    uint256 _jobMaxCvpStake = jobMaxCvpStake[jobKey_];
+    // fixedReward field for randao jobs contains _jobMaxCvpStake
+    uint256 _jobMaxCvpStake = ((job_ << 64) >> 224) * 1 ether;
     if (_jobMaxCvpStake > 0  && _jobMaxCvpStake < stake) {
       stake = _jobMaxCvpStake;
     }
