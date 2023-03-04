@@ -123,6 +123,11 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     bool isActive;
   }
 
+  struct ExecutionResponsesData {
+    bytes resolverResponse;
+    bytes executionResponse;
+  }
+
   uint256 internal minKeeperCvp;
   uint256 internal pendingWithdrawalTimeoutSeconds;
   uint256 internal feeTotal;
@@ -245,7 +250,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   function _beforeExecute(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal view virtual {}
   function _beforeInitiateRedeem(uint256 keeperId_) internal view virtual {}
 
-  function _afterExecute(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal virtual {}
+  function _beforeExecutionPayout(bool ok_, bytes32 jobKey_, CalldataSourceType calldataSource_)
+    internal virtual returns (bytes memory) {}
+  function _afterExecutionSucceeded(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal virtual {}
   function _afterRegisterJob(bytes32 jobKey_) internal virtual {}
   function _afterDepositJobCredits(bytes32 jobKey_) internal virtual {}
   function _afterWithdrawJobCredits(bytes32 jobKey_) internal virtual {}
@@ -406,22 +413,39 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       revert InvalidCalldataSource();
     }
 
-    // Transaction succeeded
-    if (ok) {
+    // Load returned response only if the job call had failed
+    ExecutionResponsesData memory eData;
+    if (!ok) {
+      bytes memory executionResponse;
+      assembly ("memory-safe") {
+        let size := returndatasize()
+        if gt(size, 0) {
+          let p := add(executionResponse, 0x20)
+          returndatacopy(p, 0, size)
+          mstore(executionResponse, size)
+        }
+      }
+      eData.executionResponse = executionResponse;
+    }
+
+    eData.resolverResponse = _beforeExecutionPayout(ok, jobKey, calldataSource);
+
+    // Payout block
+    uint256 compensation;
+    uint256 gasUsed;
+    {
       binJob = getJobRaw(jobKey);
-      uint256 gasUsed;
       unchecked {
         gasUsed = gasStart - gasleft();
       }
 
-      uint256 compensation;
       {
         uint256 min = block.basefee;
         if (maxBaseFee < min) {
           min = maxBaseFee;
         }
 
-        compensation = _calculateCompensation(binJob, actualKeeperId, min, gasUsed);
+        compensation = _calculateCompensation(ok, binJob, actualKeeperId, min, gasUsed);
       }
       {
         bool jobChanged;
@@ -465,7 +489,10 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
           _updateRawJob(jobKey, binJob);
         }
       }
+    }
 
+    if (ok) {
+      // Transaction succeeded
       emit Execute(
         jobKey,
         jobAddress,
@@ -476,33 +503,40 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
         compensation,
         bytes32(binJob)
       );
-    // Tx reverted
+
+      _afterExecutionSucceeded(jobKey, actualKeeperId, binJob);
     } else {
-      uint256 size;
-      assembly ("memory-safe") {
-        size := returndatasize()
-      }
+      // Tx reverted
+      _afterExecutionReverted(jobKey, actualKeeperId, eData);
+    }
+  }
 
-      if (size == 0) {
-        revert JobCallRevertedWithoutDetails();
-      }
+  function _afterExecutionReverted(
+    bytes32 jobKey_,
+    uint256 keeperId_,
+    ExecutionResponsesData memory eData_
+  ) internal virtual {
+    jobKey_;
+    keeperId_;
 
-      assembly ("memory-safe") {
-        let p := mload(0x40)
-        returndatacopy(p, 0, size)
-        revert(p, size)
+    if (eData_.resolverResponse.length == 0) {
+      revert JobCallRevertedWithoutDetails();
+    } else {
+      bytes memory resolverResponse = eData_.resolverResponse;
+      assembly {
+        revert(add(32, resolverResponse), mload(resolverResponse))
       }
     }
-
-    _afterExecute(jobKey, actualKeeperId, binJob);
   }
 
   function _calculateCompensation(
+    bool ok_,
     uint256 job_,
     uint256 keeperId_,
     uint256 gasPrice_,
     uint256 gasUsed_
   ) internal view virtual returns (uint256) {
+    ok_; // silence unused param warning
     keeperId_; // silence unused param warning
     uint256 fixedReward = (job_ << 64) >> 224;
     uint256 rewardPct = (job_ << 96) >> 240;

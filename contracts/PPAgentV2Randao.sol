@@ -33,7 +33,7 @@ contract PPAgentV2Randao is PPAgentV2 {
   error KeeperCantSlash();
   error KeeperIsAlreadyActive();
   error KeeperIsAlreadyInactive();
-  error UnexpectedBlock();
+  error UnexpectedCodeBlock();
   error InitiateSlashingUnexpectedError();
   error NonIntervalJob();
   error JobCheckResolverError(bytes errReason);
@@ -44,7 +44,7 @@ contract PPAgentV2Randao is PPAgentV2 {
   error TooEarlyToRelease(bytes32 jobKey, uint256 period2End);
   error TooEarlyForActivationFinalization(uint256 now, uint256 availableAt);
   error CantRelease();
-
+  error ExecutionRevertedOnlyNextKeeper(uint256 expectedKeeperId);
   error OnlyNextKeeper(
     uint256 expectedKeeperId,
     uint256 lastExecutedAt,
@@ -67,6 +67,12 @@ contract PPAgentV2Randao is PPAgentV2 {
     uint256 indexed slasherKeeperId,
     bool useResolver,
     uint256 jobSlashingPossibleAfter
+  );
+  event ExecutionReverted(
+    bytes32 indexed jobKey,
+    uint256 indexed keeperId,
+    bytes jobReturndata,
+    bytes resolverReturndata
   );
   event SlashIntervalJob(
     bytes32 indexed jobKey,
@@ -273,6 +279,37 @@ contract PPAgentV2Randao is PPAgentV2 {
     emit FinalizeKeeperActivation(keeperId_);
   }
 
+  function _beforeExecutionPayout(
+    bool ok_,
+    bytes32 jobKey_,
+    CalldataSourceType calldataSource_
+  ) internal view override returns (bytes memory) {
+    // Verify resolver returns true
+    bytes memory resolverResponse;
+    if (!ok_ && calldataSource_ == CalldataSourceType.RESOLVER) {
+      IPPAgentV2Viewer.Resolver memory resolver = resolvers[jobKey_];
+      (ok_, resolverResponse) = resolver.resolverAddress.staticcall(resolver.resolverCalldata);
+      if (!ok_) {
+        revert JobCheckResolverError(resolverResponse);
+      }
+      (bool canExecute,) = abi.decode(resolverResponse, (bool, bytes));
+      if (!canExecute) {
+        revert JobCheckResolverReturnedFalse();
+      } // resolver claims else can be executed
+    }
+    return resolverResponse;
+  }
+
+  function _afterExecutionReverted(
+    bytes32 jobKey_,
+    uint256 keeperId_,
+    ExecutionResponsesData memory eData_
+  ) internal override {
+    _releaseKeeper(jobKey_, keeperId_);
+
+    emit ExecutionReverted(jobKey_, keeperId_, eData_.executionResponse, eData_.resolverResponse);
+  }
+
   function initiateSlashing(
     address jobAddress_,
     uint256 jobId_,
@@ -357,7 +394,7 @@ contract PPAgentV2Randao is PPAgentV2 {
         abi.encodeWithSelector(PPAgentV2Randao.checkCouldBeExecuted.selector, jobAddress_, jobCalldata_)
       );
       if (ok) {
-        revert UnexpectedBlock();
+        revert UnexpectedCodeBlock();
       }
       bytes4 selector = bytes4(result);
       if (selector == PPAgentV2Randao.JobCheckCanNotBeExecuted.selector) {
@@ -474,7 +511,7 @@ contract PPAgentV2Randao is PPAgentV2 {
     _releaseKeeperIfRequired(jobKey_, expectedKeeperId);
   }
 
-  function _afterExecute(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal override {
+  function _afterExecutionSucceeded(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal override {
     uint256 expectedKeeperId = jobNextKeeperId[jobKey_];
     _releaseKeeper(jobKey_, expectedKeeperId);
 
@@ -607,11 +644,16 @@ contract PPAgentV2Randao is PPAgentV2 {
   }
 
   function _calculateCompensation(
+    bool ok_,
     uint256 job_,
     uint256 keeperId_,
     uint256 gasPrice_,
     uint256 gasUsed_
   ) internal view override returns (uint256) {
+    if (!ok_) {
+      return gasUsed_ * gasPrice_;
+    }
+
     job_; // silence unused param warning
     RandaoConfig memory _rdConfig = rdConfig;
 
