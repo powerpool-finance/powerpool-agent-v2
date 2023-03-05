@@ -71,7 +71,7 @@ contract PPAgentV2Randao is PPAgentV2 {
   event ExecutionReverted(
     bytes32 indexed jobKey,
     uint256 indexed keeperId,
-    bytes jobReturndata,
+    bytes executionReturndata,
     bytes resolverReturndata
   );
   event SlashIntervalJob(
@@ -285,19 +285,20 @@ contract PPAgentV2Randao is PPAgentV2 {
     CalldataSourceType calldataSource_
   ) internal view override returns (bytes memory) {
     // Verify resolver returns true
-    bytes memory resolverResponse;
     if (!ok_ && calldataSource_ == CalldataSourceType.RESOLVER) {
+      bytes memory resolverResponse;
       IPPAgentV2Viewer.Resolver memory resolver = resolvers[jobKey_];
       (ok_, resolverResponse) = resolver.resolverAddress.staticcall(resolver.resolverCalldata);
       if (!ok_) {
         revert JobCheckResolverError(resolverResponse);
       }
-      (bool canExecute,) = abi.decode(resolverResponse, (bool, bytes));
+      (bool canExecute,bytes memory cd) = abi.decode(resolverResponse, (bool, bytes));
       if (!canExecute) {
         revert JobCheckResolverReturnedFalse();
       } // resolver claims else can be executed
+      return cd;
     }
-    return resolverResponse;
+    return bytes("");
   }
 
   function _afterExecutionReverted(

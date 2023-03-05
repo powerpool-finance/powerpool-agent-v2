@@ -420,9 +420,11 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       assembly ("memory-safe") {
         let size := returndatasize()
         if gt(size, 0) {
+          executionResponse := mload(0x40)
+          mstore(executionResponse, size)
           let p := add(executionResponse, 0x20)
           returndatacopy(p, 0, size)
-          mstore(executionResponse, size)
+          mstore(0x40, add(executionResponse, add(32, size)))
         }
       }
       eData.executionResponse = executionResponse;
@@ -519,12 +521,12 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     jobKey_;
     keeperId_;
 
-    if (eData_.resolverResponse.length == 0) {
+    if (eData_.executionResponse.length == 0) {
       revert JobCallRevertedWithoutDetails();
     } else {
-      bytes memory resolverResponse = eData_.resolverResponse;
+      bytes memory executionResponse = eData_.executionResponse;
       assembly {
-        revert(add(32, resolverResponse), mload(resolverResponse))
+        revert(add(32, executionResponse), mload(executionResponse))
       }
     }
   }

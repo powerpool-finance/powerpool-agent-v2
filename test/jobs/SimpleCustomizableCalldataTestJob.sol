@@ -11,6 +11,7 @@ contract SimpleCustomizableCalldataTestJob is ICounter, AgentJob {
   bool public returnFalse;
   bool public revertResolver;
   bool public revertExecution;
+  bool public revertExecutionWithEmptyReturndata;
 
   constructor(address agent_) AgentJob (agent_) {
   }
@@ -25,6 +26,10 @@ contract SimpleCustomizableCalldataTestJob is ICounter, AgentJob {
 
   function setRevertExecution(bool revertExecution_) external {
     revertExecution = revertExecution_;
+  }
+
+  function setRevertExecutionWithEmptyReturndata(bool revertExecutionWithEmptyReturndata_) external {
+    revertExecutionWithEmptyReturndata = revertExecutionWithEmptyReturndata_;
   }
 
   function myResolver(string calldata pass) external view returns (bool, bytes memory) {
@@ -42,6 +47,9 @@ contract SimpleCustomizableCalldataTestJob is ICounter, AgentJob {
   }
 
   function increment(uint256 a, bool b, uint24 c, string calldata d) external onlyAgent {
+    if (revertExecutionWithEmptyReturndata) {
+      revert();
+    }
     if (revertExecution) {
       revert("forced execution revert");
     }

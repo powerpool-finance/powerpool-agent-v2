@@ -10,6 +10,7 @@ import "./jobs/OnlySelectorTestJob.sol";
 import "./jobs/SimpleCalldataTestJob.sol";
 import "./jobs/ComplexCalldataTestJob.sol";
 import "./jobs/SimpleCalldataIntervalTestJob.sol";
+import "./jobs/SimpleCustomizableCalldataTestJob.sol";
 
 contract ExecuteResolverTest is TestHelper {
   ICounter internal job;
@@ -270,6 +271,47 @@ contract ExecuteResolverTest is TestHelper {
     );
   }
 
+  function testErrExecResolverSimpleCalldataJobRevertsWithNoReturndata() public {
+    job = new SimpleCustomizableCalldataTestJob(address(agent));
+    assertEq(job.current(), 0);
+    _setupJob(address(job), SimpleCustomizableCalldataTestJob.increment.selector, true);
+
+    SimpleCustomizableCalldataTestJob(address(job)).setRevertExecutionWithEmptyReturndata(true);
+    (bool ok, bytes memory cd) = job.myResolver("myPass");
+    assertEq(ok, true);
+
+    vm.expectRevert(PPAgentV2.JobCallRevertedWithoutDetails.selector);
+    vm.prank(keeperWorker, keeperWorker);
+    _callExecuteHelper(
+      agent,
+      address(job),
+      jobId,
+      defaultFlags,
+      kid,
+      cd
+    );
+  }
+
+  function testErrExecResolverSimpleCalldataJobRevertsWithStringError() public {
+    job = new SimpleCustomizableCalldataTestJob(address(agent));
+    assertEq(job.current(), 0);
+    _setupJob(address(job), SimpleCustomizableCalldataTestJob.increment.selector, true);
+
+    SimpleCustomizableCalldataTestJob(address(job)).setRevertExecution(true);
+    (bool ok, bytes memory cd) = job.myResolver("myPass");
+    assertEq(ok, true);
+
+    vm.expectRevert(bytes("forced execution revert"));
+    vm.prank(keeperWorker, keeperWorker);
+    _callExecuteHelper(
+      agent,
+      address(job),
+      jobId,
+      defaultFlags,
+      kid,
+      cd
+    );
+  }
   // INTERVAL
 
   function testErrExecResolverTooEarly() public {
