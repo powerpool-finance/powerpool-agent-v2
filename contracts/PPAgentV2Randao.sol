@@ -30,6 +30,7 @@ contract PPAgentV2Randao is PPAgentV2 {
   error OnlyReservedSlasher(uint256 reservedSlasherId);
   error TooEarlyForSlashing(uint256 now_, uint256 possibleAfter);
   error SlashingNotInitiated();
+  error SlashingNotInitiatedExecutionReverted();
   error KeeperCantSlash();
   error KeeperIsAlreadyActive();
   error KeeperIsAlreadyInactive();
@@ -71,8 +72,7 @@ contract PPAgentV2Randao is PPAgentV2 {
   event ExecutionReverted(
     bytes32 indexed jobKey,
     uint256 indexed keeperId,
-    bytes executionReturndata,
-    bytes resolverReturndata
+    bytes executionReturndata
   );
   event SlashIntervalJob(
     bytes32 indexed jobKey,
@@ -279,36 +279,20 @@ contract PPAgentV2Randao is PPAgentV2 {
     emit FinalizeKeeperActivation(keeperId_);
   }
 
-  function _beforeExecutionPayout(
-    bool ok_,
-    bytes32 jobKey_,
-    CalldataSourceType calldataSource_
-  ) internal view override returns (bytes memory) {
-    // Verify resolver returns true
-    if (!ok_ && calldataSource_ == CalldataSourceType.RESOLVER) {
-      bytes memory resolverResponse;
-      IPPAgentV2Viewer.Resolver memory resolver = resolvers[jobKey_];
-      (ok_, resolverResponse) = resolver.resolverAddress.staticcall(resolver.resolverCalldata);
-      if (!ok_) {
-        revert JobCheckResolverError(resolverResponse);
-      }
-      (bool canExecute,bytes memory cd) = abi.decode(resolverResponse, (bool, bytes));
-      if (!canExecute) {
-        revert JobCheckResolverReturnedFalse();
-      } // resolver claims else can be executed
-      return cd;
-    }
-    return bytes("");
-  }
-
   function _afterExecutionReverted(
     bytes32 jobKey_,
+    CalldataSourceType calldataSource_,
     uint256 keeperId_,
-    ExecutionResponsesData memory eData_
+    bytes memory executionResponse_
   ) internal override {
+    if (calldataSource_ == CalldataSourceType.RESOLVER &&
+      jobReservedSlasherId[jobKey_] == 0 && jobSlashingPossibleAfter[jobKey_] == 0) {
+      revert SlashingNotInitiatedExecutionReverted();
+    }
+
     _releaseKeeper(jobKey_, keeperId_);
 
-    emit ExecutionReverted(jobKey_, keeperId_, eData_.executionResponse, eData_.resolverResponse);
+    emit ExecutionReverted(jobKey_, keeperId_, executionResponse_);
   }
 
   function initiateSlashing(

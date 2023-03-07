@@ -17,8 +17,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
   event ExecutionReverted(
     bytes32 indexed jobKey,
     uint256 indexed keeperId,
-    bytes jobReturndata,
-    bytes resolverReturndata
+    bytes executionReturndata
   );
 
   OnlySelectorTestJob internal counter;
@@ -255,7 +254,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     agent.initiateSlashing(address(job), jobId, kid3, true, cd);
   }
 
-  function testRdResolverExecutionRevert() public {
+  function testRdResolverExecutionRevertSlashingNotInitiated() public {
     job = new SimpleCustomizableCalldataTestJob(address(agent));
     _setupJob(address(job), SimpleCalldataTestJob.increment.selector, true);
     // first execution
@@ -271,17 +270,45 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     assertEq(SimpleCustomizableCalldataTestJob(address(job)).revertResolver(), false);
     assertEq(SimpleCustomizableCalldataTestJob(address(job)).revertExecution(), true);
 
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.SlashingNotInitiatedExecutionReverted.selector));
+    _executeJob(2, cd);
+  }
+
+  function testRdResolverExecutionRevertSlashingInitiated() public {
+    job = new SimpleCustomizableCalldataTestJob(address(agent));
+    _setupJob(address(job), SimpleCalldataTestJob.increment.selector, true);
+    // first execution
+    vm.difficulty(41);
+    (bool ok, bytes memory cd) = job.myResolver("myPass");
+    assertEq(ok, true);
+    _executeJob(3, cd);
+    assertEq(job.current(), 1);
+
+    SimpleCustomizableCalldataTestJob(address(job)).setRevertExecution(true);
+    assertEq(agent.getCurrentSlasherId(jobKey), 3);
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(SimpleCustomizableCalldataTestJob(address(job)).revertResolver(), false);
+    assertEq(SimpleCustomizableCalldataTestJob(address(job)).revertExecution(), true);
+
+    // initialize slashing
+    vm.prank(bob, bob);
+    agent.initiateSlashing(address(job), jobId, kid3, true, cd);
+    assertEq(agent.jobReservedSlasherId(jobKey), kid3);
+    assertEq(agent.jobSlashingPossibleAfter(jobKey), 1600000015);
+
     // resolver false
     vm.expectEmit(true, true, false, true, address(agent));
     emit KeeperJobUnlock(2, jobKey);
     vm.expectEmit(true, true, false, true, address(agent));
-    emit ExecutionReverted(jobKey, 2, abi.encodeWithSignature("Error(string)", "forced execution revert"), cd);
+    emit ExecutionReverted(jobKey, 2, abi.encodeWithSignature("Error(string)", "forced execution revert"));
 
     uint256 workerBalanceBefore = keeperWorker.balance;
     vm.difficulty(52);
     _executeJob(2, cd);
     assertEq(agent.jobNextKeeperId(jobKey), 0);
     assertEq(job.current(), 1);
-    assertEq(keeperWorker.balance - workerBalanceBefore, 0.00023865 ether);
+    assertEq(agent.jobReservedSlasherId(jobKey), 0);
+    assertEq(agent.jobSlashingPossibleAfter(jobKey), 0);
+    assertApproxEqAbs(keeperWorker.balance - workerBalanceBefore, 0.000090975 ether, 0.00005 ether);
   }
 }

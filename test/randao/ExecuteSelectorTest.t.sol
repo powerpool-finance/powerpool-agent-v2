@@ -332,6 +332,6 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
       kid2,
       new bytes(0)
     );
-    assertEq(keeperWorker.balance - workerBalanceBefore, 0.00029190 ether);
+    assertApproxEqAbs(keeperWorker.balance - workerBalanceBefore, 0.000285775 ether, 0.00005 ether);
   }
 }

@@ -250,8 +250,6 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   function _beforeExecute(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal view virtual {}
   function _beforeInitiateRedeem(uint256 keeperId_) internal view virtual {}
 
-  function _beforeExecutionPayout(bool ok_, bytes32 jobKey_, CalldataSourceType calldataSource_)
-    internal virtual returns (bytes memory) {}
   function _afterExecutionSucceeded(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal virtual {}
   function _afterRegisterJob(bytes32 jobKey_) internal virtual {}
   function _afterDepositJobCredits(bytes32 jobKey_) internal virtual {}
@@ -414,9 +412,8 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
 
     // Load returned response only if the job call had failed
-    ExecutionResponsesData memory eData;
+    bytes memory executionResponse;
     if (!ok) {
-      bytes memory executionResponse;
       assembly ("memory-safe") {
         let size := returndatasize()
         if gt(size, 0) {
@@ -427,10 +424,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
           mstore(0x40, add(executionResponse, add(32, size)))
         }
       }
-      eData.executionResponse = executionResponse;
     }
-
-    eData.resolverResponse = _beforeExecutionPayout(ok, jobKey, calldataSource);
 
     // Payout block
     uint256 compensation;
@@ -509,24 +503,25 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       _afterExecutionSucceeded(jobKey, actualKeeperId, binJob);
     } else {
       // Tx reverted
-      _afterExecutionReverted(jobKey, actualKeeperId, eData);
+      _afterExecutionReverted(jobKey, calldataSource, actualKeeperId, executionResponse);
     }
   }
 
   function _afterExecutionReverted(
     bytes32 jobKey_,
+    CalldataSourceType calldataSource_,
     uint256 keeperId_,
-    ExecutionResponsesData memory eData_
+    bytes memory executionResponse_
   ) internal virtual {
     jobKey_;
     keeperId_;
+    calldataSource_;
 
-    if (eData_.executionResponse.length == 0) {
+    if (executionResponse_.length == 0) {
       revert JobCallRevertedWithoutDetails();
     } else {
-      bytes memory executionResponse = eData_.executionResponse;
       assembly {
-        revert(add(32, executionResponse), mload(executionResponse))
+        revert(add(32, executionResponse_), mload(executionResponse_))
       }
     }
   }
