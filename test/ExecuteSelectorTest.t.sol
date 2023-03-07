@@ -504,4 +504,18 @@ contract ExecuteSelectorTest is TestHelper {
       new bytes(0)
     );
   }
+
+  function testIntervalJobExecutionReverted() public {
+    counter.setRevertExecution(true);
+    vm.expectRevert(bytes("forced execution revert"));
+    vm.prank(keeperWorker, keeperWorker);
+    _callExecuteHelper(
+      agent,
+      address(counter),
+      jobId,
+      accrueFlags,
+      kid,
+      new bytes(0)
+    );
+  }
 }
