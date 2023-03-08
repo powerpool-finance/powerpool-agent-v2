@@ -217,6 +217,9 @@ contract PPAgentV2Randao is PPAgentV2 {
     // 2.1 If interval job
     if (intervalSeconds != 0) {
       uint256 lastExecutionAt = binJob >> 224;
+      if (lastExecutionAt == 0) {
+        lastExecutionAt = jobCreatedAt[jobKey_];
+      }
       uint256 period2EndsAt = lastExecutionAt + rdConfig.period1 + rdConfig.period2;
       if (period2EndsAt > block.timestamp) {
         revert TooEarlyToRelease(jobKey_, period2EndsAt);
