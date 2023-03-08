@@ -172,6 +172,14 @@ contract StakingTest is TestHelper {
     agent.initiateRedeem(kid1, 3_001 ether);
   }
 
+  function testErrInvalidKeeperId() public {
+    assertEq(_keeperCount(), 2);
+    vm.expectRevert(
+      abi.encodeWithSelector(PPAgentV2.InvalidKeeperId.selector)
+    );
+    agent.stake(3, 1 ether);
+  }
+
   function testErrStakeZero() public {
     vm.expectRevert(
       abi.encodeWithSelector(PPAgentV2.MissingAmount.selector)

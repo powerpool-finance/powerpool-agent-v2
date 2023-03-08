@@ -298,7 +298,7 @@ contract RandaoActorsTest is TestHelperRandao {
     agent.setRdConfig(rdConfig);
 
     vm.prank(keeperAdmin);
-    agent.releaseJob(kid2, jobKey);
+    agent.releaseJob(jobKey);
     assertEq(agent.jobNextKeeperId(jobKey), 0);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
     assertEq(agent.getJobsAssignedToKeeperLength(2), 0);

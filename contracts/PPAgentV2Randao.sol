@@ -25,7 +25,6 @@ contract PPAgentV2Randao is PPAgentV2 {
   error InvalidStakeDivisor();
   error InactiveKeeper();
   error KeeperIsAssignedToJobs(uint256 amountOfJobs);
-  error KeeperNotAssignedToJob(uint256 assignedKeeperId);
   error OnlyCurrentSlasher(uint256 expectedSlasherId);
   error OnlyReservedSlasher(uint256 reservedSlasherId);
   error TooEarlyForSlashing(uint256 now_, uint256 possibleAfter);
@@ -128,12 +127,6 @@ contract PPAgentV2Randao is PPAgentV2 {
 
   EnumerableSet.UintSet internal activeKeepers;
 
-  function _assertOnlyKeeperWorker(uint256 keeperId_) internal view {
-    if (msg.sender != keeperAdmins[keeperId_]) {
-      revert OnlyKeeperAdmin();
-    }
-  }
-
   function getStrategy() public pure override returns (string memory) {
     return "randao";
   }
@@ -198,18 +191,15 @@ contract PPAgentV2Randao is PPAgentV2 {
   }
 
   /*** KEEPER METHODS ***/
-  function releaseJob(uint256 keeperId_, bytes32 jobKey_) external {
-    _assertOnlyKeeperAdmin(keeperId_);
+  function releaseJob(bytes32 jobKey_) external {
     uint256 assignedKeeperId = jobNextKeeperId[jobKey_];
-    if (assignedKeeperId != keeperId_) {
-      revert KeeperNotAssignedToJob(assignedKeeperId);
-    }
+    _assertOnlyKeeperAdmin(assignedKeeperId);
 
     uint256 binJob = getJobRaw(jobKey_);
     uint256 intervalSeconds = (binJob << 32) >> 232;
 
     // 1. Release if insufficient credits
-    if (_releaseKeeperIfRequired(jobKey_, keeperId_)) {
+    if (_releaseKeeperIfRequired(jobKey_, assignedKeeperId)) {
       return;
     }
 
@@ -239,7 +229,7 @@ contract PPAgentV2Randao is PPAgentV2 {
       }
     }
 
-    _releaseKeeper(jobKey_, keeperId_);
+    _releaseKeeper(jobKey_, assignedKeeperId);
   }
 
   function disableKeeper(uint256 keeperId_) external {
@@ -388,7 +378,7 @@ contract PPAgentV2Randao is PPAgentV2 {
       }
       bytes4 selector = bytes4(result);
       if (selector == PPAgentV2Randao.JobCheckCanNotBeExecuted.selector) {
-        assembly {
+        assembly ("memory-safe") {
             revert(add(32, result), mload(result))
         }
       } else if (selector != PPAgentV2Randao.JobCheckCanBeExecuted.selector) {
@@ -452,12 +442,12 @@ contract PPAgentV2Randao is PPAgentV2 {
 
   /*** HOOKS ***/
   function _beforeExecute(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal view override {
-    uint256 nextKeeper = jobNextKeeperId[jobKey_];
+    uint256 nextKeeperId = jobNextKeeperId[jobKey_];
     uint256 intervalSeconds = (binJob_ << 32) >> 232;
     uint256 lastExecutionAt = binJob_ >> 224;
 
     // if interval task is called by a slasher
-    if (intervalSeconds > 0 && jobNextKeeperId[jobKey_] != actualKeeperId_) {
+    if (intervalSeconds > 0 && nextKeeperId != actualKeeperId_) {
       uint256 nextExecutionTimeoutAt;
       uint256 _lastExecutionAt = lastExecutionAt;
       if (_lastExecutionAt == 0) {
@@ -468,7 +458,7 @@ contract PPAgentV2Randao is PPAgentV2 {
       }
       // if it is to early to slash this job
       if (block.timestamp < nextExecutionTimeoutAt) {
-        revert OnlyNextKeeper(nextKeeper, lastExecutionAt, intervalSeconds, rdConfig.period1, block.timestamp);
+        revert OnlyNextKeeper(nextKeeperId, lastExecutionAt, intervalSeconds, rdConfig.period1, block.timestamp);
       }
 
       uint256 currentSlasherId = getCurrentSlasherId(jobKey_);
@@ -476,7 +466,7 @@ contract PPAgentV2Randao is PPAgentV2 {
         revert OnlyCurrentSlasher(currentSlasherId);
       }
     // if a resolver job is called by a slasher
-    } else  if (intervalSeconds == 0 && jobNextKeeperId[jobKey_] != actualKeeperId_) {
+    } else  if (intervalSeconds == 0 && nextKeeperId != actualKeeperId_) {
       uint256 _jobSlashingPossibleAfter = jobSlashingPossibleAfter[jobKey_];
       if (_jobSlashingPossibleAfter == 0) {
         revert SlashingNotInitiated();

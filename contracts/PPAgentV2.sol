@@ -51,6 +51,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   error JobShouldHaveInterval();
   error ResolverJobCantHaveInterval();
   error InvalidJobAddress();
+  error InvalidKeeperId();
   error MissingResolverAddress();
   error NotSupportedByJobCalldataSource();
   error OnlyKeeperAdmin();
@@ -194,6 +195,12 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   function _assertOnlyKeeperAdminOrWorker(uint256 keeperId_) internal view {
     if (msg.sender != keeperAdmins[keeperId_] && msg.sender != keepers[keeperId_].worker) {
       revert OnlyKeeperAdminOrWorker();
+    }
+  }
+
+  function _assertKeeperIdExists(uint256 keeperId_) internal view {
+    if (keeperId_ > lastKeeperId) {
+      revert InvalidKeeperId();
     }
   }
 
@@ -368,7 +375,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     CalldataSourceType calldataSource = CalldataSourceType((binJob << 56) >> 248);
     if (calldataSource == CalldataSourceType.SELECTOR) {
       bytes4 selector;
-      assembly {
+      assembly ("memory-safe") {
         selector := shl(224, shr(8, binJob))
       }
       (ok,) = jobAddress.call{ gas: jobGas }(abi.encode(selector));
@@ -535,7 +542,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     if (executionResponse_.length == 0) {
       revert JobCallRevertedWithoutDetails();
     } else {
-      assembly {
+      assembly ("memory-safe") {
         revert(add(32, executionResponse_), mload(executionResponse_))
       }
     }
@@ -805,7 +812,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
 
   function _updateRawJob(bytes32 jobKey_, uint256 job_) internal {
     Job storage job = jobs[jobKey_];
-    assembly {
+    assembly ("memory-safe") {
       sstore(job.slot, job_)
     }
   }
@@ -1046,6 +1053,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    */
   function stake(uint256 keeperId_, uint256 amount_) external {
     _assertNonZeroAmount(amount_);
+    _assertKeeperIdExists(keeperId_);
     _stake(keeperId_, amount_);
   }
 
@@ -1327,13 +1335,13 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    */
   function getJobRaw(bytes32 jobKey_) public view returns (uint256 rawJob) {
     Job storage job = jobs[jobKey_];
-    assembly {
+    assembly ("memory-safe") {
       rawJob := sload(job.slot)
     }
   }
 
   function getJobKey(address jobAddress_, uint256 jobId_) public pure returns (bytes32 jobKey) {
-    assembly {
+    assembly ("memory-safe") {
       mstore(0, shl(96, jobAddress_))
       mstore(20, shl(232, jobId_))
       jobKey := keccak256(0, 23)
