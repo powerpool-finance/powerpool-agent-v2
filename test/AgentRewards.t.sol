@@ -16,7 +16,8 @@ contract AgentRewardsTest is TestHelper {
 
   constructor() {
     cvp = new MockCVP();
-    agent = new PPAgentV2(owner, address(cvp), MIN_DEPOSIT_3000_CVP, 3 days);
+    agent = new PPAgentV2(address(cvp));
+    agent.initialize(owner, MIN_DEPOSIT_3000_CVP, 3 days);
   }
 
   function setUp() public override {

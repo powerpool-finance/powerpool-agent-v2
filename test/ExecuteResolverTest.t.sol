@@ -26,7 +26,8 @@ contract ExecuteResolverTest is TestHelper {
       accrueReward: false
     });
     cvp = new MockCVP();
-    agent = new PPAgentV2(bob, address(cvp), 3_000 ether, 3 days);
+    agent = new PPAgentV2(address(cvp));
+    agent.initialize(owner, MIN_DEPOSIT_3000_CVP, 3 days);
 
     {
       cvp.transfer(keeperAdmin, 10_000 ether);

@@ -142,13 +142,15 @@ contract PPAgentV2Randao is PPAgentV2 {
     return 55_000;
   }
 
-  constructor(
+  constructor(address cvp_) PPAgentV2(cvp_) {
+  }
+
+  function initialize(
     address owner_,
-    address cvp_,
     uint256 minKeeperCvp_,
     uint256 pendingWithdrawalTimeoutSeconds_,
-    RandaoConfig memory rdConfig_)
-    PPAgentV2(owner_, cvp_, minKeeperCvp_, pendingWithdrawalTimeoutSeconds_) {
+    RandaoConfig memory rdConfig_) external {
+    PPAgentV2.initialize(owner_, minKeeperCvp_, pendingWithdrawalTimeoutSeconds_);
     _setRdConfig(rdConfig_);
   }
 

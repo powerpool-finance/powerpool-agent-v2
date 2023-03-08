@@ -44,7 +44,8 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
       stakeDivisor: 50_000_000,
       keeperActivationTimeoutHours: 8
     });
-    agent = new PPAgentV2Randao(owner, address(cvp), 3_000 ether, 3 days, rdConfig);
+    agent = new PPAgentV2Randao(address(cvp));
+    agent.initialize(owner, 3_000 ether, 3 days, rdConfig);
     counter = new OnlySelectorTestJob(address(agent));
 
     {

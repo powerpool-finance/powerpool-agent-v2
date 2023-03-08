@@ -15,7 +15,8 @@ contract KeeperTest is TestHelper {
 
   function setUp() public override {
     cvp = new MockCVP();
-    agent = new PPAgentV2(bob, address(cvp), MIN_DEPOSIT_3000_CVP, 3 days);
+    agent = new PPAgentV2(address(cvp));
+    agent.initialize(bob, MIN_DEPOSIT_3000_CVP, 3 days);
     cvp.transfer(keeperAdmin, 10_000 ether);
     vm.startPrank(keeperAdmin);
     cvp.approve(address(agent), MIN_DEPOSIT_3000_CVP * 2);

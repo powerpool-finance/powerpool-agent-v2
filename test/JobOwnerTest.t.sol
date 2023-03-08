@@ -13,7 +13,8 @@ contract JobOwnerTest is TestHelper {
     vm.deal(alice, 100 ether);
     vm.deal(bob, 100 ether);
     cvp = new MockCVP();
-    agent = new PPAgentV2(owner, address(cvp), 3_000 ether, 3 days);
+    agent = new PPAgentV2(address(cvp));
+    agent.initialize(owner, MIN_DEPOSIT_3000_CVP, 3 days);
     vm.deal(address(agent), 1000 ether);
     cvp.transfer(alice, 10_000 ether);
   }

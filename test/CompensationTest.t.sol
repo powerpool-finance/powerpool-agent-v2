@@ -17,7 +17,8 @@ contract CompensationTest is Test, PPAgentV2Flags {
 
   function setUp() public {
     cvp = new MockCVP();
-    agent = new PPAgentV2(bob, address(cvp), 3_000 ether, 3 days);
+    agent = new PPAgentV2(address(cvp));
+    agent.initialize(bob, 3_000 ether, 3 days);
   }
 
   function testGasCompensationPctLt100AndFixed() public {

@@ -50,8 +50,9 @@ contract JobManagementTest is TestHelper {
   function setUp() public override {
     vm.deal(alice, 100 ether);
     cvp = new MockCVP();
-    agent = new PPAgentV2(owner, address(cvp), 3_000 ether, 3 days);
-    lens = new PPAgentV2Lens(owner, address(cvp), 3_000 ether, 3 days);
+    agent = new PPAgentV2(address(cvp));
+    agent.initialize(owner, MIN_DEPOSIT_3000_CVP, 3 days);
+    lens = new PPAgentV2Lens(address(cvp));
     vm.deal(address(agent), 1000 ether);
     cvp.transfer(alice, 10_000 ether);
     params1 = IPPAgentV2JobOwner.RegisterJobParams({

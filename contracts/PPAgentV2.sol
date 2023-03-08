@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "./PPAgentV2Flags.sol";
 import "./PPAgentV2Interfaces.sol";
 
@@ -16,7 +17,7 @@ library ConfigFlags {
  * @title PowerAgentLite
  * @author PowerPool
  */
-contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, PPAgentV2Flags, Ownable {
+contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, PPAgentV2Flags, Initializable, Ownable {
   error OnlyOwner();
   error NonEOASender();
   error InsufficientKeeperStake();
@@ -240,8 +241,15 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
   }
 
-  constructor(address owner_, address cvp_, uint256 minKeeperCvp_, uint256 pendingWithdrawalTimeoutSeconds_) {
+  constructor(address cvp_) {
     CVP = IERC20(cvp_);
+  }
+
+  function initialize(
+    address owner_,
+    uint256 minKeeperCvp_,
+    uint256 pendingWithdrawalTimeoutSeconds_
+  ) public initializer {
     _setAgentParams(minKeeperCvp_, pendingWithdrawalTimeoutSeconds_, 0);
     _transferOwnership(owner_);
   }

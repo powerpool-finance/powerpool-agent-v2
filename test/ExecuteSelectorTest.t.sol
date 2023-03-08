@@ -29,7 +29,8 @@ contract ExecuteSelectorTest is TestHelper {
       accrueReward: true
     });
     cvp = new MockCVP();
-    agent = new PPAgentV2(owner, address(cvp), 3_000 ether, 3 days);
+    agent = new PPAgentV2(address(cvp));
+    agent.initialize(owner, MIN_DEPOSIT_3000_CVP, 3 days);
     counter = new OnlySelectorTestJob(address(agent));
 
     PPAgentV2.Resolver memory resolver = IPPAgentV2Viewer.Resolver({

@@ -24,8 +24,9 @@ contract RegisterJob is TestHelper {
 
   function setUp() public override {
     cvp = new MockCVP();
-    agent = new PPAgentV2(owner, address(cvp), 3_000 ether, 3 days);
-    lens = new PPAgentV2Lens(owner, address(cvp), 3_000 ether, 3 days);
+    agent = new PPAgentV2(address(cvp));
+    agent.initialize(owner, MIN_DEPOSIT_3000_CVP, 3 days);
+    lens = new PPAgentV2Lens(address(cvp));
     cvp.transfer(alice, 10_000 ether);
     address[] memory agents = new address[](1);
     agents[0] = address(agent);

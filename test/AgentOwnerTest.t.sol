@@ -13,7 +13,8 @@ contract AgentOwnerTest is TestHelper {
 
   function setUp() public override {
     cvp = new MockCVP();
-    agent = new PPAgentV2(owner, address(cvp), MIN_DEPOSIT_3000_CVP, 3 days);
+    agent = new PPAgentV2(address(cvp));
+    agent.initialize(owner, MIN_DEPOSIT_3000_CVP, 3 days);
   }
 
   function testOwnerAssignedCorrectly() public {
