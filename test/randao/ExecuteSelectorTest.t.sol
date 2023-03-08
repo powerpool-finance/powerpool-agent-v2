@@ -335,4 +335,27 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     );
     assertApproxEqAbs(keeperWorker.balance - workerBalanceBefore, 0.000285775 ether, 0.00005 ether);
   }
+
+  function testRdIntervalJobExecutionRevertedCompensationLessThanBalance() public {
+    accrueFlags = _config({
+      acceptMaxBaseFeeLimit: false,
+      accrueReward: false
+    });
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    counter.setRevertExecution(true);
+
+    assertEq(_jobCredits(jobKey), 1 ether);
+    vm.prank(keeperWorker, keeperWorker);
+    vm.fee(500_000 gwei);
+    _callExecuteHelper(
+      agent,
+      address(counter),
+      jobId,
+      accrueFlags,
+      kid2,
+      new bytes(0)
+    );
+    assertEq(_jobCredits(jobKey), 0);
+    assertEq(keeperWorker.balance, 1 ether);
+  }
 }

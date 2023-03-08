@@ -354,15 +354,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
 
     // 4. Ensure gas price fits base fee
-    uint256 maxBaseFee;
-    {
-      unchecked {
-        maxBaseFee = ((binJob << 112) >> 240)  * 1 gwei;
-      }
-      if (block.basefee > maxBaseFee && !ConfigFlags.check(cfg, FLAG_ACCEPT_MAX_BASE_FEE_LIMIT)) {
-        revert BaseFeeGtGasPrice(block.basefee, maxBaseFee);
-      }
-    }
+    uint256 maxBaseFee = _checkBaseFee(binJob, cfg);
 
     // 5. Ensure msg.sender is EOA
     if (msg.sender != tx.origin) {
@@ -456,12 +448,16 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
 
         if (ConfigFlags.check(binJob, CFG_USE_JOB_OWNER_CREDITS)) {
           // use job owner credits
-          _useJobOwnerCredits(jobKey, compensation);
+          _useJobOwnerCredits(ok, jobKey, compensation);
         } else {
           // use job credits
           uint256 creditsBefore = (binJob << 128) >> 168;
           if (creditsBefore < compensation) {
-            revert InsufficientJobCredits(creditsBefore, compensation);
+            if (ok) {
+              revert InsufficientJobCredits(creditsBefore, compensation);
+            } else {
+              compensation = creditsBefore;
+            }
           }
 
           uint256 creditsAfter;
@@ -515,6 +511,17 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
   }
 
+  function _checkBaseFee(uint256 binJob_, uint256 cfg_) internal view virtual returns (uint256) {
+    uint256 maxBaseFee;
+    unchecked {
+      maxBaseFee = ((binJob_ << 112) >> 240)  * 1 gwei;
+    }
+    if (block.basefee > maxBaseFee && !ConfigFlags.check(cfg_, FLAG_ACCEPT_MAX_BASE_FEE_LIMIT)) {
+      revert BaseFeeGtGasPrice(block.basefee, maxBaseFee);
+    }
+    return maxBaseFee;
+  }
+
   function _afterExecutionReverted(
     bytes32 jobKey_,
     CalldataSourceType calldataSource_,
@@ -548,10 +555,14 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     return calculateCompensationPure(rewardPct, fixedReward, gasPrice_, gasUsed_);
   }
 
-  function _useJobOwnerCredits(bytes32 jobKey_, uint256 compensation_) internal {
+  function _useJobOwnerCredits(bool ok_, bytes32 jobKey_, uint256 compensation_) internal {
     uint256 jobOwnerCreditsBefore = jobOwnerCredits[jobOwners[jobKey_]];
     if (jobOwnerCreditsBefore < compensation_) {
-      revert InsufficientJobOwnerCredits(jobOwnerCreditsBefore, compensation_);
+      if (ok_) {
+        revert InsufficientJobOwnerCredits(jobOwnerCreditsBefore, compensation_);
+      } else {
+        compensation_ = jobOwnerCreditsBefore;
+      }
     }
 
     unchecked {
@@ -600,7 +611,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       revert InvalidCalldataSource();
     }
 
-    if (params_.jobAddress == address(CVP)) {
+    if (params_.jobAddress == address(CVP) || params_.jobAddress == address(this)) {
       revert InvalidJobAddress();
     }
 

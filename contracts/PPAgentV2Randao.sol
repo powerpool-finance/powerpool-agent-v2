@@ -630,6 +630,13 @@ contract PPAgentV2Randao is PPAgentV2 {
     }
   }
 
+  function _checkBaseFee(uint256 binJob_, uint256 cfg_) internal pure override returns (uint256) {
+    binJob_;
+    cfg_;
+
+    return type(uint256).max;
+  }
+
   function _calculateCompensation(
     bool ok_,
     uint256 job_,
