@@ -193,6 +193,14 @@ contract PPAgentV2Randao is PPAgentV2 {
   /*** KEEPER METHODS ***/
   function releaseJob(bytes32 jobKey_) external {
     uint256 assignedKeeperId = jobNextKeeperId[jobKey_];
+
+    // Job owner can unassign a keeper without any restriction
+    if (msg.sender == jobOwners[jobKey_]) {
+      _releaseKeeper(jobKey_, assignedKeeperId);
+      return;
+    }
+    // Otherwise this is a keeper's call
+
     _assertOnlyKeeperAdmin(assignedKeeperId);
 
     uint256 binJob = getJobRaw(jobKey_);

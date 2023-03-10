@@ -55,6 +55,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   error MissingResolverAddress();
   error NotSupportedByJobCalldataSource();
   error OnlyKeeperAdmin();
+  error OnlyKeeperAdminOrJobOwner();
   error OnlyKeeperAdminOrWorker();
   error TimeoutTooBig();
   error FeeTooBig();

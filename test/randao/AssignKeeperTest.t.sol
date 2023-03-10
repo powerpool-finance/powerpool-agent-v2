@@ -422,4 +422,30 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     assertEq(agent.jobNextKeeperId(jobKey), 1);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
   }
+
+  function testRdJobOwnerCanReleaseKeeper() public {
+    // release kid1
+    vm.difficulty(1);
+    _agent.assignNextKeeper(jobKey);
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
+
+    vm.prank(alice);
+    _agent.releaseJob(jobKey);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 0);
+  }
+
+  function testRdOtherAddressCantRelease() public {
+    // release kid1
+    vm.difficulty(1);
+    _agent.assignNextKeeper(jobKey);
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
+
+    vm.prank(bob);
+    vm.expectRevert(PPAgentV2.OnlyKeeperAdmin.selector);
+    _agent.releaseJob(jobKey);
+  }
 }
