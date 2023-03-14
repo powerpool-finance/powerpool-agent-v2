@@ -53,7 +53,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
       keeperActivationTimeoutHours: 8
     });
     agent = new MockExposedAgent(address(cvp));
-    agent.initialize(owner, 3_000 ether, 3 days, rdConfig);
+    agent.initializeRandao(owner, 3_000 ether, 3 days, rdConfig);
 
     {
       cvp.transfer(a1, 5_000 ether);

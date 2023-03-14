@@ -138,7 +138,7 @@ contract PPAgentV2Randao is PPAgentV2 {
   constructor(address cvp_) PPAgentV2(cvp_) {
   }
 
-  function initialize(
+  function initializeRandao(
     address owner_,
     uint256 minKeeperCvp_,
     uint256 pendingWithdrawalTimeoutSeconds_,
