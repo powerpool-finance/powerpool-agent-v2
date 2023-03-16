@@ -171,7 +171,7 @@ contract PPAgentV2Randao is PPAgentV2 {
     if (rdConfig_.stakeDivisor == 0) {
       revert InvalidStakeDivisor();
     }
-    emit SetRdConfig(rdConfig);
+    emit SetRdConfig(rdConfig_);
 
     rdConfig = rdConfig_;
   }
