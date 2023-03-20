@@ -12,7 +12,7 @@ import "./PPAgentV2Interfaces.sol";
  * @title PPAgentV2Randao
  * @author PowerPool
  */
-contract PPAgentV2Randao is PPAgentV2 {
+contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   using EnumerableSet for EnumerableSet.Bytes32Set;
   using EnumerableSet for EnumerableSet.UintSet;
 
@@ -85,32 +85,7 @@ contract PPAgentV2Randao is PPAgentV2 {
   event JobKeeperUnassigned(bytes32 indexed jobKey);
   event KeeperJobUnlock(uint256 indexed keeperId, bytes32 indexed jobKey);
 
-  // 8+24+16+24+16+16+40+16+32 = 192
-  struct RandaoConfig {
-    // max: 2^8 - 1 = 255 blocks
-    uint8 slashingEpochBlocks;
-    // max: 2^24 - 1 = 16777215 seconds ~ 194 days
-    uint24 period1;
-    // max: 2^16 - 1 = 65535 seconds ~ 18 hours
-    uint16 period2;
-    // in 1 CVP. max: 16_777_215 CVP. The value here is multiplied by 1e18 in calculations.
-    uint24 slashingFeeFixedCVP;
-    // In BPS
-    uint16 slashingFeeBps;
-    // max: 2^16 - 1 = 65535, in calculations is multiplied by 0.001 ether (1 finney),
-    // thus the min is 0.001 ether and max is 65.535 ether
-    uint16 jobMinCreditsFinney;
-    // max 2^40 ~= 1.1e12, in calculations is multiplied by 1 ether
-    uint40 agentMaxCvpStake;
-    // max: 2^16 - 1 = 65535, where 10_000 is 100%
-    uint16 jobCompensationMultiplierBps;
-    // max: 2^32 - 1 = 4_294_967_295
-    uint32 stakeDivisor;
-    // max: 2^8 - 1 = 255 hours, or ~10.5 days
-    uint8 keeperActivationTimeoutHours;
-  }
-
-  RandaoConfig public rdConfig;
+  IPPAgentV2RandaoViewer.RandaoConfig internal rdConfig;
 
   // keccak256(jobAddress, id) => nextKeeperId
   mapping(bytes32 => uint256) public jobNextKeeperId;
@@ -680,12 +655,16 @@ contract PPAgentV2Randao is PPAgentV2 {
     return getSlasherIdByBlock(block.number, jobKey_);
   }
 
-  function getActiveKeepersLength() public view returns (uint256) {
+  function getActiveKeepersLength() external view returns (uint256) {
     return activeKeepers.length();
   }
 
-  function getActiveKeepers() public view returns (uint256[] memory) {
+  function getActiveKeepers() external view returns (uint256[] memory) {
     return activeKeepers.values();
+  }
+
+  function getRdConfig() external view returns (RandaoConfig memory) {
+    return rdConfig;
   }
 
   function getSlasherIdByBlock(uint256 blockNumber_, bytes32 jobKey_) public view returns (uint256) {

@@ -34,7 +34,7 @@ contract RandaoActorsTest is TestHelperRandao {
       accrueReward: true
     });
     cvp = new MockCVP();
-    rdConfig = PPAgentV2Randao.RandaoConfig({
+    rdConfig = IPPAgentV2RandaoViewer.RandaoConfig({
       slashingEpochBlocks: 10,
       period1: 15,
       period2: 30,
@@ -92,7 +92,7 @@ contract RandaoActorsTest is TestHelperRandao {
 
   function testRdOwnerCanSetRdConfig() public {
     assertEq(agent.owner(), owner);
-    PPAgentV2Randao.RandaoConfig memory config = PPAgentV2Randao.RandaoConfig({
+    IPPAgentV2RandaoViewer.RandaoConfig memory config = IPPAgentV2RandaoViewer.RandaoConfig({
       slashingEpochBlocks: 20,
       period1: 25,
       period2: 40,
@@ -106,28 +106,17 @@ contract RandaoActorsTest is TestHelperRandao {
     });
     vm.prank(owner, owner);
     agent.setRdConfig(config);
-    (
-      uint8 slashingEpochBlocks,
-      uint24 period1,
-      uint16 period2,
-      uint24 slashingFeeFixedCVP,
-      uint16 slashingFeeBps,
-      uint16 jobMinCreditsFinney,
-      uint40 agentMaxCvpStake,
-      uint16 jobCompensationMultiplierBps,
-      uint32 stakeDivisor,
-      uint8 keeperActivationTimeoutHours
-    ) = agent.rdConfig();
-    assertEq(slashingEpochBlocks, 20);
-    assertEq(period1, 25);
-    assertEq(period2, 40);
-    assertEq(slashingFeeFixedCVP, 60);
-    assertEq(slashingFeeBps, 400);
-    assertEq(jobMinCreditsFinney, 0);
-    assertEq(agentMaxCvpStake, 50_000);
-    assertEq(jobCompensationMultiplierBps, 1);
-    assertEq(stakeDivisor, 50_000_000);
-    assertEq(keeperActivationTimeoutHours, 8);
+    IPPAgentV2RandaoViewer.RandaoConfig memory agentConfig = agent.getRdConfig();
+    assertEq(agentConfig.slashingEpochBlocks, 20);
+    assertEq(agentConfig.period1, 25);
+    assertEq(agentConfig.period2, 40);
+    assertEq(agentConfig.slashingFeeFixedCVP, 60);
+    assertEq(agentConfig.slashingFeeBps, 400);
+    assertEq(agentConfig.jobMinCreditsFinney, 0);
+    assertEq(agentConfig.agentMaxCvpStake, 50_000);
+    assertEq(agentConfig.jobCompensationMultiplierBps, 1);
+    assertEq(agentConfig.stakeDivisor, 50_000_000);
+    assertEq(agentConfig.keeperActivationTimeoutHours, 8);
   }
 
   function testRdJobOwnerDisableJob() public {

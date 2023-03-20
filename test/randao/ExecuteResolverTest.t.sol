@@ -41,7 +41,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
       accrueReward: true
     });
     cvp = new MockCVP();
-    PPAgentV2Randao.RandaoConfig memory rdConfig = PPAgentV2Randao.RandaoConfig({
+    IPPAgentV2RandaoViewer.RandaoConfig memory rdConfig = IPPAgentV2RandaoViewer.RandaoConfig({
       slashingEpochBlocks: 10,
       period1: 15,
       period2: 30,

@@ -32,7 +32,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
       accrueReward: true
     });
     cvp = new MockCVP();
-    rdConfig = PPAgentV2Randao.RandaoConfig({
+    rdConfig = IPPAgentV2RandaoViewer.RandaoConfig({
       slashingEpochBlocks: 10,
       period1: 15,
       period2: 30,
