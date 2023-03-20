@@ -58,6 +58,7 @@ interface IPPAgentV2Viewer {
   function getJobRaw(bytes32 jobKey_) external view returns (uint256 rawJob);
   function jobOwnerCredits(address owner_) external view returns (uint256 credits);
   function getStrategy() external pure returns (string memory);
+  function CVP() external view returns (address);
 }
 
 interface IPPAgentV2JobOwner {

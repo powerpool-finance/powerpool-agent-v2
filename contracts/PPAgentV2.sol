@@ -74,7 +74,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     RESOLVER
   }
 
-  IERC20 public immutable CVP;
+  address public immutable CVP;
 
   event Execute(
     bytes32 indexed jobKey,
@@ -250,7 +250,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   }
 
   constructor(address cvp_) {
-    CVP = IERC20(cvp_);
+    CVP = cvp_;
   }
 
   function initialize(
@@ -1063,7 +1063,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     if (amountAfter > type(uint88).max) {
       revert StakeAmountOverflow();
     }
-    CVP.transferFrom(msg.sender, address(this), amount_);
+    IERC20(CVP).transferFrom(msg.sender, address(this), amount_);
     keepers[keeperId_].cvpStake += uint88(amount_);
 
     emit Stake(keeperId_, amount_, msg.sender);
@@ -1135,7 +1135,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
 
     pendingWithdrawalAmounts[keeperId_] = 0;
-    CVP.transfer(to_, redeemedCvp);
+    IERC20(CVP).transfer(to_, redeemedCvp);
 
     emit FinalizeRedeem(keeperId_, to_, redeemedCvp);
   }
@@ -1164,7 +1164,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       pendingWithdrawalAmounts[keeperId_] -= pendingAmount_;
     }
 
-    CVP.transfer(to_, totalAmount);
+    IERC20(CVP).transfer(to_, totalAmount);
 
     emit Slash(keeperId_, to_, currentAmount_, pendingAmount_);
   }
