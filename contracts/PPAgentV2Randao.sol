@@ -59,9 +59,9 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     uint256 amountToSlash
   );
 
-  event DisableKeeper(uint256 keeperId);
-  event InitiateKeeperActivation(uint256 keeperId, uint256 canBeFinalizedAt);
-  event FinalizeKeeperActivation(uint256 keeperId);
+  event DisableKeeper(uint256 indexed keeperId);
+  event InitiateKeeperActivation(uint256 indexed keeperId, uint256 canBeFinalizedAt);
+  event FinalizeKeeperActivation(uint256 indexed keeperId);
   event InitiateSlashing(
     bytes32 indexed jobKey,
     uint256 indexed slasherKeeperId,
