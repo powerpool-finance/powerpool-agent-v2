@@ -44,7 +44,6 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   error TooEarlyToRelease(bytes32 jobKey, uint256 period2End);
   error TooEarlyForActivationFinalization(uint256 now, uint256 availableAt);
   error CantRelease();
-  error ExecutionRevertedOnlyNextKeeper(uint256 expectedKeeperId);
   error OnlyNextKeeper(
     uint256 expectedKeeperId,
     uint256 lastExecutedAt,
