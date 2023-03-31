@@ -13,7 +13,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
   ICounter internal job;
 
   event Execute(bytes32 indexed jobKey, address indexed job, bool indexed success, uint256 gasUsed, uint256 baseFee, uint256 gasPrice, uint256 compensation);
-  event KeeperJobUnlock(uint256 indexed keeperId, bytes32 indexed jobKey);
+  event JobKeeperChanged(bytes32 indexed jobKey, uint256 indexed keeperFrom, uint256 indexed keeperTo);
   event ExecutionReverted(
     bytes32 indexed jobKey,
     uint256 indexed keeperId,
@@ -299,7 +299,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
 
     // resolver false
     vm.expectEmit(true, true, false, true, address(agent));
-    emit KeeperJobUnlock(2, jobKey);
+    emit JobKeeperChanged(jobKey, 2, 0);
     vm.expectEmit(true, true, false, true, address(agent));
     emit ExecutionReverted(jobKey, 2, abi.encodeWithSignature("Error(string)", "forced execution revert"));
 

@@ -224,6 +224,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     _agent.assignNextKeeper(jobKey);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
 
     vm.prank(a5);
     agent.initiateRedeem(kid5, 5_000 ether);

@@ -600,7 +600,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     RegisterJobParams calldata params_,
     Resolver calldata resolver_,
     bytes calldata preDefinedCalldata_
-  ) public payable virtual returns (bytes32 jobKey, uint256 jobId){
+  ) external payable virtual returns (bytes32 jobKey, uint256 jobId){
     jobId = jobLastIds[params_.jobAddress] + 1;
 
     if (jobId > type(uint24).max) {
