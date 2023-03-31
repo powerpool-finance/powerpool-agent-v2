@@ -83,6 +83,12 @@ abstract contract AbstractTestHelper is Test, PPAgentV2Flags {
     return isActive;
   }
 
+  function _jobLastExecutionAt(bytes32 jobKey_) internal view returns (uint256) {
+    (,,,IPPAgentV2Viewer.Job memory details,,) = _agentViewer().getJob(jobKey_);
+    require(details.intervalSeconds > 0, "Not an interval job");
+    return uint256(details.lastExecutionAt);
+  }
+
   function _jobNextExecutionAt(bytes32 jobKey_) internal view returns (uint256) {
     (,,,IPPAgentV2Viewer.Job memory details,,) = _agentViewer().getJob(jobKey_);
     require(details.intervalSeconds > 0, "Not an interval job");

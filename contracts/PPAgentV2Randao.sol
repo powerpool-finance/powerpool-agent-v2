@@ -159,7 +159,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
       }
       _assertOnlyJobOwner(jobKey);
 
-      if (!_assignNextKeeperIfRequired(jobKey, 0)) {
+      if (!_assignNextKeeperIfRequiredAndUpdateLastExecutedAt(jobKey, 0)) {
         revert CantAssignKeeper();
       }
     }
@@ -395,14 +395,14 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
 
     // inactive => active: assign if required
     if(!wasActiveBefore && isActive_)  {
-      _assignNextKeeperIfRequired(jobKey_, expectedKeeperId);
+      _assignNextKeeperIfRequiredAndUpdateLastExecutedAt(jobKey_, expectedKeeperId);
     }
 
     // job was and remain active, but the credits source has changed: assign or release if requried
     if (wasActiveBefore && isActive_ &&
       (ConfigFlags.check(rawJobBefore, CFG_USE_JOB_OWNER_CREDITS) != useJobOwnerCredits_)) {
 
-      if (!_assignNextKeeperIfRequired(jobKey_, expectedKeeperId)) {
+      if (!_assignNextKeeperIfRequiredAndUpdateLastExecutedAt(jobKey_, expectedKeeperId)) {
         _releaseKeeperIfRequired(jobKey_, expectedKeeperId);
       }
     }
@@ -456,7 +456,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   }
 
   function _afterDepositJobCredits(bytes32 jobKey_) internal override {
-    _assignNextKeeperIfRequired(jobKey_, jobNextKeeperId[jobKey_]);
+    _assignNextKeeperIfRequiredAndUpdateLastExecutedAt(jobKey_, jobNextKeeperId[jobKey_]);
   }
 
   function _afterWithdrawJobCredits(bytes32 jobKey_) internal override {
@@ -550,6 +550,22 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     }
 
     return false;
+  }
+
+  function _assignNextKeeperIfRequiredAndUpdateLastExecutedAt(
+    bytes32 jobKey_,
+    uint256 currentKeeperId_
+  ) internal returns (bool assigned) {
+    assigned = _assignNextKeeperIfRequired(jobKey_, currentKeeperId_);
+    if (assigned) {
+      uint256 binJob = getJobRaw(jobKey_);
+      uint256 intervalSeconds = (binJob << 32) >> 232;
+      if (intervalSeconds > 0) {
+        uint256 lastExecutionAt = uint32(block.timestamp);
+        binJob = binJob & BM_CLEAR_LAST_UPDATE_AT | (lastExecutionAt << 224);
+        _updateRawJob(jobKey_, binJob);
+      }
+    }
   }
 
   function _assignNextKeeperIfRequired(bytes32 jobKey_, uint256 currentKeeperId_) internal returns (bool assigned) {

@@ -38,6 +38,8 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
 
   MockExposedAgent _agent;
   PPAgentV2Randao.RandaoConfig rdConfig;
+  PPAgentV2.Resolver resolver;
+  IPPAgentV2JobOwner.RegisterJobParams params;
 
   function setUp() public override {
     cvp = new MockCVP();
@@ -96,11 +98,11 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
   }
 
   function _setupJob(address job_, bytes4 selector_, bool assertSelector_) internal {
-    PPAgentV2.Resolver memory resolver = IPPAgentV2Viewer.Resolver({
+    resolver = IPPAgentV2Viewer.Resolver({
       resolverAddress: job_,
       resolverCalldata: abi.encodeWithSelector(SimpleCustomizableCalldataTestJob.myResolver.selector, "myPass")
     });
-    IPPAgentV2JobOwner.RegisterJobParams memory params = IPPAgentV2JobOwner.RegisterJobParams({
+    params = IPPAgentV2JobOwner.RegisterJobParams({
       jobAddress: job_,
       jobSelector: selector_,
       maxBaseFeeGwei: 100,
@@ -486,7 +488,39 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     _agent.assignKeeper(list);
   }
 
-  function testRdAssignKeeper() public {
+  function testRdAssignKeeperIntervalJob() public {
+    vm.prank(alice);
+    params.calldataSource = CALLDATA_SOURCE_SELECTOR;
+    params.intervalSeconds = 180;
+    resolver.resolverAddress = address(0);
+    resolver.resolverCalldata = new bytes(0);
+
+    (jobKey,jobId) = agent.registerJob{ value: 1 ether }({
+      params_: params,
+      resolver_: resolver,
+      preDefinedCalldata_: new bytes(0)
+    });
+
+    vm.difficulty(2);
+    _agent.assignNextKeeper(jobKey);
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
+
+    vm.prank(alice);
+    _agent.releaseJob(jobKey);
+
+    bytes32[] memory list = new bytes32[](1);
+    list[0] = jobKey;
+
+    assertEq(_jobLastExecutionAt(jobKey), 0);
+    assertEq(_agent.shouldAssignKeeper(jobKey), true);
+    vm.prank(alice);
+    _agent.assignKeeper(list);
+
+    assertEq(_jobLastExecutionAt(jobKey), 1600000000);
+  }
+
+  function testRdAssignKeeperResolverJob() public {
     vm.difficulty(1);
     _agent.assignNextKeeper(jobKey);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
