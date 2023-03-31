@@ -37,10 +37,11 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
   uint256 internal kid5;
 
   MockExposedAgent _agent;
+  PPAgentV2Randao.RandaoConfig rdConfig;
 
   function setUp() public override {
     cvp = new MockCVP();
-    IPPAgentV2RandaoViewer.RandaoConfig memory rdConfig = IPPAgentV2RandaoViewer.RandaoConfig({
+    rdConfig = IPPAgentV2RandaoViewer.RandaoConfig({
       slashingEpochBlocks: 10,
       period1: 15,
       period2: 30,
@@ -448,5 +449,57 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     vm.prank(bob);
     vm.expectRevert(PPAgentV2.OnlyKeeperAdmin.selector);
     _agent.releaseJob(jobKey);
+  }
+
+  function testRdAssignKeeperAlreadyAssigned() public {
+    vm.difficulty(1);
+    _agent.assignNextKeeper(jobKey);
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
+
+    bytes32[] memory list = new bytes32[](1);
+    list[0] = jobKey;
+
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.JobHasKeeperAssigned.selector, 2));
+    _agent.assignKeeper(list);
+  }
+
+  function testRdAssignKeeperCantAssign() public {
+    vm.difficulty(1);
+    _agent.assignNextKeeper(jobKey);
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
+
+    vm.prank(alice);
+    _agent.releaseJob(jobKey);
+
+    vm.prank(owner);
+    rdConfig.jobMinCreditsFinney = 5000;
+    agent.setRdConfig(rdConfig);
+
+    bytes32[] memory list = new bytes32[](1);
+    list[0] = jobKey;
+
+    assertEq(_agent.shouldAssignKeeper(jobKey), false);
+    vm.prank(alice);
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.CantAssignKeeper.selector));
+    _agent.assignKeeper(list);
+  }
+
+  function testRdAssignKeeper() public {
+    vm.difficulty(1);
+    _agent.assignNextKeeper(jobKey);
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
+
+    vm.prank(alice);
+    _agent.releaseJob(jobKey);
+
+    bytes32[] memory list = new bytes32[](1);
+    list[0] = jobKey;
+
+    assertEq(_agent.shouldAssignKeeper(jobKey), true);
+    vm.prank(alice);
+    _agent.assignKeeper(list);
   }
 }

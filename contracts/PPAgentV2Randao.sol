@@ -33,6 +33,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   error KeeperCantSlash();
   error KeeperIsAlreadyActive();
   error KeeperIsAlreadyInactive();
+  error CantAssignKeeper();
   error UnexpectedCodeBlock();
   error InitiateSlashingUnexpectedError();
   error NonIntervalJob();
@@ -158,7 +159,9 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
       }
       _assertOnlyJobOwner(jobKey);
 
-      _assignNextKeeper(jobKey, 0);
+      if (!_assignNextKeeperIfRequired(jobKey, 0)) {
+        revert CantAssignKeeper();
+      }
     }
   }
 
@@ -486,7 +489,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
       emit SlashIntervalJob(jobKey_, expectedKeeperId, actualKeeperId_, fixedSlashAmount, dynamicSlashAmount);
     }
 
-    if (_shouldAssignKeeper(jobKey_)) {
+    if (shouldAssignKeeper(jobKey_)) {
       _unassignKeeper(jobKey_, expectedKeeperId);
       _assignNextKeeper(jobKey_, expectedKeeperId);
     } else {
@@ -550,14 +553,14 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   }
 
   function _assignNextKeeperIfRequired(bytes32 jobKey_, uint256 currentKeeperId_) internal returns (bool assigned) {
-    if (currentKeeperId_ == 0 && _shouldAssignKeeper(jobKey_)) {
+    if (currentKeeperId_ == 0 && shouldAssignKeeper(jobKey_)) {
       _assignNextKeeper(jobKey_, currentKeeperId_);
       return true;
     }
     return false;
   }
 
-  function _shouldAssignKeeper(bytes32 jobKey_) internal view returns (bool) {
+  function shouldAssignKeeper(bytes32 jobKey_) public view returns (bool) {
     return _shouldAssignKeeperBin(jobKey_, getJobRaw(jobKey_));
   }
 
