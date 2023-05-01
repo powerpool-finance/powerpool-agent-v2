@@ -407,7 +407,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
             shl(224, shr(8, binJob))
           )) {
             // revert SelectorCheckFailed()
-            mstore(ptr, 0x84fb827500000000000000000000000000000000000000000000000000000000)
+            mstore(ptr, 0x74ab678100000000000000000000000000000000000000000000000000000000)
             revert(ptr, 4)
           }
         }

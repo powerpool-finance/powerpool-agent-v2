@@ -378,6 +378,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
         revert JobCheckResolverReturnedFalse();
       }
     } else {
+      _assertJobCalldataMatchesSelector(binJob, jobCalldata_);
       (bool ok, bytes memory result) = address(this).call(
         abi.encodeWithSelector(PPAgentV2Randao.checkCouldBeExecuted.selector, jobAddress_, jobCalldata_)
       );
@@ -655,6 +656,24 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     cfg_;
 
     return type(uint256).max;
+  }
+
+  function _assertJobCalldataMatchesSelector(uint256 binJob_, bytes memory jobCalldata_) internal pure {
+    assembly ("memory-safe") {
+      // CFG_ASSERT_RESOLVER_SELECTOR = 0x04 from PPAgentLiteFlags
+      if and(binJob_, 0x04) {
+        if iszero(eq(
+          // actual
+          shl(224, shr(224, mload(add(jobCalldata_, 32)))),
+          // expected
+          shl(224, shr(8, binJob_))
+        )) {
+          // revert SelectorCheckFailed()
+          mstore(0, 0x74ab678100000000000000000000000000000000000000000000000000000000)
+          revert(0, 4)
+        }
+      }
+    }
   }
 
   function _calculateCompensation(
