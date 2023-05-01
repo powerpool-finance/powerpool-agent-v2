@@ -36,11 +36,11 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   error CantAssignKeeper();
   error UnexpectedCodeBlock();
   error InitiateSlashingUnexpectedError();
+  error UnableToDecodeResolverResponse();
   error NonIntervalJob();
-  error JobCheckResolverError(bytes errReason);
   error JobCheckResolverReturnedFalse();
   error TooEarlyToReinitiateSlashing();
-  error JobCheckCanBeExecuted();
+  error JobCheckCanBeExecuted(bytes returndata);
   error JobCheckCanNotBeExecuted(bytes errReason);
   error TooEarlyToRelease(bytes32 jobKey, uint256 period2End);
   error TooEarlyForActivationFinalization(uint256 now, uint256 availableAt);
@@ -344,14 +344,39 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     // 7. check if could be executed
     if (useResolver_) {
       IPPAgentV2Viewer.Resolver memory resolver = resolvers[jobKey];
-      (bool ok, bytes memory result) = resolver.resolverAddress.call(resolver.resolverCalldata);
-      if (!ok) {
-        revert JobCheckResolverError(result);
+      (bool ok, bytes memory result) = address(this).call(
+        abi.encodeWithSelector(PPAgentV2Randao.checkCouldBeExecuted.selector, resolver.resolverAddress, resolver.resolverCalldata)
+      );
+      if (ok) {
+        revert UnexpectedCodeBlock();
       }
-      (bool canExecute,) = abi.decode(result, (bool, bytes));
-      if (!canExecute) {
+
+      bytes4 selector = bytes4(result);
+
+      if (selector == PPAgentV2Randao.JobCheckCanNotBeExecuted.selector) {
+        assembly ("memory-safe") {
+          revert(add(32, result), mload(result))
+        }
+      } else if (selector != PPAgentV2Randao.JobCheckCanBeExecuted.selector) {
+        revert InitiateSlashingUnexpectedError();
+      } // else resolver was executed
+
+      uint256 len;
+      assembly ("memory-safe") {
+        len := mload(result)
+      }
+      // We need at least canExecute flag. 32 * 4 + 4.
+      if (len < 132) {
+        revert UnableToDecodeResolverResponse();
+      }
+
+      uint256 canExecute;
+      assembly ("memory-safe") {
+        canExecute := mload(add(result, 100))
+      }
+      if (canExecute != 1) {
         revert JobCheckResolverReturnedFalse();
-      } // else can be executed
+      }
     } else {
       (bool ok, bytes memory result) = address(this).call(
         abi.encodeWithSelector(PPAgentV2Randao.checkCouldBeExecuted.selector, jobAddress_, jobCalldata_)
@@ -696,7 +721,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   function checkCouldBeExecuted(address jobAddress_, bytes memory jobCalldata_) external {
     (bool ok, bytes memory result) = jobAddress_.call(jobCalldata_);
     if (ok) {
-      revert JobCheckCanBeExecuted();
+      revert JobCheckCanBeExecuted(result);
     } else {
       revert JobCheckCanNotBeExecuted(result);
     }

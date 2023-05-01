@@ -248,7 +248,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     SimpleCustomizableCalldataTestJob(address(job)).setRevertResolver(true);
 
     // resolver revert
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.JobCheckResolverError.selector,
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.JobCheckCanNotBeExecuted.selector,
       abi.encodeWithSelector(0x08c379a0, "forced resolver revert")
       ));
     vm.prank(bob, bob);
