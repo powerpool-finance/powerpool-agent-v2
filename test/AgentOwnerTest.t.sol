@@ -25,10 +25,10 @@ contract AgentOwnerTest is TestHelper {
 
   function testSetAgentParams() public {
     vm.expectEmit(true, true, false, true, address(agent));
-    emit SetAgentParams(type(uint256).max, 30 days, 1.5e4);
+    emit SetAgentParams(type(uint128).max, 30 days, 1.5e4);
 
     vm.prank(owner);
-    agent.setAgentParams(type(uint256).max, 30 days, 1.5e4);
+    agent.setAgentParams(type(uint128).max, 30 days, 1.5e4);
     (
       uint256 minKeeperCvp,
       uint256 pendingWithdrawalTimeoutSeconds,
@@ -36,7 +36,7 @@ contract AgentOwnerTest is TestHelper {
       uint256 feePpm,
     ) = agent.getConfig();
 
-    assertEq(minKeeperCvp, type(uint256).max);
+    assertEq(minKeeperCvp, type(uint128).max);
     assertEq(pendingWithdrawalTimeoutSeconds, 30 days);
     assertEq(feePpm, 1.5e4);
   }

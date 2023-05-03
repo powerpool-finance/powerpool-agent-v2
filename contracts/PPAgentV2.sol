@@ -57,7 +57,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   error OnlyKeeperAdmin();
   error OnlyKeeperAdminOrJobOwner();
   error OnlyKeeperAdminOrWorker();
-  error MinKeeperCvpZero();
+  error InvalidMinKeeperCvp();
   error TimeoutTooBig();
   error FeeTooBig();
   error InsufficientAmount();
@@ -1234,8 +1234,8 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     uint256 timeoutSeconds_,
     uint256 feePpm_
   ) internal {
-    if (minKeeperCvp_ == 0) {
-      revert MinKeeperCvpZero();
+    if (minKeeperCvp_ == 0 || minKeeperCvp_ >= uint256(EXECUTION_IS_LOCKED_FLAG)) {
+      revert InvalidMinKeeperCvp();
     }
     if (timeoutSeconds_ > MAX_PENDING_WITHDRAWAL_TIMEOUT_SECONDS) {
       revert TimeoutTooBig();
@@ -1302,7 +1302,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     )
   {
     return (
-      minKeeperCvp,
+      minKeeperCvp & ~EXECUTION_IS_LOCKED_FLAG,
       pendingWithdrawalTimeoutSeconds,
       feeTotal,
       feePpm,
