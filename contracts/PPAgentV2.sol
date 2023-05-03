@@ -57,16 +57,19 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   error OnlyKeeperAdmin();
   error OnlyKeeperAdminOrJobOwner();
   error OnlyKeeperAdminOrWorker();
+  error MinKeeperCvpZero();
   error TimeoutTooBig();
   error FeeTooBig();
   error InsufficientAmount();
   error OnlyPendingOwner();
   error WorkerAlreadyAssigned();
+  error ExecutionReentrancyLocked();
 
   string public constant VERSION = "2.3.0";
   uint256 internal constant MAX_PENDING_WITHDRAWAL_TIMEOUT_SECONDS = 30 days;
   uint256 internal constant MAX_FEE_PPM = 5e4;
   uint256 internal constant FIXED_PAYMENT_MULTIPLIER = 1e15;
+  uint256 internal constant EXECUTION_IS_LOCKED_FLAG = 0x1000000000000000000000000000000000000000000000000000000000000000;
 
   enum CalldataSourceType {
     SELECTOR,
@@ -131,6 +134,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     bytes executionResponse;
   }
 
+  // WARNING: the minKeeperCvp slot is also used as a non-reentrancy lock
   uint256 internal minKeeperCvp;
   uint256 internal pendingWithdrawalTimeoutSeconds;
   uint256 internal feeTotal;
@@ -174,6 +178,12 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   mapping(address => uint256) public workerKeeperIds;
 
   /*** PSEUDO-MODIFIERS ***/
+
+  function _assertExecutionNotLocked() internal view {
+    if (ConfigFlags.check(minKeeperCvp, EXECUTION_IS_LOCKED_FLAG)) {
+      revert ExecutionReentrancyLocked();
+    }
+  }
 
   function _assertOnlyOwner() internal view {
     if (msg.sender != owner()) {
@@ -323,12 +333,16 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     // 0. Keeper has sufficient stake
     {
       Keeper memory keeper = keepers[actualKeeperId];
+      uint256 minKeeperCvp_ = minKeeperCvp;
       if (keeper.worker != msg.sender) {
         revert KeeperWorkerNotAuthorized();
       }
-      if (keeper.cvpStake < minKeeperCvp) {
+      if (keeper.cvpStake < minKeeperCvp_) {
         revert InsufficientKeeperStake();
       }
+
+      // Execution LOCK
+      minKeeperCvp = minKeeperCvp_ | EXECUTION_IS_LOCKED_FLAG;
     }
 
     // 1. Assert the job is active
@@ -498,6 +512,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
         }
       }
     }
+
+    // Execution UNLOCK
+    minKeeperCvp = minKeeperCvp ^ EXECUTION_IS_LOCKED_FLAG;
 
     if (ok) {
       // Transaction succeeded
@@ -713,6 +730,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     uint24 intervalSeconds_
   ) external {
     _assertOnlyJobOwner(jobKey_);
+    _assertExecutionNotLocked();
     _assertJobParams(maxBaseFeeGwei_, fixedReward_, rewardPct_);
 
     Job memory job = jobs[jobKey_];
@@ -747,6 +765,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    */
   function setJobResolver(bytes32 jobKey_, Resolver calldata resolver_) external {
     _assertOnlyJobOwner(jobKey_);
+    _assertExecutionNotLocked();
     _assertJobCalldataSource(jobKey_, CalldataSourceType.RESOLVER);
 
     _setJobResolver(jobKey_, resolver_);
@@ -768,6 +787,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    */
   function setJobPreDefinedCalldata(bytes32 jobKey_, bytes calldata preDefinedCalldata_) external {
     _assertOnlyJobOwner(jobKey_);
+    _assertExecutionNotLocked();
     _assertJobCalldataSource(jobKey_, CalldataSourceType.PRE_DEFINED);
 
     _setJobPreDefinedCalldata(jobKey_, preDefinedCalldata_);
@@ -793,6 +813,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     bool assertResolverSelector_
   ) public virtual {
     _assertOnlyJobOwner(jobKey_);
+    _assertExecutionNotLocked();
     uint256 newConfig = 0;
 
     if (isActive_) {
@@ -827,6 +848,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    */
   function initiateJobTransfer(bytes32 jobKey_, address to_) external {
     _assertOnlyJobOwner(jobKey_);
+    _assertExecutionNotLocked();
     jobPendingTransfers[jobKey_] = to_;
     emit InitiateJobTransfer(jobKey_, msg.sender, to_);
   }
@@ -837,6 +859,8 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    * @param jobKey_ The jobKey
    */
   function acceptJobTransfer(bytes32 jobKey_) external {
+    _assertExecutionNotLocked();
+
     if (msg.sender != jobPendingTransfers[jobKey_]) {
       revert OnlyPendingOwner();
     }
@@ -902,6 +926,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
 
     _assertOnlyJobOwner(jobKey_);
+    _assertExecutionNotLocked();
     _assertNonZeroAmount(amount_);
 
     if (creditsBefore < amount_) {
@@ -953,6 +978,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       amount_ = creditsBefore;
     }
 
+    _assertExecutionNotLocked();
     _assertNonZeroAmount(amount_);
 
     if (creditsBefore < amount_) {
@@ -1196,6 +1222,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     uint256 feePpm_
   ) external {
     _assertOnlyOwner();
+    _assertExecutionNotLocked();
     _setAgentParams(minKeeperCvp_, timeoutSeconds_, feePpm_);
   }
 
@@ -1204,6 +1231,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     uint256 timeoutSeconds_,
     uint256 feePpm_
   ) internal {
+    if (minKeeperCvp_ == 0) {
+      revert MinKeeperCvpZero();
+    }
     if (timeoutSeconds_ > MAX_PENDING_WITHDRAWAL_TIMEOUT_SECONDS) {
       revert TimeoutTooBig();
     }

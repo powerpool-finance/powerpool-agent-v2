@@ -228,6 +228,31 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     assertEq(agent.jobSlashingPossibleAfter(jobKey), 0);
   }
 
+  function testRdResolverSelectorNotMatchError() public {
+    job = new SimpleCalldataTestJob(address(agent));
+    assertEq(job.current(), 0);
+    _setupJob(address(job), SimpleCalldataTestJob.increment2.selector, true);
+
+    (, bytes memory cd) = job.myResolver("myPass");
+
+    vm.roll(42);
+    vm.prank(alice);
+    vm.expectRevert(PPAgentV2.SelectorCheckFailed.selector);
+    agent.initiateSlashing(address(job), jobId, kid1, false, cd);
+  }
+
+  function testRdResolverSelectorMatchCheckIgnored() public {
+    job = new SimpleCalldataTestJob(address(agent));
+    assertEq(job.current(), 0);
+    _setupJob(address(job), SimpleCalldataTestJob.increment2.selector, false);
+
+    (, bytes memory cd) = job.myResolver("myPass");
+
+    vm.roll(42);
+    vm.prank(alice);
+    agent.initiateSlashing(address(job), jobId, kid1, false, cd);
+  }
+
   function testRdResolverSlashingResolverReject() public {
     job = new SimpleCustomizableCalldataTestJob(address(agent));
     _setupJob(address(job), SimpleCalldataTestJob.increment.selector, true);
@@ -310,6 +335,6 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     assertEq(job.current(), 1);
     assertEq(agent.jobReservedSlasherId(jobKey), 0);
     assertEq(agent.jobSlashingPossibleAfter(jobKey), 0);
-    assertApproxEqAbs(keeperWorker.balance - workerBalanceBefore, 0.000090975 ether, 0.00005 ether);
+    assertApproxEqAbs(keeperWorker.balance - workerBalanceBefore, 0.000158525 ether, 0.00005 ether);
   }
 }

@@ -7,6 +7,7 @@ import "./mocks/MockCVP.sol";
 import "./TestHelper.sol";
 import "forge-std/Vm.sol";
 import "./jobs/JobTopupTestJob.sol";
+import "./jobs/JobWithdrawTestJob.sol";
 
 contract ExecuteSelectorTest is TestHelper {
   event Execute(bytes32 indexed jobKey, address indexed job, bool indexed success, uint256 gasUsed, uint256 baseFee, uint256 gasPrice, uint256 compensation);
@@ -243,7 +244,7 @@ contract ExecuteSelectorTest is TestHelper {
       rewardPct_: 35,
       fixedReward_: 10,
       blockBaseFee_: 100 gwei,
-      gasUsed_: 34070
+      gasUsed_: 39770
     }), 0.0001 ether);
   }
 
@@ -314,7 +315,7 @@ contract ExecuteSelectorTest is TestHelper {
     uint256 compensationsChange = _compensationOf(kid) - compensationsBefore;
 
     assertEq(counter.current(), 1);
-    assertApproxEqAbs(0.01256604040 ether, keeperBalanceChange, 0.0001 ether);
+    assertApproxEqAbs(0.0126933445 ether, keeperBalanceChange, 0.0001 ether);
     assertEq(keeperBalanceChange, jobCreditsChange);
 
     assertEq(compensationsChange, 0);
@@ -374,6 +375,55 @@ contract ExecuteSelectorTest is TestHelper {
     assertApproxEqAbs(_jobDetails(topupJobKey).credits, jobCreditsBefore + 8.42 ether - 0.010481075 ether, 0.0001 ether);
   }
 
+  function testSelfWithdrawal() public {
+    JobWithdrawTestJob topupJob = new JobWithdrawTestJob(address(agent));
+
+    PPAgentV2.Resolver memory resolver = IPPAgentV2Viewer.Resolver({
+      resolverAddress: address(topupJob),
+      resolverCalldata: new bytes(0)
+    });
+    IPPAgentV2JobOwner.RegisterJobParams memory params = IPPAgentV2JobOwner.RegisterJobParams({
+      jobAddress: address(topupJob),
+      jobSelector: JobTopupTestJob.execute.selector,
+      maxBaseFeeGwei: 100,
+      rewardPct: 35,
+      fixedReward: 10,
+      useJobOwnerCredits: false,
+      assertResolverSelector: false,
+      jobMinCvp: 0,
+
+    // For interval jobs
+      calldataSource: CALLDATA_SOURCE_RESOLVER,
+      intervalSeconds: 0
+    });
+    vm.prank(alice);
+    vm.deal(alice, 10 ether);
+    (bytes32 topupJobKey,uint256 topupJobId) = agent.registerJob{ value: 1 ether }({
+      params_: params,
+      resolver_: resolver,
+      preDefinedCalldata_: new bytes(0)
+    });
+
+    vm.prank(alice);
+    agent.initiateJobTransfer(topupJobKey, address(topupJob));
+    topupJob.acceptJobTransfer(topupJobKey);
+    assertEq(_jobOwner(topupJobKey), address(topupJob));
+
+    (bool ok, bytes memory cdata) = topupJob.myResolver(topupJobKey);
+    assertEq(ok, true);
+
+    vm.expectRevert(PPAgentV2.ExecutionReentrancyLocked.selector);
+    vm.prank(keeperWorker, keeperWorker);
+    _callExecuteHelper(
+      agent,
+      address(topupJob),
+      topupJobId,
+      defaultFlags,
+      kid,
+      cdata
+    );
+  }
+
   function testExecAccrueRewardByJobCredits() public {
     vm.fee(99 gwei);
     address jobOwner = _jobOwner(jobKey);
@@ -406,7 +456,7 @@ contract ExecuteSelectorTest is TestHelper {
 
     assertEq(counter.current(), 1);
 
-    assertApproxEqAbs(0.0125660404 ether, jobCreditsChange, 0.0001 ether);
+    assertApproxEqAbs(0.01269344845 ether, jobCreditsChange, 0.0001 ether);
     assertEq(compensationsChange, jobCreditsChange);
 
     assertEq(keeperBalanceChange, 0);
@@ -462,7 +512,7 @@ contract ExecuteSelectorTest is TestHelper {
     uint256 compensationsChange = _compensationOf(kid) - compensationsBefore;
 
     assertEq(counter.current(), 1);
-    assertApproxEqAbs(0.0125660404 ether, keeperBalanceChange, 0.0001 ether);
+    assertApproxEqAbs(0.01269344845 ether, keeperBalanceChange, 0.0001 ether);
     assertEq(keeperBalanceChange, jobOwnerCreditsChange);
 
     assertEq(compensationsChange, 0);
