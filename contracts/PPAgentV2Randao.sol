@@ -78,7 +78,8 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     uint256 indexed expectedKeeperId,
     uint256 indexed actualKeeperId,
     uint256 fixedSlashAmount,
-    uint256 dynamicSlashAmount
+    uint256 dynamicSlashAmount,
+    uint256 slashAmountMissing
   );
   event SetRdConfig(RandaoConfig rdConfig);
   event JobKeeperChanged(bytes32 indexed jobKey, uint256 indexed keeperFrom, uint256 indexed keeperTo);
@@ -508,13 +509,18 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
       uint256 fixedSlashAmount = uint256(rdConfig.slashingFeeFixedCVP) * 1 ether;
       // NOTICE: totalSlashAmount can't be >= uint88
       uint88 totalSlashAmount = uint88(fixedSlashAmount + dynamicSlashAmount);
+      uint256 slashAmountMissing = 0;
       if (totalSlashAmount > eKeeper.cvpStake) {
-        // Actually this block should not be reached, so this is just in case
-        revert InsufficientKeeperStakeToSlash(jobKey_, expectedKeeperId, eKeeper.cvpStake, totalSlashAmount);
+        totalSlashAmount = eKeeper.cvpStake;
+        unchecked {
+          slashAmountMissing = totalSlashAmount - eKeeper.cvpStake;
+        }
       }
       keepers[expectedKeeperId].cvpStake -= totalSlashAmount;
       keepers[actualKeeperId_].cvpStake += totalSlashAmount;
-      emit SlashIntervalJob(jobKey_, expectedKeeperId, actualKeeperId_, fixedSlashAmount, dynamicSlashAmount);
+      emit SlashIntervalJob(
+        jobKey_, expectedKeeperId, actualKeeperId_, fixedSlashAmount, dynamicSlashAmount, slashAmountMissing
+      );
     }
 
     if (shouldAssignKeeper(jobKey_)) {
