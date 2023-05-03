@@ -280,6 +280,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   function _afterRegisterJob(bytes32 jobKey_) internal virtual {}
   function _afterDepositJobCredits(bytes32 jobKey_) internal virtual {}
   function _afterWithdrawJobCredits(bytes32 jobKey_) internal virtual {}
+  function _afterAcceptJobTransfer(bytes32 jobKey_) internal virtual {}
 
   /*** CONSTANT GETTERS ***/
   function getStrategy() public pure virtual returns (string memory) {
@@ -867,6 +868,8 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
 
     jobOwners[jobKey_] = msg.sender;
     delete jobPendingTransfers[jobKey_];
+
+    _afterAcceptJobTransfer(jobKey_);
 
     emit AcceptJobTransfer(jobKey_, msg.sender);
   }

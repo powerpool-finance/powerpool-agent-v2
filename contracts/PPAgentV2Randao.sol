@@ -427,7 +427,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
       _assignNextKeeperIfRequiredAndUpdateLastExecutedAt(jobKey_, expectedKeeperId);
     }
 
-    // job was and remain active, but the credits source has changed: assign or release if requried
+    // job was and remain active, but the credits source has changed: assign or release if required
     if (wasActiveBefore && isActive_ &&
       (ConfigFlags.check(rawJobBefore, CFG_USE_JOB_OWNER_CREDITS) != useJobOwnerCredits_)) {
 
@@ -538,6 +538,17 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   function _afterRegisterJob(bytes32 jobKey_) internal override {
     jobCreatedAt[jobKey_] = block.timestamp;
     _assignNextKeeperIfRequired(jobKey_, 0);
+  }
+
+  function _afterAcceptJobTransfer(bytes32 jobKey_) internal override {
+    uint256 binJob = getJobRaw(jobKey_);
+    uint256 expectedKeeperId = jobNextKeeperId[jobKey_];
+
+    if (ConfigFlags.check(binJob, CFG_ACTIVE) && ConfigFlags.check(binJob, CFG_USE_JOB_OWNER_CREDITS)) {
+      if (!_assignNextKeeperIfRequiredAndUpdateLastExecutedAt(jobKey_, expectedKeeperId)) {
+        _releaseKeeperIfRequired(jobKey_, expectedKeeperId);
+      }
+    }
   }
 
   /*** HELPERS ***/

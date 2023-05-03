@@ -536,4 +536,82 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     vm.prank(alice);
     _agent.assignKeeper(list);
   }
+
+  function testRdJobTransferOwnerCSActiveBothInsufficient() public {
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, true, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(agent.jobOwnerCredits(alice), 0);
+    assertEq(agent.jobOwnerCredits(bob), 0);
+    assertEq(_jobIsActive(jobKey), true);
+
+    vm.prank(alice);
+    agent.initiateJobTransfer(jobKey, bob);
+    vm.prank(bob);
+    agent.acceptJobTransfer(jobKey);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(_jobIsActive(jobKey), true);
+  }
+
+  function testRdJobTransferOwnerCSActiveSufficient2Insufficient() public {
+    agent.depositJobOwnerCredits{ value: 10 ether }(alice);
+
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, true, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 1);
+    assertEq(agent.jobOwnerCredits(alice), 10 ether);
+    assertEq(agent.jobOwnerCredits(bob), 0);
+    assertEq(_jobIsActive(jobKey), true);
+
+    vm.prank(alice);
+    agent.initiateJobTransfer(jobKey, bob);
+    vm.prank(bob);
+    agent.acceptJobTransfer(jobKey);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(_jobIsActive(jobKey), true);
+  }
+
+  function testRdJobTransferOwnerCSActiveInsufficient2Sufficient() public {
+    agent.depositJobOwnerCredits{ value: 10 ether }(bob);
+
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, true, true, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(agent.jobOwnerCredits(alice), 0);
+    assertEq(agent.jobOwnerCredits(bob), 10 ether);
+    assertEq(_jobIsActive(jobKey), true);
+
+    vm.prank(alice);
+    agent.initiateJobTransfer(jobKey, bob);
+    vm.prank(bob);
+    agent.acceptJobTransfer(jobKey);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 1);
+    assertEq(_jobIsActive(jobKey), true);
+  }
+
+  function testRdJobTransferOwnerCSNotActiveInsufficientToSufficient() public {
+    agent.depositJobOwnerCredits{ value: 10 ether }(bob);
+
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, false, true, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(agent.jobOwnerCredits(alice), 0);
+    assertEq(agent.jobOwnerCredits(bob), 10 ether);
+    assertEq(_jobIsActive(jobKey), false);
+
+    vm.prank(alice);
+    agent.initiateJobTransfer(jobKey, bob);
+    vm.prank(bob);
+    agent.acceptJobTransfer(jobKey);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(_jobIsActive(jobKey), false);
+  }
 }
