@@ -449,7 +449,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
 
     vm.prank(bob);
-    vm.expectRevert(PPAgentV2.OnlyKeeperAdmin.selector);
+    vm.expectRevert(PPAgentV2.OnlyKeeperAdminOrWorker.selector);
     _agent.releaseJob(jobKey);
   }
 

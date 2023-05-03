@@ -178,7 +178,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     }
     // Otherwise this is a keeper's call
 
-    _assertOnlyKeeperAdmin(assignedKeeperId);
+    _assertOnlyKeeperAdminOrWorker(assignedKeeperId);
 
     uint256 binJob = getJobRaw(jobKey_);
     uint256 intervalSeconds = (binJob << 32) >> 232;
