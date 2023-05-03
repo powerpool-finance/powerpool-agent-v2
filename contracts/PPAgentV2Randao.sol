@@ -628,6 +628,10 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   function _shouldAssignKeeperBin(bytes32 jobKey_, uint256 binJob_) internal view returns (bool) {
     uint256 credits;
 
+    if (!ConfigFlags.check(binJob_, CFG_ACTIVE)) {
+      return false;
+    }
+
     if (ConfigFlags.check(binJob_, CFG_USE_JOB_OWNER_CREDITS)) {
       credits = jobOwnerCredits[jobOwners[jobKey_]];
     } else {

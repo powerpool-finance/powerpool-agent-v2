@@ -312,6 +312,33 @@ contract RandaoActorsTest is TestHelperRandao {
     assertEq(agent.getJobsAssignedToKeeperLength(3), 0);
   }
 
+  function testRdKeeperNotAssignedAfterInactiveJobCreditsTopup() public {
+    vm.prank(owner);
+    rdConfig.jobMinCreditsFinney = 1500;
+    agent.setRdConfig(rdConfig);
+
+    vm.prank(keeperAdmin);
+    agent.releaseJob(jobKey);
+
+    vm.prank(alice);
+    agent.setJobConfig(jobKey, false, false, true);
+
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(3), 0);
+    assertEq(_jobLastExecutionAt(jobKey), 0);
+
+    vm.prank(alice);
+    agent.depositJobCredits{value: 1.5 ether }(jobKey);
+
+    assertEq(_jobLastExecutionAt(jobKey), 0);
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(2), 0);
+    assertEq(agent.getJobsAssignedToKeeperLength(3), 0);
+  }
+
   function testRdKeeperAssignedAfterJobOwnerCreditsTopup() public {
     vm.prank(owner);
     rdConfig.jobMinCreditsFinney = 1500;
