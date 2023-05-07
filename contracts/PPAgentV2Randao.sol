@@ -761,7 +761,13 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
 
   // The function that always reverts
   function checkCouldBeExecuted(address jobAddress_, bytes memory jobCalldata_) external {
+    // 1. LOCK
+    minKeeperCvp = minKeeperCvp | EXECUTION_IS_LOCKED_FLAG;
+    // 2. EXECUTE
     (bool ok, bytes memory result) = jobAddress_.call(jobCalldata_);
+    // 3. UNLOCK
+    minKeeperCvp = minKeeperCvp ^ EXECUTION_IS_LOCKED_FLAG;
+
     if (ok) {
       revert JobCheckCanBeExecuted(result);
     } else {

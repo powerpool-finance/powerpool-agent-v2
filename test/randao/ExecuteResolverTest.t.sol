@@ -8,6 +8,7 @@ import "../jobs/OnlySelectorTestJob.sol";
 import "../TestHelperRandao.sol";
 import "../jobs/SimpleCalldataTestJob.sol";
 import "../jobs/SimpleCustomizableCalldataTestJob.sol";
+import "../jobs/JobWithdrawTestJob.sol";
 
 contract RandaoExecuteResolverTest is TestHelperRandao {
   ICounter internal job;
@@ -239,6 +240,26 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     vm.prank(alice);
     vm.expectRevert(PPAgentV2.SelectorCheckFailed.selector);
     agent.initiateSlashing(address(job), jobId, kid1, false, cd);
+  }
+
+  function testRdResolverSelectorSlashingReentrancyLock() public {
+    JobWithdrawTestJob topupJob = new JobWithdrawTestJob(address(agent));
+    job = new SimpleCalldataTestJob(address(agent));
+    _setupJob(address(topupJob), JobWithdrawTestJob.execute.selector, true);
+
+    (, bytes memory cd) = topupJob.myResolver(jobKey);
+
+    vm.prank(alice);
+    agent.initiateJobTransfer(jobKey, address(topupJob));
+    topupJob.acceptJobTransfer(jobKey);
+
+    vm.roll(42);
+    vm.prank(alice);
+    vm.expectRevert(abi.encodeWithSelector(
+      PPAgentV2Randao.JobCheckCanNotBeExecuted.selector,
+      abi.encodePacked(PPAgentV2.ExecutionReentrancyLocked.selector)
+    ));
+    agent.initiateSlashing(address(topupJob), jobId, kid1, false, cd);
   }
 
   function testRdResolverSelectorMatchCheckIgnored() public {
