@@ -97,7 +97,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     assertEq(jobKeys[0], jobKey);
 
     vm.prank(keeperWorker, keeperWorker);
-    vm.difficulty(41);
+    vm.prevrandao(bytes32(uint256(41)));
     _callExecuteHelper(
       agent,
       address(counter),
@@ -122,7 +122,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
 
   function testRdExecWithSelector2() public {
     vm.prank(keeperWorker, keeperWorker);
-    vm.difficulty(42);
+    vm.prevrandao(bytes32(uint256(42)));
     _callExecuteHelper(
       agent,
       address(counter),
@@ -141,7 +141,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     assertEq(_keeperCount(), 3);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
 
-    vm.difficulty(40);
+    vm.prevrandao(bytes32(uint256(40)));
     vm.expectRevert(
       abi.encodeWithSelector(
         PPAgentV2Randao.OnlyNextKeeper.selector, 2, 0, 10, 15, 1600000000
@@ -171,7 +171,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     agent.initiateRedeem(kid2, 5_000 ether);
 
     // execute to reassign another keeper
-    vm.difficulty(41);
+    vm.prevrandao(bytes32(uint256(41)));
     vm.prank(keeperWorker, keeperWorker);
     _callExecuteHelper(
       agent,
@@ -215,7 +215,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     assertEq(agent.jobNextKeeperId(jobKey), 2);
 
     vm.prank(alice, alice);
-    vm.difficulty(42);
+    vm.prevrandao(bytes32(uint256(42)));
     vm.expectRevert(
       abi.encodeWithSelector(
         PPAgentV2Randao.OnlyNextKeeper.selector, 2, 1600000000, 10, 15, 1600000011
@@ -280,7 +280,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
 
     // first execution
     assertEq(agent.jobNextKeeperId(jobKey), 2);
-    vm.difficulty(42);
+    vm.prevrandao(bytes32(uint256(42)));
     vm.prank(keeperWorker, keeperWorker);
     _callExecuteHelper(
       agent,
@@ -302,7 +302,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
 
     // first execution
     assertEq(agent.jobNextKeeperId(jobKey), 2);
-    vm.difficulty(42);
+    vm.prevrandao(bytes32(uint256(42)));
     vm.prank(keeperWorker, keeperWorker);
     _callExecuteHelper(
       agent,

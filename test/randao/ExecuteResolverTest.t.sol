@@ -129,7 +129,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     assertEq(agent.jobNextKeeperId(jobKey), 3);
 
     // first execution
-    vm.difficulty(41);
+    vm.prevrandao(bytes32(uint256(41)));
     (bool ok, bytes memory cd) = job.myResolver("myPass");
     assertEq(ok, true);
     _executeJob(3, cd);
@@ -144,7 +144,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     assertEq(agent.getCurrentSlasherId(jobKey), 3);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
 
-    vm.difficulty(42);
+    vm.prevrandao(bytes32(uint256(42)));
     (ok, cd) = job.myResolver("myPass");
 
     vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.SlashingNotInitiated.selector));
@@ -184,7 +184,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
 
     vm.prank(bob, bob);
     (ok, cd) = job.myResolver("myPass");
-    vm.difficulty(41);
+    vm.prevrandao(bytes32(uint256(41)));
 
     _executeJob(kid3, cd);
 
@@ -198,7 +198,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     assertEq(job.current(), 0);
     _setupJob(address(job), SimpleCalldataTestJob.increment.selector, true);
     // first execution
-    vm.difficulty(41);
+    vm.prevrandao(bytes32(uint256(41)));
     vm.roll(42);
     (bool ok, bytes memory cd) = job.myResolver("myPass");
     assertEq(ok, true);
@@ -278,7 +278,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     job = new SimpleCustomizableCalldataTestJob(address(agent));
     _setupJob(address(job), SimpleCalldataTestJob.increment.selector, true);
     // first execution
-    vm.difficulty(41);
+    vm.prevrandao(bytes32(uint256(41)));
     (bool ok, bytes memory cd) = job.myResolver("myPass");
     assertEq(ok, true);
     _executeJob(3, cd);
@@ -305,7 +305,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     job = new SimpleCustomizableCalldataTestJob(address(agent));
     _setupJob(address(job), SimpleCalldataTestJob.increment.selector, true);
     // first execution
-    vm.difficulty(41);
+    vm.prevrandao(bytes32(uint256(41)));
     (bool ok, bytes memory cd) = job.myResolver("myPass");
     assertEq(ok, true);
     _executeJob(3, cd);
@@ -325,7 +325,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     job = new SimpleCustomizableCalldataTestJob(address(agent));
     _setupJob(address(job), SimpleCalldataTestJob.increment.selector, true);
     // first execution
-    vm.difficulty(41);
+    vm.prevrandao(bytes32(uint256(41)));
     (bool ok, bytes memory cd) = job.myResolver("myPass");
     assertEq(ok, true);
     _executeJob(3, cd);
@@ -350,7 +350,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     emit ExecutionReverted(jobKey, 2, abi.encodeWithSignature("Error(string)", "forced execution revert"));
 
     uint256 workerBalanceBefore = keeperWorker.balance;
-    vm.difficulty(52);
+    vm.prevrandao(bytes32(uint256(52)));
     _executeJob(2, cd);
     assertEq(agent.jobNextKeeperId(jobKey), 0);
     assertEq(job.current(), 1);

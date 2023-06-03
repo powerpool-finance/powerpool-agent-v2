@@ -126,7 +126,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
   }
 
   function _setDifficultyExpectKid(uint256 difficulty_, uint256 expectedKid_) internal {
-    vm.difficulty(difficulty_);
+    vm.prevrandao(bytes32(uint256(difficulty_)));
     _agent.assignNextKeeper(jobKey);
     assertEq(agent.jobNextKeeperId(jobKey), expectedKid_);
   }
@@ -170,7 +170,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
 
   function testRdAssignKeeper1Disabled2InsufficientDeposit() public {
     // release kid1
-    vm.difficulty(1);
+    vm.prevrandao(bytes32(uint256(1)));
     _agent.assignNextKeeper(jobKey);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
@@ -198,7 +198,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
 
   function testRdAssignKeeper2Disabled1InsufficientDeposit() public {
     // release kid1
-    vm.difficulty(1);
+    vm.prevrandao(bytes32(uint256(1)));
     _agent.assignNextKeeper(jobKey);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
@@ -223,7 +223,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
 
   function testRdAssignKeeper3Disabled1InsufficientDeposit() public {
     // release kid1
-    vm.difficulty(1);
+    vm.prevrandao(bytes32(uint256(1)));
     _agent.assignNextKeeper(jobKey);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
@@ -429,7 +429,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
 
   function testRdJobOwnerCanReleaseKeeper() public {
     // release kid1
-    vm.difficulty(1);
+    vm.prevrandao(bytes32(uint256(1)));
     _agent.assignNextKeeper(jobKey);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
@@ -443,7 +443,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
 
   function testRdOtherAddressCantRelease() public {
     // release kid1
-    vm.difficulty(1);
+    vm.prevrandao(bytes32(uint256(1)));
     _agent.assignNextKeeper(jobKey);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
@@ -454,7 +454,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
   }
 
   function testRdAssignKeeperAlreadyAssigned() public {
-    vm.difficulty(1);
+    vm.prevrandao(bytes32(uint256(1)));
     _agent.assignNextKeeper(jobKey);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
@@ -467,7 +467,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
   }
 
   function testRdAssignKeeperCantAssign() public {
-    vm.difficulty(1);
+    vm.prevrandao(bytes32(uint256(1)));
     _agent.assignNextKeeper(jobKey);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
@@ -501,7 +501,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
       preDefinedCalldata_: new bytes(0)
     });
 
-    vm.difficulty(2);
+    vm.prevrandao(bytes32(uint256(2)));
     _agent.assignNextKeeper(jobKey);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
@@ -521,7 +521,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
   }
 
   function testRdAssignKeeperResolverJob() public {
-    vm.difficulty(1);
+    vm.prevrandao(bytes32(uint256(1)));
     _agent.assignNextKeeper(jobKey);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
