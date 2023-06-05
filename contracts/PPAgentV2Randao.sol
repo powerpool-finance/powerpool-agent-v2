@@ -511,10 +511,10 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
       uint88 totalSlashAmount = uint88(fixedSlashAmount + dynamicSlashAmount);
       uint256 slashAmountMissing = 0;
       if (totalSlashAmount > eKeeper.cvpStake) {
-        totalSlashAmount = eKeeper.cvpStake;
         unchecked {
           slashAmountMissing = totalSlashAmount - eKeeper.cvpStake;
         }
+        totalSlashAmount = eKeeper.cvpStake;
       }
       keepers[expectedKeeperId].cvpStake -= totalSlashAmount;
       keepers[actualKeeperId_].cvpStake += totalSlashAmount;
