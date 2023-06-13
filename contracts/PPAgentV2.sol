@@ -533,7 +533,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       _afterExecutionSucceeded(jobKey, actualKeeperId, binJob);
     } else {
       // Tx reverted
-      _afterExecutionReverted(jobKey, calldataSource, actualKeeperId, executionResponse);
+      _afterExecutionReverted(jobKey, calldataSource, actualKeeperId, executionResponse, compensation);
     }
   }
 
@@ -552,7 +552,8 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     bytes32 jobKey_,
     CalldataSourceType calldataSource_,
     uint256 keeperId_,
-    bytes memory executionResponse_
+    bytes memory executionResponse_,
+    uint256
   ) internal virtual {
     jobKey_;
     keeperId_;

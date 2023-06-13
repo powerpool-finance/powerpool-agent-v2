@@ -71,7 +71,8 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   event ExecutionReverted(
     bytes32 indexed jobKey,
     uint256 indexed keeperId,
-    bytes executionReturndata
+    bytes executionReturndata,
+    uint256 compesnation
   );
   event SlashIntervalJob(
     bytes32 indexed jobKey,
@@ -264,7 +265,8 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     bytes32 jobKey_,
     CalldataSourceType calldataSource_,
     uint256 keeperId_,
-    bytes memory executionResponse_
+    bytes memory executionResponse_,
+    uint256 compensation_
   ) internal override {
     if (calldataSource_ == CalldataSourceType.RESOLVER &&
       jobReservedSlasherId[jobKey_] == 0 && jobSlashingPossibleAfter[jobKey_] == 0) {
@@ -273,7 +275,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
 
     _releaseKeeper(jobKey_, keeperId_);
 
-    emit ExecutionReverted(jobKey_, keeperId_, executionResponse_);
+    emit ExecutionReverted(jobKey_, keeperId_, executionResponse_, compensation_);
   }
 
   function initiateSlashing(

@@ -18,7 +18,8 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
   event ExecutionReverted(
     bytes32 indexed jobKey,
     uint256 indexed keeperId,
-    bytes executionReturndata
+    bytes executionReturndata,
+    uint256 compensation
   );
 
   OnlySelectorTestJob internal counter;
@@ -347,7 +348,12 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     vm.expectEmit(true, true, false, true, address(agent));
     emit JobKeeperChanged(jobKey, 2, 0);
     vm.expectEmit(true, true, false, true, address(agent));
-    emit ExecutionReverted(jobKey, 2, abi.encodeWithSignature("Error(string)", "forced execution revert"));
+    emit ExecutionReverted(
+      jobKey,
+      2,
+      abi.encodeWithSignature("Error(string)", "forced execution revert"),
+      0.000158525 ether
+    );
 
     uint256 workerBalanceBefore = keeperWorker.balance;
     vm.prevrandao(bytes32(uint256(52)));
