@@ -72,7 +72,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     bytes32 indexed jobKey,
     uint256 indexed keeperId,
     bytes executionReturndata,
-    uint256 compesnation
+    uint256 compensation
   );
   event SlashJob(
     bytes32 indexed jobKey,
