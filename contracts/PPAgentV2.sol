@@ -551,12 +551,12 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   function _afterExecutionReverted(
     bytes32 jobKey_,
     CalldataSourceType calldataSource_,
-    uint256 keeperId_,
+    uint256 actualKeeperId_,
     bytes memory executionResponse_,
     uint256
   ) internal virtual {
     jobKey_;
-    keeperId_;
+    actualKeeperId_;
     calldataSource_;
 
     if (executionResponse_.length == 0) {

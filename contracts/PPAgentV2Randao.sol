@@ -264,7 +264,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   function _afterExecutionReverted(
     bytes32 jobKey_,
     CalldataSourceType calldataSource_,
-    uint256 keeperId_,
+    uint256 actualKeeperId_,
     bytes memory executionResponse_,
     uint256 compensation_
   ) internal override {
@@ -273,9 +273,9 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
       revert SlashingNotInitiatedExecutionReverted();
     }
 
-    _releaseKeeper(jobKey_, keeperId_);
+    _releaseKeeper(jobKey_, actualKeeperId_);
 
-    emit ExecutionReverted(jobKey_, keeperId_, executionResponse_, compensation_);
+    emit ExecutionReverted(jobKey_, actualKeeperId_, executionResponse_, compensation_);
   }
 
   function initiateSlashing(
