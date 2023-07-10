@@ -62,7 +62,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   event DisableKeeper(uint256 indexed keeperId);
   event InitiateKeeperActivation(uint256 indexed keeperId, uint256 canBeFinalizedAt);
   event FinalizeKeeperActivation(uint256 indexed keeperId);
-  event InitiateSlashing(
+  event InitiateKeeperSlashing(
     bytes32 indexed jobKey,
     uint256 indexed slasherKeeperId,
     bool useResolver,
@@ -278,7 +278,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     emit ExecutionReverted(jobKey_, actualKeeperId_, executionResponse_, compensation_);
   }
 
-  function initiateSlashing(
+  function initiateKeeperSlashing(
     address jobAddress_,
     uint256 jobId_,
     uint256 slasherKeeperId_,
@@ -404,7 +404,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     _jobSlashingPossibleAfter = block.timestamp + rdConfig.period1;
     jobSlashingPossibleAfter[jobKey] = _jobSlashingPossibleAfter;
 
-    emit InitiateSlashing(jobKey, slasherKeeperId_, useResolver_, _jobSlashingPossibleAfter);
+    emit InitiateKeeperSlashing(jobKey, slasherKeeperId_, useResolver_, _jobSlashingPossibleAfter);
   }
 
   /*** OVERRIDES ***/

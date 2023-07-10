@@ -156,7 +156,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     assertEq(agent.jobSlashingPossibleAfter(jobKey), 0);
 
     vm.prank(bob, bob);
-    agent.initiateSlashing(address(job), jobId, kid3, false, cd);
+    agent.initiateKeeperSlashing(address(job), jobId, kid3, false, cd);
     assertEq(agent.jobReservedSlasherId(jobKey), kid3);
     assertEq(agent.jobSlashingPossibleAfter(jobKey), 1600000026);
 
@@ -208,7 +208,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
 
     // resolver false
     vm.prank(alice, alice);
-    agent.initiateSlashing(address(job), jobId, kid1, false, cd);
+    agent.initiateKeeperSlashing(address(job), jobId, kid1, false, cd);
 
     // time: 11, block: 43. Slashing not initiated
     vm.roll(63);
@@ -240,7 +240,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     vm.roll(42);
     vm.prank(alice);
     vm.expectRevert(PPAgentV2.SelectorCheckFailed.selector);
-    agent.initiateSlashing(address(job), jobId, kid1, false, cd);
+    agent.initiateKeeperSlashing(address(job), jobId, kid1, false, cd);
   }
 
   function testRdResolverSelectorSlashingReentrancyLock() public {
@@ -260,7 +260,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
       PPAgentV2Randao.JobCheckCanNotBeExecuted.selector,
       abi.encodePacked(PPAgentV2.ExecutionReentrancyLocked.selector)
     ));
-    agent.initiateSlashing(address(topupJob), jobId, kid1, false, cd);
+    agent.initiateKeeperSlashing(address(topupJob), jobId, kid1, false, cd);
   }
 
   function testRdResolverSelectorMatchCheckIgnored() public {
@@ -272,7 +272,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
 
     vm.roll(42);
     vm.prank(alice);
-    agent.initiateSlashing(address(job), jobId, kid1, false, cd);
+    agent.initiateKeeperSlashing(address(job), jobId, kid1, false, cd);
   }
 
   function testRdResolverSlashingResolverReject() public {
@@ -289,7 +289,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     // resolver false
     vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.JobCheckResolverReturnedFalse.selector));
     vm.prank(bob, bob);
-    agent.initiateSlashing(address(job), jobId, kid3, true, cd);
+    agent.initiateKeeperSlashing(address(job), jobId, kid3, true, cd);
 
     SimpleCustomizableCalldataTestJob(address(job)).setResolverReturnFalse(false);
     SimpleCustomizableCalldataTestJob(address(job)).setRevertResolver(true);
@@ -299,7 +299,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
       abi.encodeWithSelector(0x08c379a0, "forced resolver revert")
       ));
     vm.prank(bob, bob);
-    agent.initiateSlashing(address(job), jobId, kid3, true, cd);
+    agent.initiateKeeperSlashing(address(job), jobId, kid3, true, cd);
   }
 
   function testRdResolverExecutionRevertSlashingNotInitiated() public {
@@ -340,7 +340,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
 
     // initialize slashing
     vm.prank(bob, bob);
-    agent.initiateSlashing(address(job), jobId, kid3, true, cd);
+    agent.initiateKeeperSlashing(address(job), jobId, kid3, true, cd);
     assertEq(agent.jobReservedSlasherId(jobKey), kid3);
     assertEq(agent.jobSlashingPossibleAfter(jobKey), 1600000015);
 
