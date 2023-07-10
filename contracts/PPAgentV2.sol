@@ -90,7 +90,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     bytes32 binJobAfter
   );
   event WithdrawFees(address indexed to, uint256 amount);
-  event Slash(uint256 indexed keeperId, address indexed to, uint256 currentAmount, uint256 pendingAmount);
+  event OwnerSlash(uint256 indexed keeperId, address indexed to, uint256 currentAmount, uint256 pendingAmount);
   event RegisterAsKeeper(uint256 indexed keeperId, address indexed keeperAdmin, address indexed keeperWorker);
   event SetWorkerAddress(uint256 indexed keeperId, address indexed prev, address indexed worker);
   event Stake(uint256 indexed keeperId, uint256 amount, address staker);
@@ -1180,7 +1180,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    * @param currentAmount_ The amount to slash from the current keeper.cvpStake balance
    * @param pendingAmount_ The amount to slash from the pendingWithdrawals balance
    */
-  function slash(uint256 keeperId_, address to_, uint256 currentAmount_, uint256 pendingAmount_) external {
+  function ownerSlash(uint256 keeperId_, address to_, uint256 currentAmount_, uint256 pendingAmount_) external {
     _assertOnlyOwner();
     uint256 totalAmount = currentAmount_ + pendingAmount_;
     _assertNonZeroAmount(totalAmount);
@@ -1196,7 +1196,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
 
     IERC20(CVP).transfer(to_, totalAmount);
 
-    emit Slash(keeperId_, to_, currentAmount_, pendingAmount_);
+    emit OwnerSlash(keeperId_, to_, currentAmount_, pendingAmount_);
   }
 
   /**
