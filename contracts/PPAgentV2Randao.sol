@@ -70,7 +70,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   );
   event ExecutionReverted(
     bytes32 indexed jobKey,
-    uint256 indexed keeperId,
+    uint256 indexed actualKeeperId,
     bytes executionReturndata,
     uint256 compensation
   );
