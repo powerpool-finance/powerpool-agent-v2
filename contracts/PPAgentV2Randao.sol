@@ -173,7 +173,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     uint256 assignedKeeperId = jobNextKeeperId[jobKey_];
 
     // Job owner can unassign a keeper without any restriction
-    if (msg.sender == jobOwners[jobKey_]) {
+    if (msg.sender == jobOwners[jobKey_] || msg.sender == owner()) {
       _assertExecutionNotLocked();
       _releaseKeeper(jobKey_, assignedKeeperId);
       return;
