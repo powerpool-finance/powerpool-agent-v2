@@ -30,7 +30,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   error TooEarlyForSlashing(uint256 now_, uint256 possibleAfter);
   error SlashingNotInitiated();
   error SlashingNotInitiatedExecutionReverted();
-  error KeeperCantSlash();
+  error AssignedKeeperCantSlash();
   error KeeperIsAlreadyActive();
   error KeeperIsAlreadyInactive();
   error CantAssignKeeper();
@@ -325,7 +325,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
 
     // 4. keeper can't slash
     if (jobNextKeeperId[jobKey] == slasherKeeperId_) {
-      revert KeeperCantSlash();
+      revert AssignedKeeperCantSlash();
     }
 
     // 5. current slasher
