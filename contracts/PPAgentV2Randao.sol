@@ -74,7 +74,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     bytes executionReturndata,
     uint256 compensation
   );
-  event SlashJob(
+  event SlashKeeper(
     bytes32 indexed jobKey,
     uint256 indexed expectedKeeperId,
     uint256 indexed actualKeeperId,
@@ -520,7 +520,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
       }
       keepers[expectedKeeperId].cvpStake -= totalSlashAmount;
       keepers[actualKeeperId_].cvpStake += totalSlashAmount;
-      emit SlashJob(
+      emit SlashKeeper(
         jobKey_, expectedKeeperId, actualKeeperId_, fixedSlashAmount, dynamicSlashAmount, slashAmountMissing
       );
     }
