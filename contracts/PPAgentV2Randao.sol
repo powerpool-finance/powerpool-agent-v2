@@ -17,6 +17,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   using EnumerableSet for EnumerableSet.UintSet;
 
   error JobHasKeeperAssigned(uint256 keeperId);
+  error JobHasNoKeeperAssigned();
   error SlashingEpochBlocksTooLow();
   error InvalidPeriod1();
   error InvalidPeriod2();
@@ -447,6 +448,10 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   /*** HOOKS ***/
   function _beforeExecute(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal view override {
     uint256 nextKeeperId = jobNextKeeperId[jobKey_];
+    if (nextKeeperId == 0) {
+      revert JobHasNoKeeperAssigned();
+    }
+
     uint256 intervalSeconds = (binJob_ << 32) >> 232;
     uint256 lastExecutionAt = binJob_ >> 224;
 

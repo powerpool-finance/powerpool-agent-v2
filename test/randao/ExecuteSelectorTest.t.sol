@@ -268,6 +268,75 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     assertEq(_stakeOf(kid2), 4_800 ether);
   }
 
+  function testRdIntervalSlashingDenySlashingJobWithNoAssignedKeeper() public {
+    // first execution
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    vm.prank(keeperWorker, keeperWorker);
+    _callExecuteHelper(
+      agent,
+      address(counter),
+      jobId,
+      defaultFlags,
+      kid2,
+      new bytes(0)
+    );
+
+    // time: 11, block: 43. kid1 is not the keeper assigned to the task, slashing is not started yet.
+    vm.roll(52);
+    vm.warp(1600000000 + 11);
+    assertEq(block.number, 52);
+    assertEq(_jobNextExecutionAt(jobKey), 1600000010);
+    assertEq(agent.getCurrentSlasherId(jobKey), 1);
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+
+    vm.prank(alice, alice);
+    vm.prevrandao(bytes32(uint256(42)));
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        PPAgentV2Randao.OnlyNextKeeper.selector, 2, 1600000000, 10, 15, 1600000011
+      )
+    );
+    _callExecuteHelper(
+      agent,
+      address(counter),
+      jobId,
+      defaultFlags,
+      kid1,
+      new bytes(0)
+    );
+
+    // time: 26, block: 63. Should allow slashing
+    vm.roll(73);
+    vm.warp(1600000000 + 126);
+    assertEq(block.number, 73);
+    assertEq(_jobNextExecutionAt(jobKey), 1600000010);
+    assertEq(agent.getCurrentSlasherId(jobKey), 3);
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    vm.prank(alice, alice);
+
+    // the assigned keeper calls job release
+    agent.releaseJob(jobKey);
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+
+    assertEq(_stakeOf(kid1), 5_000 ether);
+    assertEq(_stakeOf(kid2), 5_000 ether);
+
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        PPAgentV2Randao.JobHasNoKeeperAssigned.selector
+      )
+    );
+    vm.prank(bob, bob);
+    _callExecuteHelper(
+      agent,
+      address(counter),
+      jobId,
+      defaultFlags,
+      kid3,
+      new bytes(0)
+    );
+  }
+
   function testRdShouldAssignZeroKeeperNotEnoughJobCredits() public {
     assertEq(_jobCredits(jobKey), 1 ether);
 

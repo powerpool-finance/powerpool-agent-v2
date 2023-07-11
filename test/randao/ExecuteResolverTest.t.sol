@@ -348,11 +348,13 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     vm.expectEmit(true, true, false, true, address(agent));
     emit JobKeeperChanged(jobKey, 2, 0);
     vm.expectEmit(true, true, false, true, address(agent));
+    // DANGER: the last compensation value will be changed along with changing execute() function logic since
+    // it depends on gas used.
     emit ExecutionReverted(
       jobKey,
       2,
       abi.encodeWithSignature("Error(string)", "forced execution revert"),
-      0.000158525 ether
+      0.00015945 ether
     );
 
     uint256 workerBalanceBefore = keeperWorker.balance;
