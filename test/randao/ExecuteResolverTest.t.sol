@@ -17,7 +17,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
   event JobKeeperChanged(bytes32 indexed jobKey, uint256 indexed keeperFrom, uint256 indexed keeperTo);
   event ExecutionReverted(
     bytes32 indexed jobKey,
-    uint256 indexed expectedKeeperId,
+    uint256 indexed assignedKeeperId,
     uint256 indexed actualKeeperId,
     bytes executionReturndata,
     uint256 compensation

@@ -47,7 +47,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   error TooEarlyForActivationFinalization(uint256 now, uint256 availableAt);
   error CantRelease();
   error OnlyNextKeeper(
-    uint256 expectedKeeperId,
+    uint256 assignedKeeperId,
     uint256 lastExecutedAt,
     uint256 interval,
     uint256 slashingInterval,
@@ -55,7 +55,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   );
   error InsufficientKeeperStakeToSlash(
     bytes32 jobKey,
-    uint256 expectedKeeperId,
+    uint256 assignedKeeperId,
     uint256 keeperCurrentStake,
     uint256 amountToSlash
   );
@@ -71,14 +71,14 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   );
   event ExecutionReverted(
     bytes32 indexed jobKey,
-    uint256 indexed expectedKeeperId,
+    uint256 indexed assignedKeeperId,
     uint256 indexed actualKeeperId,
     bytes executionReturndata,
     uint256 compensation
   );
   event SlashKeeper(
     bytes32 indexed jobKey,
-    uint256 indexed expectedKeeperId,
+    uint256 indexed assignedKeeperId,
     uint256 indexed actualKeeperId,
     uint256 fixedSlashAmount,
     uint256 dynamicSlashAmount,
@@ -275,11 +275,11 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
       revert SlashingNotInitiatedExecutionReverted();
     }
 
-    uint256 expectedKeeperId = jobNextKeeperId[jobKey_];
+    uint256 assignedKeeperId = jobNextKeeperId[jobKey_];
 
-    _releaseKeeper(jobKey_, expectedKeeperId);
+    _releaseKeeper(jobKey_, assignedKeeperId);
 
-    emit ExecutionReverted(jobKey_, expectedKeeperId, actualKeeperId_, executionResponse_, compensation_);
+    emit ExecutionReverted(jobKey_, assignedKeeperId, actualKeeperId_, executionResponse_, compensation_);
   }
 
   function initiateKeeperSlashing(
@@ -426,25 +426,25 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     uint256 rawJobBefore = getJobRaw(jobKey_);
     super.setJobConfig(jobKey_, isActive_, useJobOwnerCredits_, assertResolverSelector_);
     bool wasActiveBefore = ConfigFlags.check(rawJobBefore, CFG_ACTIVE);
-    uint256 expectedKeeperId = jobNextKeeperId[jobKey_];
+    uint256 assignedKeeperId = jobNextKeeperId[jobKey_];
 
     // inactive => active: assign if required
     if(!wasActiveBefore && isActive_)  {
-      _assignNextKeeperIfRequiredAndUpdateLastExecutedAt(jobKey_, expectedKeeperId);
+      _assignNextKeeperIfRequiredAndUpdateLastExecutedAt(jobKey_, assignedKeeperId);
     }
 
     // job was and remain active, but the credits source has changed: assign or release if required
     if (wasActiveBefore && isActive_ &&
       (ConfigFlags.check(rawJobBefore, CFG_USE_JOB_OWNER_CREDITS) != useJobOwnerCredits_)) {
 
-      if (!_assignNextKeeperIfRequiredAndUpdateLastExecutedAt(jobKey_, expectedKeeperId)) {
-        _releaseKeeperIfRequired(jobKey_, expectedKeeperId);
+      if (!_assignNextKeeperIfRequiredAndUpdateLastExecutedAt(jobKey_, assignedKeeperId)) {
+        _releaseKeeperIfRequired(jobKey_, assignedKeeperId);
       }
     }
 
     // active => inactive: unassign
     if (wasActiveBefore && !isActive_) {
-      _releaseKeeper(jobKey_, expectedKeeperId);
+      _releaseKeeper(jobKey_, assignedKeeperId);
     }
   }
 
@@ -503,7 +503,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   }
 
   function _afterExecutionSucceeded(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal override {
-    uint256 expectedKeeperId = jobNextKeeperId[jobKey_];
+    uint256 assignedKeeperId = jobNextKeeperId[jobKey_];
 
     uint256 intervalSeconds = (binJob_ << 32) >> 232;
 
@@ -513,8 +513,8 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     }
 
     // if slashing
-    if (expectedKeeperId != actualKeeperId_) {
-      Keeper memory eKeeper = keepers[expectedKeeperId];
+    if (assignedKeeperId != actualKeeperId_) {
+      Keeper memory eKeeper = keepers[assignedKeeperId];
       uint256 dynamicSlashAmount = eKeeper.cvpStake * uint256(rdConfig.slashingFeeBps) / 10_000;
       uint256 fixedSlashAmount = uint256(rdConfig.slashingFeeFixedCVP) * 1 ether;
       // NOTICE: totalSlashAmount can't be >= uint88
@@ -526,18 +526,18 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
         }
         totalSlashAmount = eKeeper.cvpStake;
       }
-      keepers[expectedKeeperId].cvpStake -= totalSlashAmount;
+      keepers[assignedKeeperId].cvpStake -= totalSlashAmount;
       keepers[actualKeeperId_].cvpStake += totalSlashAmount;
       emit SlashKeeper(
-        jobKey_, expectedKeeperId, actualKeeperId_, fixedSlashAmount, dynamicSlashAmount, slashAmountMissing
+        jobKey_, assignedKeeperId, actualKeeperId_, fixedSlashAmount, dynamicSlashAmount, slashAmountMissing
       );
     }
 
     if (shouldAssignKeeper(jobKey_)) {
-      _unassignKeeper(jobKey_, expectedKeeperId);
-      _assignNextKeeper(jobKey_, expectedKeeperId);
+      _unassignKeeper(jobKey_, assignedKeeperId);
+      _assignNextKeeper(jobKey_, assignedKeeperId);
     } else {
-      _releaseKeeper(jobKey_, expectedKeeperId);
+      _releaseKeeper(jobKey_, assignedKeeperId);
     }
   }
 
@@ -552,11 +552,11 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
 
   function _afterAcceptJobTransfer(bytes32 jobKey_) internal override {
     uint256 binJob = getJobRaw(jobKey_);
-    uint256 expectedKeeperId = jobNextKeeperId[jobKey_];
+    uint256 assignedKeeperId = jobNextKeeperId[jobKey_];
 
     if (ConfigFlags.check(binJob, CFG_ACTIVE) && ConfigFlags.check(binJob, CFG_USE_JOB_OWNER_CREDITS)) {
-      if (!_assignNextKeeperIfRequiredAndUpdateLastExecutedAt(jobKey_, expectedKeeperId)) {
-        _releaseKeeperIfRequired(jobKey_, expectedKeeperId);
+      if (!_assignNextKeeperIfRequiredAndUpdateLastExecutedAt(jobKey_, assignedKeeperId)) {
+        _releaseKeeperIfRequired(jobKey_, assignedKeeperId);
       }
     }
   }
