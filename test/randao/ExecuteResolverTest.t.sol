@@ -17,7 +17,8 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
   event JobKeeperChanged(bytes32 indexed jobKey, uint256 indexed keeperFrom, uint256 indexed keeperTo);
   event ExecutionReverted(
     bytes32 indexed jobKey,
-    uint256 indexed keeperId,
+    uint256 indexed expectedKeeperId,
+    uint256 indexed actualKeeperId,
     bytes executionReturndata,
     uint256 compensation
   );
@@ -352,6 +353,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     // it depends on gas used.
     emit ExecutionReverted(
       jobKey,
+      2,
       2,
       abi.encodeWithSignature("Error(string)", "forced execution revert"),
       0.00015945 ether

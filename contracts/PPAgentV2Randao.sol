@@ -71,6 +71,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   );
   event ExecutionReverted(
     bytes32 indexed jobKey,
+    uint256 indexed expectedKeeperId,
     uint256 indexed actualKeeperId,
     bytes executionReturndata,
     uint256 compensation
@@ -274,9 +275,11 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
       revert SlashingNotInitiatedExecutionReverted();
     }
 
-    _releaseKeeper(jobKey_, actualKeeperId_);
+    uint256 expectedKeeperId = jobNextKeeperId[jobKey_];
 
-    emit ExecutionReverted(jobKey_, actualKeeperId_, executionResponse_, compensation_);
+    _releaseKeeper(jobKey_, expectedKeeperId);
+
+    emit ExecutionReverted(jobKey_, expectedKeeperId, actualKeeperId_, executionResponse_, compensation_);
   }
 
   function initiateKeeperSlashing(
