@@ -1,5 +1,11 @@
 # PowerPool Agent V2
 
+Decentralized network for guaranteed, automatic, gasless transactions execution and off-chain computations for Defi/Web3 apps and individuals.
+
+The main purpose of PowerAgent is to execute (call) smart contracts based on the specific logic of the Task, submitted to the network.
+
+The execution logic can contain on-chain conditions and, in the future, off-chain data and computation results.
+
 ## How to run tests
 
 * Clone the repo `git clone  --recurse-submodules https://github.com/powerpool-finance/powerpool-agent-v2.git`
