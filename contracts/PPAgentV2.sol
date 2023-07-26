@@ -464,7 +464,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
           min = maxBaseFee;
         }
 
-        compensation = _calculateCompensation(ok, binJob, actualKeeperId, min, gasUsed);
+        compensation = calculateCompensation(ok, binJob, actualKeeperId, min, gasUsed);
       }
       {
         bool jobChanged;
@@ -568,18 +568,18 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
   }
 
-  function _calculateCompensation(
+  function calculateCompensation(
     bool ok_,
     uint256 job_,
     uint256 keeperId_,
-    uint256 gasPrice_,
+    uint256 baseFee_,
     uint256 gasUsed_
-  ) internal view virtual returns (uint256) {
+  ) public view virtual returns (uint256) {
     ok_; // silence unused param warning
     keeperId_; // silence unused param warning
     uint256 fixedReward = (job_ << 64) >> 224;
     uint256 rewardPct = (job_ << 96) >> 240;
-    return calculateCompensationPure(rewardPct, fixedReward, gasPrice_, gasUsed_);
+    return calculateCompensationPure(rewardPct, fixedReward, baseFee_, gasUsed_);
   }
 
   function _useJobOwnerCredits(bool ok_, bytes32 jobKey_, uint256 compensation_) internal {

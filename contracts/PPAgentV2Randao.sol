@@ -709,15 +709,15 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     }
   }
 
-  function _calculateCompensation(
+  function calculateCompensation(
     bool ok_,
     uint256 job_,
     uint256 keeperId_,
-    uint256 gasPrice_,
+    uint256 baseFee_,
     uint256 gasUsed_
-  ) internal view override returns (uint256) {
+  ) public view override returns (uint256) {
     if (!ok_) {
-      return gasUsed_ * gasPrice_;
+      return gasUsed_ * baseFee_;
     }
 
     job_; // silence unused param warning
@@ -729,11 +729,12 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     if (_jobMaxCvpStake > 0  && _jobMaxCvpStake < stake) {
       stake = _jobMaxCvpStake;
     }
-    if (_rdConfig.agentMaxCvpStake > 0 && _rdConfig.agentMaxCvpStake < stake) {
-      stake = _rdConfig.agentMaxCvpStake;
+    uint256 _agentMaxCvpStake = uint256(_rdConfig.agentMaxCvpStake) * 1 ether;
+    if (_agentMaxCvpStake > 0 && _agentMaxCvpStake < stake) {
+      stake = _agentMaxCvpStake;
     }
 
-    return (gasPrice_ * gasUsed_ * _rdConfig.jobCompensationMultiplierBps / 10_000) +
+    return (baseFee_ * gasUsed_ * _rdConfig.jobCompensationMultiplierBps / 10_000) +
       (stake / _rdConfig.stakeDivisor);
   }
 
