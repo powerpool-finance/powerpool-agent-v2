@@ -51,7 +51,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
       slashingFeeBps: 300,
       jobMinCreditsFinney: 100,
       agentMaxCvpStake: 50_000,
-      jobCompensationMultiplierBps: 1,
+      jobCompensationMultiplierBps: 10_000,
       stakeDivisor: 50_000_000,
       keeperActivationTimeoutHours: 8
     });

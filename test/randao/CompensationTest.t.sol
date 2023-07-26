@@ -18,7 +18,7 @@ contract RandaoCompensationTest is TestHelperRandao {
       slashingFeeBps: 300,
       jobMinCreditsFinney: 100,
       agentMaxCvpStake: 50_000,
-      jobCompensationMultiplierBps: 1,
+      jobCompensationMultiplierBps: 11_000,
       stakeDivisor: 50_000_000,
       keeperActivationTimeoutHours: 8
     });
@@ -43,7 +43,7 @@ contract RandaoCompensationTest is TestHelperRandao {
         gasUsed_: 150_000
       }),
       // baseFee_ * gasUsed_ * _rdConfig.jobCompensationMultiplierBps / 10_000 + (stake | maxStake) / _rdConfig.stakeDivisor
-      uint256(45 gwei * 150_000 * 1 / 10_000) + (40_000 ether / 50_000_000)
+      uint256(45 gwei * 150_000 * 11_000 / 10_000) + (40_000 ether / 50_000_000)
     );
   }
 
@@ -64,7 +64,7 @@ contract RandaoCompensationTest is TestHelperRandao {
         gasUsed_: 150_000
       }),
       // baseFee_ * gasUsed_ * _rdConfig.jobCompensationMultiplierBps / 10_000 + (stake | maxStake) / _rdConfig.stakeDivisor
-      uint256(45 gwei * 150_000 * 1 / 10_000) + (50_000 ether / 50_000_000)
+      uint256(45 gwei * 150_000 * 11_000 / 10_000) + (50_000 ether / 50_000_000)
     );
   }
 }

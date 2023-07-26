@@ -42,7 +42,7 @@ contract RandaoActorsTest is TestHelperRandao {
       slashingFeeBps: 300,
       jobMinCreditsFinney: 100,
       agentMaxCvpStake: 50_000,
-      jobCompensationMultiplierBps: 1,
+      jobCompensationMultiplierBps: 10_000,
       stakeDivisor: 50_000_000,
       keeperActivationTimeoutHours: 8
     });
@@ -100,7 +100,7 @@ contract RandaoActorsTest is TestHelperRandao {
       slashingFeeBps: 400,
       jobMinCreditsFinney: 0 ether,
       agentMaxCvpStake: 50_000,
-      jobCompensationMultiplierBps: 1,
+      jobCompensationMultiplierBps: 12_000,
       stakeDivisor: 50_000_000,
       keeperActivationTimeoutHours: 8
     });
@@ -114,7 +114,7 @@ contract RandaoActorsTest is TestHelperRandao {
     assertEq(agentConfig.slashingFeeBps, 400);
     assertEq(agentConfig.jobMinCreditsFinney, 0);
     assertEq(agentConfig.agentMaxCvpStake, 50_000);
-    assertEq(agentConfig.jobCompensationMultiplierBps, 1);
+    assertEq(agentConfig.jobCompensationMultiplierBps, 12_000);
     assertEq(agentConfig.stakeDivisor, 50_000_000);
     assertEq(agentConfig.keeperActivationTimeoutHours, 8);
   }

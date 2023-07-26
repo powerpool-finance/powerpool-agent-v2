@@ -24,6 +24,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   error InvalidSlashingFeeFixedCVP();
   error SlashingBpsGt5000Bps();
   error InvalidStakeDivisor();
+  error JobCompensationMultiplierBpsLT10000();
   error InactiveKeeper();
   error KeeperIsAssignedToJobs(uint256 amountOfJobs);
   error OnlyCurrentSlasher(uint256 expectedSlasherId);
@@ -147,6 +148,9 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     }
     if (rdConfig_.stakeDivisor == 0) {
       revert InvalidStakeDivisor();
+    }
+    if (rdConfig_.jobCompensationMultiplierBps < 10_000) {
+      revert JobCompensationMultiplierBpsLT10000();
     }
     emit SetRdConfig(rdConfig_);
 
