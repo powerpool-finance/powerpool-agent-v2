@@ -10,7 +10,7 @@ import "../jobs/SimpleCalldataTestJob.sol";
 import "../jobs/SimpleCustomizableCalldataTestJob.sol";
 import "../jobs/JobWithdrawTestJob.sol";
 
-contract KeeperTest is TestHelperRandao {
+contract RandaoKeeperTest is TestHelperRandao {
   ICounter internal job;
 
   OnlySelectorTestJob internal counter;

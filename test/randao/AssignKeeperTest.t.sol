@@ -10,7 +10,7 @@ import "../jobs/SimpleCalldataTestJob.sol";
 import "../jobs/SimpleCustomizableCalldataTestJob.sol";
 import "../mocks/MockExposedAgent.sol";
 
-contract AssignKeeperTest is TestHelperRandao {
+contract RandaoAssignKeeperTest is TestHelperRandao {
   ICounter internal job;
 
   event Execute(bytes32 indexed jobKey, address indexed job, bool indexed success, uint256 gasUsed, uint256 baseFee, uint256 gasPrice, uint256 compensation);
