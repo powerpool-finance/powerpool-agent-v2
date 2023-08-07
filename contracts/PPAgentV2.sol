@@ -275,6 +275,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   /*** HOOKS ***/
   function _beforeExecute(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal view virtual {}
   function _beforeInitiateRedeem(uint256 keeperId_) internal view virtual {}
+  function _afterExecute(uint256 actualKeeperId_, uint256 gasUsed_) internal virtual {}
 
   function _afterExecutionSucceeded(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal virtual {}
   function _afterRegisterJob(bytes32 jobKey_) internal virtual {}
@@ -535,6 +536,8 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       // Tx reverted
       _afterExecutionReverted(jobKey, calldataSource, actualKeeperId, executionResponse, compensation);
     }
+
+    _afterExecute(actualKeeperId, gasUsed);
   }
 
   function _checkBaseFee(uint256 binJob_, uint256 cfg_) internal view virtual returns (uint256) {
