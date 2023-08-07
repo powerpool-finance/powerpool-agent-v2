@@ -116,3 +116,7 @@ interface IPPAgentV2RandaoViewer {
   function jobCreatedAt(bytes32 jobKey_) external view returns (uint256);
   function keeperActivationCanBeFinalizedAt(uint256 keeperId_) external view returns (uint256);
 }
+
+interface IPPCompensationTracker {
+  function notify(uint256 keeperId_, uint256 compensation_) external;
+}
