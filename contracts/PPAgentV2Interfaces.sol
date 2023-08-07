@@ -117,6 +117,6 @@ interface IPPAgentV2RandaoViewer {
   function keeperActivationCanBeFinalizedAt(uint256 keeperId_) external view returns (uint256);
 }
 
-interface IPPCompensationTracker {
-  function notify(uint256 keeperId_, uint256 compensation_) external;
+interface IPPGasUsedTracker {
+  function notify(uint256 keeperId_, uint256 gasUsed_) external;
 }

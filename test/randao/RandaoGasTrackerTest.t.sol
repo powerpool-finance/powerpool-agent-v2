@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import "../../contracts/PPAgentV2RandaoGnosis.sol";
+import "../../contracts/PPAgentV2RandaoWithGasTracking.sol";
 import "../TestHelperRandao.sol";
 import "../mocks/MockCVP.sol";
 import "../jobs/OnlySelectorTestJob.sol";
 import "../mocks/MockCompensationTracker.sol";
 
-contract RandaoGnosisTest is TestHelperRandao {
+contract RandaoGasUsedTest is TestHelperRandao {
   ICounter internal job;
 
   OnlySelectorTestJob internal counter;
@@ -46,7 +46,7 @@ contract RandaoGnosisTest is TestHelperRandao {
       keeperActivationTimeoutHours: 8
     });
 
-    agent = new PPAgentV2RandaoGnosis(address(tracker), address(cvp));
+    agent = new PPAgentV2RandaoWithGasTracking(address(tracker), address(cvp));
     agent.initializeRandao(owner, 3_000 ether, 3 days, rdConfig);
     counter = new OnlySelectorTestJob(address(agent));
 
@@ -92,7 +92,7 @@ contract RandaoGnosisTest is TestHelperRandao {
     });
   }
 
-  function testGnosisCompensationTrackerShouldBeNotified() public {
+  function testGasTrackingShouldBeNotified() public {
     job = new OnlySelectorTestJob(address(agent));
     assertEq(job.current(), 0);
     _setupJob(address(job), OnlySelectorTestJob.increment.selector, true);
@@ -108,10 +108,10 @@ contract RandaoGnosisTest is TestHelperRandao {
       new bytes(0)
     );
 
-    assertGt(tracker.accumulatedCompensations(kid1), 0);
+    assertGt(tracker.accumulatedGasUsed(kid1), 0);
   }
 
-  function testGnosisCompensationTrackerCanSafelyRevert() public {
+  function testGasTrackingCanSafelyRevert() public {
     job = new OnlySelectorTestJob(address(agent));
     assertEq(job.current(), 0);
     _setupJob(address(job), OnlySelectorTestJob.increment.selector, true);
@@ -129,6 +129,6 @@ contract RandaoGnosisTest is TestHelperRandao {
       new bytes(0)
     );
 
-    assertEq(tracker.accumulatedCompensations(kid1), 0);
+    assertEq(tracker.accumulatedGasUsed(kid1), 0);
   }
 }
