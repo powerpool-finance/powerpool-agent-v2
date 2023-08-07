@@ -232,7 +232,6 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
       revert KeeperIsAlreadyInactive();
     }
 
-    _ensureCanReleaseKeeper(keeperId_);
     activeKeepers.remove(keeperId_);
     keepers[keeperId_].isActive = false;
 
