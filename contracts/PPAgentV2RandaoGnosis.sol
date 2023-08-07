@@ -16,6 +16,11 @@ contract PPAgentV2RandaoGnosis is PPAgentV2Randao {
   }
 
   function _afterExecute(uint256 actualKeeperId_, uint256 compensation_) internal override {
-    IPPCompensationTracker(compensationTracker).notify(actualKeeperId_, compensation_);
+    // Even if this call is reverted it should not affect the job execution.
+    (bool ok,) = compensationTracker.call(
+      abi.encodeWithSelector(IPPCompensationTracker.notify.selector, actualKeeperId_, compensation_)
+    );
+    // Silence compiler warning about ignoring low-level call return value.
+    ok;
   }
 }

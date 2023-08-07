@@ -98,10 +98,6 @@ contract RandaoGnosisTest is TestHelperRandao {
     _setupJob(address(job), OnlySelectorTestJob.increment.selector, true);
     assertEq(agent.jobNextKeeperId(jobKey), 1);
 
-    vm.prank(keeperAdmin);
-    agent.disableKeeper(3);
-    assertEq(agent.jobNextKeeperId(jobKey), 1);
-
     vm.prank(alice, alice);
     _callExecuteHelper(
       agent,
@@ -113,5 +109,26 @@ contract RandaoGnosisTest is TestHelperRandao {
     );
 
     assertGt(tracker.accumulatedCompensations(kid1), 0);
+  }
+
+  function testGnosisCompensationTrackerCanSafelyRevert() public {
+    job = new OnlySelectorTestJob(address(agent));
+    assertEq(job.current(), 0);
+    _setupJob(address(job), OnlySelectorTestJob.increment.selector, true);
+    assertEq(agent.jobNextKeeperId(jobKey), 1);
+
+    tracker.setDoRevert(true);
+
+    vm.prank(alice, alice);
+    _callExecuteHelper(
+      agent,
+      address(job),
+      jobId,
+      defaultFlags,
+      kid1,
+      new bytes(0)
+    );
+
+    assertEq(tracker.accumulatedCompensations(kid1), 0);
   }
 }
