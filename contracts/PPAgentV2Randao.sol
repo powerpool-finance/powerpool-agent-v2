@@ -158,7 +158,36 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   }
 
   /*** JOB OWNER METHODS ***/
+  /**
+   * Assigns a keeper for all the jobs in jobKeys_ list.
+   * The msg.sender should be the owner of all the jobs in the jobKeys_ list.
+   * Will revert if there is at least one job with an already assigned keeper.
+   *
+   * @param jobKeys_ The list of job keys to activate
+   */
   function assignKeeper(bytes32[] calldata jobKeys_) external {
+    _assignKeeper(jobKeys_);
+  }
+
+  /**
+   * Top-ups the job owner credits in NATIVE tokens AND activates the jobs passed in jobKeys_ array.
+   *
+   * If the jobKeys_ list is empty the function behaves the same way as `depositJobOwnerCredits(address for_)`.
+   * If there is at least one jobKeys_ element the msg.sender should be the owner of all the jobs in the jobKeys_ list.
+   * Will revert if there is at least one job with an assigned keeper.
+   *
+   * @param for_ The job owner address to deposit for
+   * @param jobKeys_ The list of job keys to activate
+   */
+  function depositJobOwnerCreditsAndAssignKeepers(address for_, bytes32[] calldata jobKeys_) external payable {
+    _assertNonZeroValue();
+
+    _processJobOwnerCreditsDeposit(for_);
+
+    _assignKeeper(jobKeys_);
+  }
+
+  function _assignKeeper(bytes32[] calldata jobKeys_) internal {
     _assertExecutionNotLocked();
     for (uint256 i = 0; i < jobKeys_.length; i++) {
       bytes32 jobKey = jobKeys_[i];
