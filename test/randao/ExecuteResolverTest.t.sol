@@ -191,8 +191,8 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     _executeJob(kid3, cd);
 
     // 50 + 5000 * 0.03 = 200
-    assertEq(_stakeOf(kid3), 5_200 ether);
-    assertEq(_stakeOf(kid2), 4_800 ether);
+    assertEq(_stakeOf(kid3), 5_050.3 ether);
+    assertEq(_stakeOf(kid2), 4_949.7 ether);
   }
 
   function testRdResolverSlashingKeeperCanExecuteAfterInitiated() public {

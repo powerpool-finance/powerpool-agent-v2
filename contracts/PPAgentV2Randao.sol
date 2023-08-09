@@ -546,17 +546,24 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
 
     // if slashing
     if (assignedKeeperId != actualKeeperId_) {
-      Keeper memory eKeeper = keepers[assignedKeeperId];
-      uint256 dynamicSlashAmount = eKeeper.cvpStake * uint256(rdConfig.slashingFeeBps) / 10_000;
-      uint256 fixedSlashAmount = uint256(rdConfig.slashingFeeFixedCVP) * 1 ether;
+      RandaoConfig memory _rdConfig = rdConfig;
+
+      Keeper memory _assignedKeeper = keepers[assignedKeeperId];
+      uint256 keeperStake = _getKeeperLimitedStake({
+        keeperCurrentStake_: _assignedKeeper.cvpStake,
+        agentMaxCvpStakeCvp_: uint256(_rdConfig.agentMaxCvpStake),
+        job_: binJob_
+      });
+      uint256 dynamicSlashAmount = keeperStake * uint256(_rdConfig.slashingFeeBps) / 10_000;
+      uint256 fixedSlashAmount = uint256(_rdConfig.slashingFeeFixedCVP) * 1 ether;
       // NOTICE: totalSlashAmount can't be >= uint88
       uint88 totalSlashAmount = uint88(fixedSlashAmount + dynamicSlashAmount);
       uint256 slashAmountMissing = 0;
-      if (totalSlashAmount > eKeeper.cvpStake) {
+      if (totalSlashAmount > _assignedKeeper.cvpStake) {
         unchecked {
-          slashAmountMissing = totalSlashAmount - eKeeper.cvpStake;
+          slashAmountMissing = totalSlashAmount - _assignedKeeper.cvpStake;
         }
-        totalSlashAmount = eKeeper.cvpStake;
+        totalSlashAmount = _assignedKeeper.cvpStake;
       }
       keepers[assignedKeeperId].cvpStake -= totalSlashAmount;
       keepers[actualKeeperId_].cvpStake += totalSlashAmount;
@@ -752,22 +759,43 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
       return gasUsed_ * baseFee_;
     }
 
-    job_; // silence unused param warning
     RandaoConfig memory _rdConfig = rdConfig;
 
-    uint256 stake = keepers[keeperId_].cvpStake;
-    // fixedReward field for randao jobs contains _jobMaxCvpStake
-    uint256 _jobMaxCvpStake = ((job_ << 64) >> 224) * 1 ether;
-    if (_jobMaxCvpStake > 0  && _jobMaxCvpStake < stake) {
-      stake = _jobMaxCvpStake;
-    }
-    uint256 _agentMaxCvpStake = uint256(_rdConfig.agentMaxCvpStake) * 1 ether;
-    if (_agentMaxCvpStake > 0 && _agentMaxCvpStake < stake) {
-      stake = _agentMaxCvpStake;
-    }
+    uint256 stake = _getKeeperLimitedStake({
+      keeperCurrentStake_: keepers[keeperId_].cvpStake,
+      agentMaxCvpStakeCvp_: uint256(_rdConfig.agentMaxCvpStake),
+      job_: job_
+    });
 
     return (baseFee_ * gasUsed_ * _rdConfig.jobCompensationMultiplierBps / 10_000) +
       (stake / _rdConfig.stakeDivisor);
+  }
+
+  /*
+   * Returns a limited stake to be used for calculating slashing and compensation amounts.
+   *
+   * @dev There are two limitations applied to the initial keeper stake:
+   *      1. It can't be > job-level max CVP limit defined by a job owner.
+   *      2. It can't be > agent-level(global) max CVP limit defined by the contract owner.
+   */
+  function _getKeeperLimitedStake(
+    uint256 keeperCurrentStake_,
+    uint256 agentMaxCvpStakeCvp_,
+    uint256 job_
+  ) internal pure returns (uint256 limitedStake) {
+    limitedStake = keeperCurrentStake_;
+
+    // fixedReward field for randao jobs contains _jobMaxCvpStake
+    uint256 _jobMaxCvpStake = ((job_ << 64) >> 224) * 1 ether;
+    if (_jobMaxCvpStake > 0  && _jobMaxCvpStake < limitedStake) {
+      limitedStake = _jobMaxCvpStake;
+    }
+    uint256 _agentMaxCvpStake = agentMaxCvpStakeCvp_ * 1 ether;
+    if (_agentMaxCvpStake > 0 && _agentMaxCvpStake < limitedStake) {
+      limitedStake = _agentMaxCvpStake;
+    }
+
+    return limitedStake;
   }
 
   /*** GETTERS ***/
