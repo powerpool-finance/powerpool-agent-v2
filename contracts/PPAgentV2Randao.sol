@@ -309,9 +309,9 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
 
     uint256 assignedKeeperId = jobNextKeeperId[jobKey_];
 
-    _releaseKeeper(jobKey_, assignedKeeperId);
-
     emit ExecutionReverted(jobKey_, assignedKeeperId, actualKeeperId_, executionResponse_, compensation_);
+
+    _releaseKeeper(jobKey_, assignedKeeperId);
   }
 
   function initiateKeeperSlashing(
