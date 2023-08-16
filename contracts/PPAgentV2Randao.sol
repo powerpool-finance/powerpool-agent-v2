@@ -772,11 +772,15 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   }
 
   /*
-   * Returns a limited stake to be used for calculating slashing and compensation amounts.
+   * Returns a limited stake to be used for calculating the slashing and compensation amounts.
    *
    * @dev There are two limitations applied to the initial keeper stake:
    *      1. It can't be > job-level max CVP limit defined by a job owner.
    *      2. It can't be > agent-level(global) max CVP limit defined by the contract owner.
+   * @param keeperCurrentStake_ in CVP wei
+   * @param agentMaxCvpStakeCvp_ in CVP ether
+   * @param job_ binJob where jobMaxCvpStake in CVP ether is encoded into fixedReward field
+   * @return limitedStake in CVP wei
    */
   function _getKeeperLimitedStake(
     uint256 keeperCurrentStake_,

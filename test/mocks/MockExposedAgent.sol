@@ -14,4 +14,12 @@ contract MockExposedAgent is PPAgentV2Randao {
     }
     _assignNextKeeper(jobKey_, expectedKeeperId);
   }
+
+  function getKeeperLimitedStake(
+    uint256 keeperCurrentStake_,
+    uint256 agentMaxCvpStakeCvp_,
+    uint256 job_
+  ) public pure returns (uint256) {
+    return _getKeeperLimitedStake(keeperCurrentStake_, agentMaxCvpStakeCvp_, job_);
+  }
 }
