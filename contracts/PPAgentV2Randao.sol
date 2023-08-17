@@ -627,7 +627,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   }
 
   function _getPseudoRandom() internal view returns (uint256) {
-    return block.difficulty;
+    return block.prevrandao;
   }
 
   function _releaseKeeperIfRequired(bytes32 jobKey_, uint256 keeperId_) internal returns (bool released) {
