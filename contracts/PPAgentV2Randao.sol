@@ -620,9 +620,9 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   }
 
   function _ensureCanReleaseKeeper(uint256 keeperId_) internal view {
-    uint256 len = keeperLocksByJob[keeperId_].length();
-    if (len > 1) {
-      revert KeeperIsAssignedToJobs(len - 1);
+    uint256 len = getJobsAssignedToKeeperLength(keeperId_);
+    if (len > 0) {
+      revert KeeperIsAssignedToJobs(len);
     }
   }
 
@@ -824,7 +824,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     }
   }
 
-  function getJobsAssignedToKeeperLength(uint256 keeperId_) external view returns (uint256) {
+  function getJobsAssignedToKeeperLength(uint256 keeperId_) public view returns (uint256) {
     uint256 len = keeperLocksByJob[keeperId_].length();
     if (len > 0) {
       return len - 1;
