@@ -3,8 +3,8 @@ pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { PPAgentV2, ConfigFlags } from "./PPAgentV2.sol";
+import "./utils/CustomizedEnumerableSet.sol";
 import "./PPAgentV2Flags.sol";
 import "./PPAgentV2Interfaces.sol";
 
