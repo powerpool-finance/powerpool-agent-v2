@@ -446,6 +446,9 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   /*** OVERRIDES ***/
   function registerAsKeeper(address worker_, uint256 initialDepositAmount_) public override returns (uint256 keeperId) {
     keeperId = super.registerAsKeeper(worker_, initialDepositAmount_);
+    // The placeholder bytes32(0) element remains constant in the set, ensuring
+    // the set's size EVM slot is never 0, resulting in gas savings.
+    keeperLocksByJob[keeperId].add(bytes32(uint256(0)));
     activeKeepers.add(keeperId);
   }
 
@@ -618,8 +621,8 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
 
   function _ensureCanReleaseKeeper(uint256 keeperId_) internal view {
     uint256 len = keeperLocksByJob[keeperId_].length();
-    if (len > 0) {
-      revert KeeperIsAssignedToJobs(len);
+    if (len > 1) {
+      revert KeeperIsAssignedToJobs(len - 1);
     }
   }
 
@@ -804,12 +807,29 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
 
   /*** GETTERS ***/
 
-  function getJobsAssignedToKeeper(uint256 keeperId_) external view returns (bytes32[] memory jobKeys) {
-    return keeperLocksByJob[keeperId_].values();
+  /*
+   * Returns a list of the jobsKeys assigned to a keeperId_.
+   *
+   * @dev The jobKeys array should exclude the constant placeholder bytes32(0) from its first element.
+   */
+  function getJobsAssignedToKeeper(uint256 keeperId_) external view returns (bytes32[] memory actualJobKeys) {
+    bytes32[] memory allJobKeys = keeperLocksByJob[keeperId_].values();
+    uint256 len = allJobKeys.length;
+    if (len < 2) {
+      return new bytes32[](0);
+    }
+    actualJobKeys = new bytes32[](len - 1);
+    for (uint256 i = 1; i < len; i++) {
+      actualJobKeys[i - 1] = allJobKeys[i];
+    }
   }
 
   function getJobsAssignedToKeeperLength(uint256 keeperId_) external view returns (uint256) {
-    return keeperLocksByJob[keeperId_].length();
+    uint256 len = keeperLocksByJob[keeperId_].length();
+    if (len > 0) {
+      return len - 1;
+    }
+    return 0;
   }
 
   function getCurrentSlasherId(bytes32 jobKey_) public view returns (uint256) {
