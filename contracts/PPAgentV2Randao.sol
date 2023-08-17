@@ -814,13 +814,13 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
    */
   function getJobsAssignedToKeeper(uint256 keeperId_) external view returns (bytes32[] memory actualJobKeys) {
     bytes32[] memory allJobKeys = keeperLocksByJob[keeperId_].values();
-    uint256 len = allJobKeys.length;
-    if (len < 2) {
+    uint256 len = getJobsAssignedToKeeperLength(keeperId_);
+    if (len == 0) {
       return new bytes32[](0);
     }
-    actualJobKeys = new bytes32[](len - 1);
-    for (uint256 i = 1; i < len; i++) {
-      actualJobKeys[i - 1] = allJobKeys[i];
+    actualJobKeys = new bytes32[](len);
+    for (uint256 i = 0; i < len; i++) {
+      actualJobKeys[i] = allJobKeys[i + 1];
     }
   }
 
