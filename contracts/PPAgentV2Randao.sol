@@ -759,7 +759,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     uint256 gasUsed_
   ) public view override returns (uint256) {
     if (!ok_) {
-      return gasUsed_ * baseFee_;
+      return (gasUsed_ + _getJobGasOverhead()) * baseFee_;
     }
 
     RandaoConfig memory _rdConfig = rdConfig;
@@ -770,7 +770,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
       job_: job_
     });
 
-    return (baseFee_ * gasUsed_ * _rdConfig.jobCompensationMultiplierBps / 10_000) +
+    return (baseFee_ * (gasUsed_ + _getJobGasOverhead()) * _rdConfig.jobCompensationMultiplierBps / 10_000) +
       (stake / _rdConfig.stakeDivisor);
   }
 
