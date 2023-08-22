@@ -110,7 +110,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   }
 
   function _getJobGasOverhead() internal pure override returns (uint256) {
-    return 55_000;
+    return 136_000;
   }
 
   constructor(address cvp_) PPAgentV2(cvp_) {
