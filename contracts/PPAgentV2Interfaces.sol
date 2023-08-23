@@ -77,7 +77,7 @@ interface IPPAgentV2JobOwner {
 }
 
 interface IPPAgentV2RandaoViewer {
-  // 8+24+16+24+16+16+40+16+32 = 192
+  // 8+24+16+24+16+16+40+16+32+8+24 = 224
   struct RandaoConfig {
     // max: 2^8 - 1 = 255 blocks
     uint8 slashingEpochBlocks;
@@ -100,6 +100,9 @@ interface IPPAgentV2RandaoViewer {
     uint32 stakeDivisor;
     // max: 2^8 - 1 = 255 hours, or ~10.5 days
     uint8 keeperActivationTimeoutHours;
+    // max: 2^16 - 1 = 65535, in calculations is multiplied by 0.001 ether (1 finney),
+    // thus the min is 0.001 ether and max is 65.535 ether
+    uint16 jobFixedReward;
   }
 
   function getRdConfig() external view returns (RandaoConfig memory);
