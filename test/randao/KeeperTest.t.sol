@@ -99,6 +99,32 @@ contract RandaoKeeperTest is TestHelperRandao {
     });
   }
 
+  function testKeeperDisabledOnRegister() public {
+    cvp.transfer(alice, 10_000 ether);
+
+    vm.startPrank(alice, alice);
+    cvp.approve(address(agent), 5_000 ether);
+    uint256 kid4 = agent.registerAsKeeper(address(42), 5_000 ether);
+    assertEq(_keeperIsActive(kid4), false);
+    assertEq(agent.keeperActivationCanBeFinalizedAt(kid4), block.timestamp + 8 hours);
+
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        PPAgentV2Randao.TooEarlyForActivationFinalization.selector,
+        block.timestamp,
+        block.timestamp + 8 hours
+      )
+    );
+    agent.finalizeKeeperActivation(kid4);
+
+    vm.warp(block.timestamp + 8 hours);
+
+    agent.finalizeKeeperActivation(kid4);
+    assertEq(agent.keeperActivationCanBeFinalizedAt(kid4), 0);
+    assertEq(_keeperIsActive(kid4), true);
+    vm.stopPrank();
+  }
+
   function testKeeperCanBeDisabledWhenStillAssignedToJobs() public {
     job = new SimpleCalldataTestJob(address(agent));
     assertEq(job.current(), 0);
