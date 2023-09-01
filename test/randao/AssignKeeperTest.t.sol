@@ -90,6 +90,18 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
       cvp.approve(address(agent), 5_000 ether);
       kid5 = agent.registerAsKeeper(w5, 5_000 ether);
       vm.stopPrank();
+
+      vm.warp(block.timestamp + 8 hours);
+      vm.prank(a1);
+      agent.finalizeKeeperActivation(1);
+      vm.prank(a2);
+      agent.finalizeKeeperActivation(2);
+      vm.prank(a3);
+      agent.finalizeKeeperActivation(3);
+      vm.prank(a4);
+      agent.finalizeKeeperActivation(4);
+      vm.prank(a5);
+      agent.finalizeKeeperActivation(5);
     }
 
     _agent = MockExposedAgent(address(agent));
@@ -532,7 +544,7 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     vm.prank(alice);
     _agent.assignKeeper(list);
 
-    assertEq(_jobLastExecutionAt(jobKey), 1600000000);
+    assertEq(_jobLastExecutionAt(jobKey), 1600000000 + 8 hours);
   }
 
   function testRdAssignKeeperResolverJob() public {

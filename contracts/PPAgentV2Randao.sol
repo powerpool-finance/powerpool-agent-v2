@@ -274,6 +274,10 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
       revert KeeperIsAlreadyActive();
     }
 
+    _initiateKeeperActivation(keeperId_);
+  }
+
+  function _initiateKeeperActivation(uint256 keeperId_) internal {
     uint256 canBeFinalizedAt = block.timestamp + rdConfig.keeperActivationTimeoutHours * 1 hours;
     keeperActivationCanBeFinalizedAt[keeperId_] = canBeFinalizedAt;
 
@@ -535,6 +539,10 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
 
   function _afterWithdrawJobCredits(bytes32 jobKey_) internal override {
     _releaseKeeperIfRequired(jobKey_, jobNextKeeperId[jobKey_]);
+  }
+
+  function _afterRegisterAsKeeper(uint256 keeperId_) internal override {
+    _initiateKeeperActivation(keeperId_);
   }
 
   function _afterExecutionSucceeded(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal override {

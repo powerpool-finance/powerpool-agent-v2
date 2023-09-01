@@ -59,6 +59,12 @@ contract RandaoKeeperTest is TestHelperRandao {
       kid1 = agent.registerAsKeeper(alice, 5_000 ether);
       kid2 = agent.registerAsKeeper(keeperWorker, 5_000 ether);
       kid3 = agent.registerAsKeeper(bob, 5_000 ether);
+
+      vm.warp(block.timestamp + 8 hours);
+
+      agent.finalizeKeeperActivation(1);
+      agent.finalizeKeeperActivation(2);
+      agent.finalizeKeeperActivation(3);
       vm.stopPrank();
 
       assertEq(counter.current(), 0);

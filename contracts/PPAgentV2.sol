@@ -282,6 +282,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   function _afterDepositJobCredits(bytes32 jobKey_) internal virtual {}
   function _afterWithdrawJobCredits(bytes32 jobKey_) internal virtual {}
   function _afterAcceptJobTransfer(bytes32 jobKey_) internal virtual {}
+  function _afterRegisterAsKeeper(uint256 keeperId_) internal virtual {}
 
   /*** CONSTANT GETTERS ***/
   function getStrategy() public pure virtual returns (string memory) {
@@ -1024,9 +1025,11 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
 
     keeperId = ++lastKeeperId;
     keeperAdmins[keeperId] = msg.sender;
-    keepers[keeperId] = Keeper(worker_, 0, true);
+    keepers[keeperId] = Keeper(worker_, 0, false);
     workerKeeperIds[worker_] = keeperId;
     emit RegisterAsKeeper(keeperId, msg.sender, worker_);
+
+    _afterRegisterAsKeeper(keeperId);
 
     _stake(keeperId, initialDepositAmount_);
   }
