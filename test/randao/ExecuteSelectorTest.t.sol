@@ -57,6 +57,12 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
       kid1 = agent.registerAsKeeper(alice, 5_000 ether);
       kid2 = agent.registerAsKeeper(keeperWorker, 5_000 ether);
       kid3 = agent.registerAsKeeper(bob, 5_000 ether);
+
+      vm.warp(block.timestamp + 8 hours);
+
+      agent.finalizeKeeperActivation(1);
+      agent.finalizeKeeperActivation(2);
+      agent.finalizeKeeperActivation(3);
       vm.stopPrank();
 
       assertEq(counter.current(), 0);
@@ -145,7 +151,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     vm.prevrandao(bytes32(uint256(40)));
     vm.expectRevert(
       abi.encodeWithSelector(
-        PPAgentV2Randao.OnlyNextKeeper.selector, 2, 0, 10, 15, 1600000000
+        PPAgentV2Randao.OnlyNextKeeper.selector, 2, 0, 10, 15, 1600000000 + 8 hours
       )
     );
     vm.prank(alice, alice);
@@ -209,9 +215,9 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
 
     // time: 11, block: 43. kid1 is not the keeper assigned to the task, slashing is not started yet.
     vm.roll(52);
-    vm.warp(1600000000 + 11);
+    vm.warp(1600000000 + 11 + 8 hours);
     assertEq(block.number, 52);
-    assertEq(_jobNextExecutionAt(jobKey), 1600000010);
+    assertEq(_jobNextExecutionAt(jobKey), 1600000010 + 8 hours);
     assertEq(agent.getCurrentSlasherId(jobKey), 1);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
 
@@ -219,7 +225,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     vm.prevrandao(bytes32(uint256(42)));
     vm.expectRevert(
       abi.encodeWithSelector(
-        PPAgentV2Randao.OnlyNextKeeper.selector, 2, 1600000000, 10, 15, 1600000011
+        PPAgentV2Randao.OnlyNextKeeper.selector, 2, 1600000000 + 8 hours, 10, 15, 1600000011 + 8 hours
       )
     );
     _callExecuteHelper(
@@ -233,9 +239,9 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
 
     // time: 26, block: 63. Should allow slashing
     vm.roll(73);
-    vm.warp(1600000000 + 26);
+    vm.warp(1600000000 + 26 + 8 hours);
     assertEq(block.number, 73);
-    assertEq(_jobNextExecutionAt(jobKey), 1600000010);
+    assertEq(_jobNextExecutionAt(jobKey), 1600000010 + 8 hours);
     assertEq(agent.getCurrentSlasherId(jobKey), 3);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
 
@@ -284,9 +290,9 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
 
     // time: 11, block: 43. kid1 is not the keeper assigned to the task, slashing is not started yet.
     vm.roll(52);
-    vm.warp(1600000000 + 11);
+    vm.warp(1600000000 + 11 + 8 hours);
     assertEq(block.number, 52);
-    assertEq(_jobNextExecutionAt(jobKey), 1600000010);
+    assertEq(_jobNextExecutionAt(jobKey), 1600000010 + 8 hours);
     assertEq(agent.getCurrentSlasherId(jobKey), 1);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
 
@@ -294,7 +300,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     vm.prevrandao(bytes32(uint256(42)));
     vm.expectRevert(
       abi.encodeWithSelector(
-        PPAgentV2Randao.OnlyNextKeeper.selector, 2, 1600000000, 10, 15, 1600000011
+        PPAgentV2Randao.OnlyNextKeeper.selector, 2, 1600000000 + 8 hours, 10, 15, 1600000011 + 8 hours
       )
     );
     _callExecuteHelper(
@@ -308,9 +314,9 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
 
     // time: 26, block: 63. Should allow slashing
     vm.roll(73);
-    vm.warp(1600000000 + 126);
+    vm.warp(1600000000 + 126 + 8 hours);
     assertEq(block.number, 73);
-    assertEq(_jobNextExecutionAt(jobKey), 1600000010);
+    assertEq(_jobNextExecutionAt(jobKey), 1600000010 + 8 hours);
     assertEq(agent.getCurrentSlasherId(jobKey), 3);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     vm.prank(alice, alice);

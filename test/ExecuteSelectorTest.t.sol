@@ -172,7 +172,7 @@ contract ExecuteSelectorTest is TestHelper {
         1600000003
       ));
 
-    vm.prank(keeperWorker);
+    vm.prank(keeperWorker, keeperWorker);
     _callExecuteHelper(
       agent,
       address(counter),
@@ -183,7 +183,7 @@ contract ExecuteSelectorTest is TestHelper {
     );
 
     vm.warp(block.timestamp + 8);
-    vm.prank(keeperWorker);
+    vm.prank(keeperWorker, keeperWorker);
     _callExecuteHelper(
       agent,
       address(counter),

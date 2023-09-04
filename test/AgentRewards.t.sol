@@ -179,20 +179,20 @@ contract AgentRewardsTest is TestHelper {
     assertEq(block.timestamp, 1600000000);
 
     vm.expectRevert(bytes("Interval"));
-    vm.prank(keeperWorker);
+    vm.prank(keeperWorker, keeperWorker);
     agentRewards.claim(kid1, bob);
 
     vm.warp(block.timestamp + 2 days + 23 hours);
     assertEq(block.timestamp, 1600000000 + 2 days + 23 hours);
     vm.expectRevert(bytes("Interval"));
-    vm.prank(keeperWorker);
+    vm.prank(keeperWorker, keeperWorker);
     agentRewards.claim(kid1, bob);
 
     // invalid calculation?
     vm.warp(block.timestamp + 1 hours + 1);
     assertEq(block.timestamp, 1600000000 + 3 days + 1);
     bobBalanceBefore = cvp.balanceOf(bob);
-    vm.prank(keeperWorker);
+    vm.prank(keeperWorker, keeperWorker);
     agentRewards.claim(kid1, bob);
     assertEq(agentRewards.lastClaimedAt(kid1), 1600000000 + 3 days + 1);
     assertEq(cvp.balanceOf(bob) - bobBalanceBefore, 10 ether);

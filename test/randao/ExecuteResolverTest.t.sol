@@ -69,6 +69,12 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
       kid1 = agent.registerAsKeeper(alice, 5_000 ether);
       kid2 = agent.registerAsKeeper(keeperWorker, 5_000 ether);
       kid3 = agent.registerAsKeeper(bob, 5_000 ether);
+
+      vm.warp(block.timestamp + 8 hours);
+
+      agent.finalizeKeeperActivation(1);
+      agent.finalizeKeeperActivation(2);
+      agent.finalizeKeeperActivation(3);
       vm.stopPrank();
 
       assertEq(counter.current(), 0);
@@ -142,7 +148,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
 
     // time: 11, block: 43. Slashing not initiated
     vm.roll(62);
-    vm.warp(1600000000 + 11);
+    vm.warp(1600000000 + 11 + 8 hours);
     assertEq(block.number, 62);
     assertEq(agent.getCurrentSlasherId(jobKey), 3);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
@@ -160,16 +166,16 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     vm.prank(bob, bob);
     agent.initiateKeeperSlashing(address(job), jobId, kid3, false, cd);
     assertEq(agent.jobReservedSlasherId(jobKey), kid3);
-    assertEq(agent.jobSlashingPossibleAfter(jobKey), 1600000026);
+    assertEq(agent.jobSlashingPossibleAfter(jobKey), 1600000026 + 8 hours);
 
     // time: 26, block: 63. Too early for slashing
     vm.expectRevert(abi.encodeWithSelector(
-      PPAgentV2Randao.TooEarlyForSlashing.selector, 1600000011, 1600000026
+      PPAgentV2Randao.TooEarlyForSlashing.selector, 1600000011 + 8 hours, 1600000026 + 8 hours
     ));
     _executeJob(kid3, cd);
 
     vm.roll(73);
-    vm.warp(1600000000 + 26);
+    vm.warp(1600000000 + 26 + 8 hours);
     assertEq(block.number, 73);
     assertEq(agent.getCurrentSlasherId(jobKey), 1);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
@@ -214,13 +220,13 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
 
     // time: 11, block: 43. Slashing not initiated
     vm.roll(63);
-    vm.warp(1600000000 + 11);
+    vm.warp(1600000000 + 11 + 8 hours);
     assertEq(job.current(), 1);
     assertEq(block.number, 63);
     assertEq(agent.getCurrentSlasherId(jobKey), 3);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(agent.jobReservedSlasherId(jobKey), 1);
-    assertEq(agent.jobSlashingPossibleAfter(jobKey), 1600000015);
+    assertEq(agent.jobSlashingPossibleAfter(jobKey), 1600000015 + 8 hours);
 
     _executeJob(2, cd);
 
@@ -344,7 +350,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     vm.prank(bob, bob);
     agent.initiateKeeperSlashing(address(job), jobId, kid3, true, cd);
     assertEq(agent.jobReservedSlasherId(jobKey), kid3);
-    assertEq(agent.jobSlashingPossibleAfter(jobKey), 1600000015);
+    assertEq(agent.jobSlashingPossibleAfter(jobKey), 1600000015 + 8 hours);
 
     // resolver false
     vm.expectEmit(true, true, false, true, address(agent));

@@ -59,6 +59,12 @@ contract RandaoActorsTest is TestHelperRandao {
       kid1 = agent.registerAsKeeper(alice, 5_000 ether);
       kid2 = agent.registerAsKeeper(keeperWorker, 5_000 ether);
       kid3 = agent.registerAsKeeper(bob, 5_000 ether);
+
+      vm.warp(block.timestamp + 8 hours);
+
+      agent.finalizeKeeperActivation(1);
+      agent.finalizeKeeperActivation(2);
+      agent.finalizeKeeperActivation(3);
       vm.stopPrank();
 
       assertEq(counter.current(), 0);
@@ -151,7 +157,7 @@ contract RandaoActorsTest is TestHelperRandao {
 
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
-    assertEq(_jobLastExecutionAt(jobKey), 1600000000);
+    assertEq(_jobLastExecutionAt(jobKey), 1600000000 + 8 hours);
   }
 
   function testRdKeeperSetActiveInactive() public {
@@ -307,7 +313,7 @@ contract RandaoActorsTest is TestHelperRandao {
     vm.prank(alice);
     agent.depositJobCredits{value: 1.5 ether }(jobKey);
 
-    assertEq(_jobLastExecutionAt(jobKey), 1600000000);
+    assertEq(_jobLastExecutionAt(jobKey), 1600000000 + 8 hours);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
