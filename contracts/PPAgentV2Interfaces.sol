@@ -102,7 +102,7 @@ interface IPPAgentV2RandaoViewer {
     uint8 keeperActivationTimeoutHours;
     // max: 2^16 - 1 = 65535, in calculations is multiplied by 0.001 ether (1 finney),
     // thus the min is 0.001 ether and max is 65.535 ether
-    uint16 jobFixedReward;
+    uint16 jobFixedRewardFinney;
   }
 
   function getRdConfig() external view returns (RandaoConfig memory);

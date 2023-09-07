@@ -54,7 +54,7 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
       jobCompensationMultiplierBps: 10_000,
       stakeDivisor: 50_000_000,
       keeperActivationTimeoutHours: 8,
-      jobFixedReward: 3
+      jobFixedRewardFinney: 3
     });
     agent = new MockExposedAgent(address(cvp));
     agent.initializeRandao(owner, 3_000 ether, 3 days, rdConfig);
