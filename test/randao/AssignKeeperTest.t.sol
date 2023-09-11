@@ -696,11 +696,9 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
 
   function testRdAssignKeeperNobodyMatchesAscendingKeepers() public {
     _setupVariableDeposits();
-    vm.prank(owner);
-    _agent.setAgentParams(28_000 ether, 10, 10);
 
     _updateMinJobCvp(30_000 ether);
-    assertEq(_globalMinKeeperCvp(), 28_000 ether);
+    assertEq(_globalMinKeeperCvp(), 3_000 ether);
 
     _agent.assignNextKeeper(jobKey);
     assertEq(agent.jobNextKeeperId(jobKey), kid5);
@@ -719,11 +717,8 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     assertEq(_stakeOf(kid4), 10_000 ether);
     assertEq(_stakeOf(kid5), 5_000 ether);
 
-    vm.prank(owner);
-    _agent.setAgentParams(28_000 ether, 10, 10);
-
     _updateMinJobCvp(30_000 ether);
-    assertEq(_globalMinKeeperCvp(), 28_000 ether);
+    assertEq(_globalMinKeeperCvp(), 3_000 ether);
 
     _agent.assignNextKeeper(jobKey);
     assertEq(agent.jobNextKeeperId(jobKey), kid1);
@@ -742,33 +737,35 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     assertEq(_stakeOf(kid4), 5_000 ether);
     assertEq(_stakeOf(kid5), 15_000 ether);
 
-    vm.prank(owner);
-    _agent.setAgentParams(28_000 ether, 10, 10);
-
     _updateMinJobCvp(30_000 ether);
-    assertEq(_globalMinKeeperCvp(), 28_000 ether);
+    assertEq(_globalMinKeeperCvp(), 3_000 ether);
 
     _agent.assignNextKeeper(jobKey);
     assertEq(agent.jobNextKeeperId(jobKey), kid3);
   }
 
   function testRdAssignKeeperNoKeepersWithDeposit() public {
-    agent.stake(kid3, 20_000 ether);
-    agent.stake(kid1, 15_000 ether);
-    agent.stake(kid5, 10_000 ether);
-    agent.stake(kid2, 5_000 ether);
+    vm.prank(owner);
+    agent.releaseJob(jobKey);
+    vm.prank(a1);
+    agent.initiateRedeem(kid1, 5_000 ether);
+    vm.prank(a2);
+    agent.initiateRedeem(kid2, 4_000 ether);
+    vm.prank(a3);
+    agent.initiateRedeem(kid3, 5_000 ether);
+    vm.prank(a4);
+    agent.initiateRedeem(kid4, 4_000 ether);
+    vm.prank(a5);
+    agent.initiateRedeem(kid5, 5_000 ether);
 
     assertEq(_stakeOf(kid1), 0 ether);
-    assertEq(_stakeOf(kid2), 0 ether);
+    assertEq(_stakeOf(kid2), 1_000 ether);
     assertEq(_stakeOf(kid3), 0 ether);
-    assertEq(_stakeOf(kid4), 0 ether);
+    assertEq(_stakeOf(kid4), 1_000 ether);
     assertEq(_stakeOf(kid5), 0 ether);
 
-    vm.prank(owner);
-    _agent.setAgentParams(28_000 ether, 10, 10);
-
     _updateMinJobCvp(30_000 ether);
-    assertEq(_globalMinKeeperCvp(), 28_000 ether);
+    assertEq(_globalMinKeeperCvp(), 3_000 ether);
 
     _agent.assignNextKeeper(jobKey);
     assertEq(agent.jobNextKeeperId(jobKey), 0);
