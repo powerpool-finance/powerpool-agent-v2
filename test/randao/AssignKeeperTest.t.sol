@@ -641,4 +641,136 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     assertEq(agent.jobNextKeeperId(jobKey), 0);
     assertEq(_jobIsActive(jobKey), false);
   }
+
+  function _setupVariableDeposits() internal {
+    cvp.approve(address(agent), 50_000 ether);
+    agent.stake(kid2, 5_000 ether);
+    agent.stake(kid3, 10_000 ether);
+    agent.stake(kid4, 15_000 ether);
+    agent.stake(kid5, 20_000 ether);
+
+    assertEq(_stakeOf(kid1), 5_000 ether);
+    assertEq(_stakeOf(kid2), 10_000 ether);
+    assertEq(_stakeOf(kid3), 15_000 ether);
+    assertEq(_stakeOf(kid4), 20_000 ether);
+    assertEq(_stakeOf(kid5), 25_000 ether);
+  }
+
+  function _updateMinJobCvp(uint256 minJobCvp_) public {
+    vm.prank(alice);
+    agent.updateJob(jobKey, 100, 35, 10, minJobCvp_, 0);
+    assertEq(_jobMinKeeperCvp(jobKey), minJobCvp_);
+  }
+
+  function testRdAssignKeeperSufficient() public {
+    _setupVariableDeposits();
+
+    _updateMinJobCvp(1_000 ether);
+    assertEq(_globalMinKeeperCvp(), 3_000 ether);
+
+    _agent.assignNextKeeper(jobKey);
+    assertEq(agent.jobNextKeeperId(jobKey), kid1);
+  }
+
+  function testRdAssignKeeperInsufficientJobLevel() public {
+    _setupVariableDeposits();
+
+    _updateMinJobCvp(12_000 ether);
+    assertEq(_globalMinKeeperCvp(), 3_000 ether);
+
+    _agent.assignNextKeeper(jobKey);
+    assertEq(agent.jobNextKeeperId(jobKey), kid3);
+  }
+
+  function testRdAssignKeeperInsufficientGlobalLevel() public {
+    _setupVariableDeposits();
+    vm.prank(owner);
+    _agent.setAgentParams(21_000 ether, 10, 10);
+
+    _updateMinJobCvp(12_000 ether);
+    assertEq(_globalMinKeeperCvp(), 21_000 ether);
+
+    _agent.assignNextKeeper(jobKey);
+    assertEq(agent.jobNextKeeperId(jobKey), kid5);
+  }
+
+  function testRdAssignKeeperNobodyMatchesAscendingKeepers() public {
+    _setupVariableDeposits();
+    vm.prank(owner);
+    _agent.setAgentParams(28_000 ether, 10, 10);
+
+    _updateMinJobCvp(30_000 ether);
+    assertEq(_globalMinKeeperCvp(), 28_000 ether);
+
+    _agent.assignNextKeeper(jobKey);
+    assertEq(agent.jobNextKeeperId(jobKey), kid5);
+  }
+
+  function testRdAssignKeeperNobodyMatchesDescendingKeepers() public {
+    cvp.approve(address(agent), 50_000 ether);
+    agent.stake(kid1, 20_000 ether);
+    agent.stake(kid2, 15_000 ether);
+    agent.stake(kid3, 10_000 ether);
+    agent.stake(kid4, 5_000 ether);
+
+    assertEq(_stakeOf(kid1), 25_000 ether);
+    assertEq(_stakeOf(kid2), 20_000 ether);
+    assertEq(_stakeOf(kid3), 15_000 ether);
+    assertEq(_stakeOf(kid4), 10_000 ether);
+    assertEq(_stakeOf(kid5), 5_000 ether);
+
+    vm.prank(owner);
+    _agent.setAgentParams(28_000 ether, 10, 10);
+
+    _updateMinJobCvp(30_000 ether);
+    assertEq(_globalMinKeeperCvp(), 28_000 ether);
+
+    _agent.assignNextKeeper(jobKey);
+    assertEq(agent.jobNextKeeperId(jobKey), kid1);
+  }
+
+  function testRdAssignKeeperNobodyMatchesDescendingNonOrdered() public {
+    cvp.approve(address(agent), 50_000 ether);
+    agent.stake(kid3, 20_000 ether);
+    agent.stake(kid1, 15_000 ether);
+    agent.stake(kid5, 10_000 ether);
+    agent.stake(kid2, 5_000 ether);
+
+    assertEq(_stakeOf(kid1), 20_000 ether);
+    assertEq(_stakeOf(kid2), 10_000 ether);
+    assertEq(_stakeOf(kid3), 25_000 ether);
+    assertEq(_stakeOf(kid4), 5_000 ether);
+    assertEq(_stakeOf(kid5), 15_000 ether);
+
+    vm.prank(owner);
+    _agent.setAgentParams(28_000 ether, 10, 10);
+
+    _updateMinJobCvp(30_000 ether);
+    assertEq(_globalMinKeeperCvp(), 28_000 ether);
+
+    _agent.assignNextKeeper(jobKey);
+    assertEq(agent.jobNextKeeperId(jobKey), kid3);
+  }
+
+  function testRdAssignKeeperNoKeepersWithDeposit() public {
+    agent.stake(kid3, 20_000 ether);
+    agent.stake(kid1, 15_000 ether);
+    agent.stake(kid5, 10_000 ether);
+    agent.stake(kid2, 5_000 ether);
+
+    assertEq(_stakeOf(kid1), 0 ether);
+    assertEq(_stakeOf(kid2), 0 ether);
+    assertEq(_stakeOf(kid3), 0 ether);
+    assertEq(_stakeOf(kid4), 0 ether);
+    assertEq(_stakeOf(kid5), 0 ether);
+
+    vm.prank(owner);
+    _agent.setAgentParams(28_000 ether, 10, 10);
+
+    _updateMinJobCvp(30_000 ether);
+    assertEq(_globalMinKeeperCvp(), 28_000 ether);
+
+    _agent.assignNextKeeper(jobKey);
+    assertEq(agent.jobNextKeeperId(jobKey), 0);
+  }
 }

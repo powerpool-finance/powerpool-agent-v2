@@ -585,7 +585,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
 
     if (shouldAssignKeeper(jobKey_)) {
       _unassignKeeper(jobKey_, assignedKeeperId);
-      _assignNextKeeper(jobKey_, assignedKeeperId);
+      _chooseNextKeeper(jobKey_, assignedKeeperId);
     } else {
       _releaseKeeper(jobKey_, assignedKeeperId);
     }
@@ -625,6 +625,14 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     jobNextKeeperId[jobKey_] = 0;
     jobSlashingPossibleAfter[jobKey_] = 0;
     jobReservedSlasherId[jobKey_] = 0;
+  }
+
+  function _assignNextKeeper(bytes32 jobKey_, uint256 previousKeeperId_, uint256 nextKeeperId_) internal {
+    keeperLocksByJob[nextKeeperId_].add(jobKey_);
+
+    jobNextKeeperId[jobKey_] = nextKeeperId_;
+
+    emit JobKeeperChanged(jobKey_, previousKeeperId_, nextKeeperId_);
   }
 
   function _ensureCanReleaseKeeper(uint256 keeperId_) internal view {
@@ -675,7 +683,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
 
   function _assignNextKeeperIfRequired(bytes32 jobKey_, uint256 currentKeeperId_) internal returns (bool assigned) {
     if (currentKeeperId_ == 0 && shouldAssignKeeper(jobKey_)) {
-      _assignNextKeeper(jobKey_, currentKeeperId_);
+      _chooseNextKeeper(jobKey_, currentKeeperId_);
       return true;
     }
     return false;
@@ -705,33 +713,55 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     return false;
   }
 
-  function _assignNextKeeper(bytes32 jobKey_, uint256 previousKeeperId_) internal {
-    uint256 pseudoRandom = _getPseudoRandom();
+  function _chooseNextKeeper(bytes32 jobKey_, uint256 previousKeeperId_) internal {
     uint256 totalActiveKeepers = activeKeepers.length();
-    uint256 _jobMinKeeperCvp = jobMinKeeperCvp[jobKey_];
     uint256 index;
-    unchecked {
-      index = ((pseudoRandom + uint256(jobKey_)) % totalActiveKeepers);
+    {
+      uint256 pseudoRandom = _getPseudoRandom();
+      unchecked {
+        index = ((pseudoRandom + uint256(jobKey_)) % totalActiveKeepers);
+      }
     }
+    uint256 requiredStake;
+    {
+      uint256 _jobMinKeeperCvp = jobMinKeeperCvp[jobKey_];
+      requiredStake = _jobMinKeeperCvp > minKeeperCvp ? _jobMinKeeperCvp : minKeeperCvp;
+    }
+    uint256 closestUnderRequiredStakeValue = 0;
+    uint256 closestUnderRequiredStakeKeeperId = 0;
+    bool indexResetTo0 = false;
+    uint256 initialIndex = index;
 
-    while (true) {
-      if (index  >= totalActiveKeepers) {
+    while (!indexResetTo0 || (indexResetTo0 && index < initialIndex)) {
+      if (index >= totalActiveKeepers) {
         index = 0;
+        indexResetTo0 = true;
       }
       uint256 _nextExecutionKeeperId = activeKeepers.at(index);
 
-      uint256 requiredStake = _jobMinKeeperCvp > 0 ? _jobMinKeeperCvp : minKeeperCvp;
       Keeper memory keeper = keepers[_nextExecutionKeeperId];
 
-      if (keeper.isActive && keeper.cvpStake >= requiredStake) {
-        jobNextKeeperId[jobKey_] = _nextExecutionKeeperId;
-
-        keeperLocksByJob[_nextExecutionKeeperId].add(jobKey_);
-        emit JobKeeperChanged(jobKey_, previousKeeperId_, _nextExecutionKeeperId);
-        return;
+      if (keeper.isActive) {
+        if (keeper.cvpStake >= requiredStake) {
+          _assignNextKeeper(jobKey_, previousKeeperId_, _nextExecutionKeeperId);
+          return;
+        } else {
+          if (keeper.cvpStake > closestUnderRequiredStakeValue) {
+            closestUnderRequiredStakeKeeperId = _nextExecutionKeeperId;
+            closestUnderRequiredStakeValue = keeper.cvpStake;
+          }
+        }
       }
       index += 1;
     }
+
+    if (closestUnderRequiredStakeValue > minKeeperCvp) {
+      _assignNextKeeper(jobKey_, previousKeeperId_, closestUnderRequiredStakeKeeperId);
+      return;
+    }
+
+    // release job
+    emit JobKeeperChanged(jobKey_, previousKeeperId_, 0);
   }
 
   function _checkBaseFee(uint256 binJob_, uint256 cfg_) internal pure override returns (uint256) {

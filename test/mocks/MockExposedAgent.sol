@@ -12,7 +12,7 @@ contract MockExposedAgent is PPAgentV2Randao {
     if (expectedKeeperId != 0) {
       _unassignKeeper(jobKey_, expectedKeeperId);
     }
-    _assignNextKeeper(jobKey_, expectedKeeperId);
+    _chooseNextKeeper(jobKey_, expectedKeeperId);
   }
 
   function getKeeperLimitedStake(
