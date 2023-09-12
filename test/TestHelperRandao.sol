@@ -10,4 +10,9 @@ contract TestHelperRandao is AbstractTestHelper {
   function _agentViewer() internal override view returns(IPPAgentV2Viewer) {
     return IPPAgentV2Viewer(address(agent));
   }
+
+  function _rdGlobalMaxCvpStake() internal view returns (uint256) {
+    IPPAgentV2RandaoViewer.RandaoConfig memory rdConfig = agent.getRdConfig();
+    return uint256(rdConfig.agentMaxCvpStake) * 1 ether;
+  }
 }

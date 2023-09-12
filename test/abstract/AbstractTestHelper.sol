@@ -135,6 +135,11 @@ abstract contract AbstractTestHelper is Test, PPAgentV2Flags {
     return resolver;
   }
 
+  function _globalMinKeeperCvp() internal view returns (uint256) {
+    (uint256 minKeeperCvp,,,,) = _agentViewer().getConfig();
+    return minKeeperCvp;
+  }
+
   function _callExecuteHelper(
     IPPAgentV2Executor agent_,
     address jobAddress_,
