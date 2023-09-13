@@ -125,6 +125,30 @@ contract RandaoKeeperTest is TestHelperRandao {
     vm.stopPrank();
   }
 
+  function testRdKeeperCantWithdrawLtMinKeeperCvpIfNotDisabled() public {
+    assertEq(_globalMinKeeperCvp(), 3_000 ether);
+    assertEq(_stakeOf(kid1), 5_000 ether);
+    vm.startPrank(keeperAdmin, keeperAdmin);
+
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.KeeperShouldBeDisabledForStakeLTMinKeeperCvp.selector));
+    agent.initiateRedeem(kid1, 2_001 ether);
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.KeeperShouldBeDisabledForStakeLTMinKeeperCvp.selector));
+    agent.initiateRedeem(kid1, 5_000 ether);
+
+    agent.initiateRedeem(kid1, 2_000 ether);
+    vm.stopPrank();
+  }
+
+  function testRdKeeperAllowWithdrawLtMinKeeperCvpIfDisabled() public {
+    assertEq(_globalMinKeeperCvp(), 3_000 ether);
+    assertEq(_stakeOf(kid1), 5_000 ether);
+
+    vm.startPrank(keeperAdmin, keeperAdmin);
+    agent.disableKeeper(kid1);
+    agent.initiateRedeem(kid1, 5_000 ether);
+    vm.stopPrank();
+  }
+
   function testKeeperCanBeDisabledWhenStillAssignedToJobs() public {
     job = new SimpleCalldataTestJob(address(agent));
     assertEq(job.current(), 0);
