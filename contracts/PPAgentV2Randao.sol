@@ -46,6 +46,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   error JobCheckCanNotBeExecuted(bytes errReason);
   error TooEarlyToRelease(bytes32 jobKey, uint256 period2End);
   error TooEarlyForActivationFinalization(uint256 now, uint256 availableAt);
+  error KeeperShouldBeDisabledForStakeLTMinKeeperCvp();
   error CantRelease();
   error OnlyNextKeeper(
     uint256 assignedKeeperId,
@@ -595,6 +596,13 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     _ensureCanReleaseKeeper(keeperId_);
   }
 
+  function _afterInitiateRedeem(uint256 keeperId_) internal view override {
+    Keeper memory keeper = keepers[keeperId_];
+    if (keeper.isActive && keeper.cvpStake < minKeeperCvp) {
+      revert KeeperShouldBeDisabledForStakeLTMinKeeperCvp();
+    }
+  }
+
   function _afterRegisterJob(bytes32 jobKey_) internal override {
     jobCreatedAt[jobKey_] = block.timestamp;
     _assignNextKeeperIfRequired(jobKey_, 0);
@@ -715,6 +723,10 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
 
   function _chooseNextKeeper(bytes32 jobKey_, uint256 previousKeeperId_) internal {
     uint256 totalActiveKeepers = activeKeepers.length();
+    if (totalActiveKeepers == 0) {
+      emit JobKeeperChanged(jobKey_, previousKeeperId_, 0);
+      return;
+    }
     uint256 index;
     {
       uint256 pseudoRandom = _getPseudoRandom();

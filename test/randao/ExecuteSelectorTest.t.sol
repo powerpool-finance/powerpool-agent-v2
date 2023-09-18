@@ -194,6 +194,8 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     assertEq(_stakeOf(kid2), 5_000 ether);
 
     vm.prank(keeperAdmin, keeperAdmin);
+    agent.disableKeeper(kid2);
+    vm.prank(keeperAdmin, keeperAdmin);
     agent.initiateRedeem(kid2, 5_000 ether);
     lockedJobs = agent.getJobsAssignedToKeeper(kid2);
     assertEq(lockedJobs.length, 0);

@@ -275,9 +275,10 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   /*** HOOKS ***/
   function _beforeExecute(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal view virtual {}
   function _beforeInitiateRedeem(uint256 keeperId_) internal view virtual {}
-  function _afterExecute(uint256 actualKeeperId_, uint256 gasUsed_) internal virtual {}
 
+  function _afterExecute(uint256 actualKeeperId_, uint256 gasUsed_) internal virtual {}
   function _afterExecutionSucceeded(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal virtual {}
+  function _afterInitiateRedeem(uint256 keeperId_) internal view virtual {}
   function _afterRegisterJob(bytes32 jobKey_) internal virtual {}
   function _afterDepositJobCredits(bytes32 jobKey_) internal virtual {}
   function _afterWithdrawJobCredits(bytes32 jobKey_) internal virtual {}
@@ -1147,6 +1148,8 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
 
     pendingWithdrawalAfter = block.timestamp + pendingWithdrawalTimeoutSeconds;
     pendingWithdrawalEndsAt[keeperId_] = pendingWithdrawalAfter;
+
+    _afterInitiateRedeem(keeperId_);
 
     emit InitiateRedeem(keeperId_, amount_, stakeOfToReduceAmount, slashedStakeOfBefore);
   }

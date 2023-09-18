@@ -188,15 +188,28 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
 
+    vm.prank(owner);
+    _agent.setAgentParams(1_000 ether, 10, 10);
+    _updateMinJobCvp(3_000 ether);
+
+    assertEq(_globalMinKeeperCvp(), 1_000 ether);
+    assertEq(_jobMinKeeperCvp(jobKey), 3_000 ether);
+
     vm.prank(a5);
     agent.disableKeeper(kid5);
     vm.prank(a4);
-    agent.initiateRedeem(kid4, 5_000 ether);
+    agent.initiateRedeem(kid4, 3_000 ether);
     vm.prank(a3);
-    agent.initiateRedeem(kid3, 5_000 ether);
+    agent.initiateRedeem(kid3, 3_000 ether);
 
     assertEq(agent.getActiveKeepersLength(), 4);
     assertEq(_keeperCount(), 5);
+
+    assertEq(_stakeOf(kid1), 5_000 ether);
+    assertEq(_stakeOf(kid2), 5_000 ether);
+    assertEq(_stakeOf(kid3), 2_000 ether);
+    assertEq(_stakeOf(kid4), 2_000 ether);
+    assertEq(_stakeOf(kid5), 5_000 ether);
 
     _setDifficultyExpectKid(10, 2);
     _setDifficultyExpectKid(11, 1);
@@ -216,12 +229,19 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
 
+    vm.prank(owner);
+    _agent.setAgentParams(1_000 ether, 10, 10);
+    _updateMinJobCvp(3_000 ether);
+
+    assertEq(_globalMinKeeperCvp(), 1_000 ether);
+    assertEq(_jobMinKeeperCvp(jobKey), 3_000 ether);
+
     vm.prank(a5);
     agent.disableKeeper(kid5);
     vm.prank(a4);
     agent.disableKeeper(kid4);
     vm.prank(a3);
-    agent.initiateRedeem(kid3, 5_000 ether);
+    agent.initiateRedeem(kid3, 3_000 ether);
 
     assertEq(agent.getActiveKeepersLength(), 3);
     assertEq(_keeperCount(), 5);
@@ -242,14 +262,21 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
 
+    vm.prank(owner);
+    _agent.setAgentParams(1_000 ether, 10, 10);
+    _updateMinJobCvp(3_000 ether);
+
+    assertEq(_globalMinKeeperCvp(), 1_000 ether);
+    assertEq(_jobMinKeeperCvp(jobKey), 3_000 ether);
+
     vm.prank(a5);
-    agent.initiateRedeem(kid5, 5_000 ether);
+    agent.initiateRedeem(kid5, 3_000 ether);
     vm.prank(a4);
     agent.disableKeeper(kid4);
     vm.prank(a3);
     agent.disableKeeper(kid3);
     vm.prank(a1);
-    agent.initiateRedeem(kid1, 5_000 ether);
+    agent.initiateRedeem(kid1, 3_000 ether);
 
     assertEq(agent.getActiveKeepersLength(), 3);
     assertEq(_keeperCount(), 5);
@@ -747,14 +774,29 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
   function testRdAssignKeeperNoKeepersWithDeposit() public {
     vm.prank(owner);
     agent.releaseJob(jobKey);
+
+    vm.prank(a1);
+    agent.disableKeeper(kid1);
     vm.prank(a1);
     agent.initiateRedeem(kid1, 5_000 ether);
+
+    vm.prank(a2);
+    agent.disableKeeper(kid2);
     vm.prank(a2);
     agent.initiateRedeem(kid2, 4_000 ether);
+
+    vm.prank(a3);
+    agent.disableKeeper(kid3);
     vm.prank(a3);
     agent.initiateRedeem(kid3, 5_000 ether);
+
+    vm.prank(a4);
+    agent.disableKeeper(kid4);
     vm.prank(a4);
     agent.initiateRedeem(kid4, 4_000 ether);
+
+    vm.prank(a5);
+    agent.disableKeeper(kid5);
     vm.prank(a5);
     agent.initiateRedeem(kid5, 5_000 ether);
 
