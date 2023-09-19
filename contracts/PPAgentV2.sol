@@ -1189,7 +1189,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    * @param currentAmount_ The amount to slash from the current keeper.cvpStake balance
    * @param pendingAmount_ The amount to slash from the pendingWithdrawals balance
    */
-  function ownerSlash(uint256 keeperId_, address to_, uint256 currentAmount_, uint256 pendingAmount_) external {
+  function ownerSlash(uint256 keeperId_, address to_, uint256 currentAmount_, uint256 pendingAmount_) public {
     _assertOnlyOwner();
     uint256 totalAmount = currentAmount_ + pendingAmount_;
     _assertNonZeroAmount(totalAmount);

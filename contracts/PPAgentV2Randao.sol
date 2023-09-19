@@ -158,6 +158,19 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     rdConfig = rdConfig_;
   }
 
+  function ownerSlashDisable(
+    uint256 keeperId_,
+    address to_,
+    uint256 currentAmount_,
+    uint256 pendingAmount_,
+    bool disable_
+  ) external {
+    ownerSlash(keeperId_, to_, currentAmount_, pendingAmount_);
+    if (disable_) {
+      _disableKeeper(keeperId_);
+    }
+  }
+
   /*** JOB OWNER METHODS ***/
   /**
    * Assigns a keeper for all the jobs in jobKeys_ list.
@@ -257,7 +270,10 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
 
   function disableKeeper(uint256 keeperId_) external {
     _assertOnlyKeeperAdmin(keeperId_);
+    _disableKeeper(keeperId_);
+  }
 
+  function _disableKeeper(uint256 keeperId_) internal {
     if (!keepers[keeperId_].isActive) {
       revert KeeperIsAlreadyInactive();
     }
