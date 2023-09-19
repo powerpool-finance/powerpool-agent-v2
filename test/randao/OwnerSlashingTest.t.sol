@@ -40,7 +40,6 @@ contract RandaoOwnerStakingTest is TestHelperRandao {
   }
 
   function testRdCanDisableKeeperOnOwnerSlashOnlyOwner() public {
-    vm.prank(owner);
     vm.expectRevert(PPAgentV2.OnlyOwner.selector);
     agent.ownerSlashDisable(kid, bob, 1, 0, true);
   }
