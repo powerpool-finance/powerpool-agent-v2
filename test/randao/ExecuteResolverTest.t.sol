@@ -137,6 +137,10 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
 
     assertEq(agent.jobNextKeeperId(jobKey), 3);
 
+    (, uint256 pendingWithdrawalTimeoutSeconds_, , uint256 feePpm_, ) = agent.getConfig();
+    vm.prank(owner);
+    agent.setAgentParams(5_000 ether, pendingWithdrawalTimeoutSeconds_, feePpm_);
+
     // first execution
     vm.prevrandao(bytes32(uint256(41)));
     (bool ok, bytes memory cd) = job.myResolver("myPass");
@@ -188,6 +192,9 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     _executeJob(kid1, cd);
 
     // time: 26, block: 63. Should allow slashing
+
+    assertEq(_keeperIsActive(kid1), true);
+    assertEq(_keeperIsActive(kid2), true);
     assertEq(_stakeOf(kid1), 5_000 ether);
     assertEq(_stakeOf(kid2), 5_000 ether);
 
@@ -198,6 +205,8 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     _executeJob(kid3, cd);
 
     // 50 + 5000 * 0.03 = 200
+    assertEq(_keeperIsActive(kid1), true);
+    assertEq(_keeperIsActive(kid2), false);
     assertEq(_stakeOf(kid3), 5_050.3 ether);
     assertEq(_stakeOf(kid2), 4_949.7 ether);
   }

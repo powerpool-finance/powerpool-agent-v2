@@ -595,6 +595,11 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
       }
       keepers[assignedKeeperId].cvpStake -= totalSlashAmount;
       keepers[actualKeeperId_].cvpStake += totalSlashAmount;
+
+      if (keepers[assignedKeeperId].isActive && keepers[assignedKeeperId].cvpStake < minKeeperCvp) {
+        _disableKeeper(assignedKeeperId);
+      }
+
       emit SlashKeeper(
         jobKey_, assignedKeeperId, actualKeeperId_, fixedSlashAmount, dynamicSlashAmount, slashAmountMissing
       );
