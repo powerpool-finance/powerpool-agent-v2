@@ -470,7 +470,6 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     // The placeholder bytes32(0) element remains constant in the set, ensuring
     // the set's size EVM slot is never 0, resulting in gas savings.
     keeperLocksByJob[keeperId].add(bytes32(uint256(0)));
-    activeKeepers.add(keeperId);
   }
 
   function setJobConfig(
