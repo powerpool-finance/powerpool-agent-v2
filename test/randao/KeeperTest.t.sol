@@ -104,7 +104,9 @@ contract RandaoKeeperTest is TestHelperRandao {
 
     vm.startPrank(alice, alice);
     cvp.approve(address(agent), 5_000 ether);
+    uint256 activeKeepersLength = agent.getActiveKeepersLength();
     uint256 kid4 = agent.registerAsKeeper(address(42), 5_000 ether);
+    assertEq(activeKeepersLength, agent.getActiveKeepersLength());
     assertEq(_keeperIsActive(kid4), false);
     assertEq(agent.keeperActivationCanBeFinalizedAt(kid4), block.timestamp + 8 hours);
 
@@ -120,6 +122,7 @@ contract RandaoKeeperTest is TestHelperRandao {
     vm.warp(block.timestamp + 8 hours);
 
     agent.finalizeKeeperActivation(kid4);
+    assertEq(activeKeepersLength + 1, agent.getActiveKeepersLength());
     assertEq(agent.keeperActivationCanBeFinalizedAt(kid4), 0);
     assertEq(_keeperIsActive(kid4), true);
     vm.stopPrank();
