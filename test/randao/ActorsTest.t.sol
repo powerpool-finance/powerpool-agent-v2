@@ -173,6 +173,16 @@ contract RandaoActorsTest is TestHelperRandao {
     agent.initiateKeeperActivation(kid3);
     assertEq(_keeperIsActive(3), false);
 
+    vm.prank(keeperAdmin, keeperAdmin);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        PPAgentV2Randao.TooEarlyForActivationFinalization.selector,
+        block.timestamp,
+        block.timestamp + 8 hours
+      )
+    );
+    agent.finalizeKeeperActivation(kid3);
+
     vm.warp(block.timestamp + 9 hours);
     vm.prank(keeperAdmin, keeperAdmin);
     agent.finalizeKeeperActivation(kid3);
