@@ -189,6 +189,47 @@ contract RandaoActorsTest is TestHelperRandao {
     assertEq(_keeperIsActive(3), true);
   }
 
+  function testRdKeeperSetActiveWithInsufficientBalance() public {
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.getJobsAssignedToKeeperLength(kid3), 0);
+    assertEq(_keeperIsActive(kid3), true);
+
+    vm.startPrank(keeperAdmin);
+    agent.disableKeeper(kid3);
+    assertEq(_keeperIsActive(kid3), false);
+
+    uint256 cvpAmount = 2_500 ether;
+
+    agent.initiateRedeem(kid3, cvpAmount);
+    vm.warp(block.timestamp + 3 days + 1);
+    agent.finalizeRedeem(kid3, keeperAdmin);
+
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2.InsufficientKeeperStake.selector));
+    agent.initiateKeeperActivation(kid3);
+    assertEq(_keeperIsActive(kid3), false);
+
+    cvp.approve(address(agent), cvpAmount);
+    agent.stake(kid3, cvpAmount);
+
+    agent.initiateKeeperActivation(kid3);
+    assertEq(_keeperIsActive(kid3), false);
+
+    agent.initiateRedeem(kid3, cvpAmount);
+    vm.warp(block.timestamp + 3 days + 1);
+    agent.finalizeRedeem(kid3, keeperAdmin);
+
+    vm.warp(block.timestamp + 9 hours);
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2.InsufficientKeeperStake.selector));
+    agent.finalizeKeeperActivation(kid3);
+    assertEq(_keeperIsActive(kid3), false);
+
+    cvp.approve(address(agent), cvpAmount);
+    agent.stake(kid3, cvpAmount);
+    agent.finalizeKeeperActivation(kid3);
+    assertEq(_keeperIsActive(kid3), true);
+    vm.stopPrank();
+  }
+
   function testRdKeeperCantSetActiveAgain() public {
     assertEq(_keeperIsActive(3), true);
 

@@ -319,6 +319,9 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     if (availableAt == 0) {
       revert ActivationNotInitiated();
     }
+    if (keepers[keeperId_].cvpStake < minKeeperCvp) {
+      revert InsufficientKeeperStake();
+    }
 
     activeKeepers.add(keeperId_);
     keepers[keeperId_].isActive = true;
