@@ -61,6 +61,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     uint256 keeperCurrentStake,
     uint256 amountToSlash
   );
+  error ActivationNotInitiated();
 
   event DisableKeeper(uint256 indexed keeperId);
   event InitiateKeeperActivation(uint256 indexed keeperId, uint256 canBeFinalizedAt);
@@ -290,6 +291,9 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     if (keepers[keeperId_].isActive) {
       revert KeeperIsAlreadyActive();
     }
+    if (keepers[keeperId_].cvpStake < minKeeperCvp) {
+      revert InsufficientKeeperStake();
+    }
 
     _initiateKeeperActivation(keeperId_, false);
   }
@@ -299,6 +303,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     if (!_firstActivation) {
       canBeFinalizedAt += rdConfig.keeperActivationTimeoutHours * 1 hours;
     }
+
     keeperActivationCanBeFinalizedAt[keeperId_] = canBeFinalizedAt;
 
     emit InitiateKeeperActivation(keeperId_, canBeFinalizedAt);
@@ -310,6 +315,12 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     uint256 availableAt = keeperActivationCanBeFinalizedAt[keeperId_];
     if (availableAt > block.timestamp) {
       revert TooEarlyForActivationFinalization(block.timestamp, availableAt);
+    }
+    if (availableAt == 0) {
+      revert ActivationNotInitiated();
+    }
+    if (keepers[keeperId_].cvpStake < minKeeperCvp) {
+      revert InsufficientKeeperStake();
     }
 
     activeKeepers.add(keeperId_);
