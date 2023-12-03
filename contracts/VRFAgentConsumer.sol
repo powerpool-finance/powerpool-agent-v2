@@ -1,0 +1,90 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+interface VRFCoordinatorV2Interface {
+    function requestRandomWords(
+        bytes32 keyHash,
+        uint64 subId,
+        uint16 minimumRequestConfirmations,
+        uint32 callbackGasLimit,
+        uint32 numWords
+    ) external returns (uint256 requestId);
+}
+
+/**
+ * @title PPAgentV2VRF
+ * @author PowerPool
+ */
+contract VRFAgentConsumer is Ownable {
+    uint32 public constant VRF_NUM_RANDOM_WORDS = 10;
+
+    address public agent;
+    VRFCoordinatorV2Interface public vrfCoordinator;
+    bytes32 public vrfKeyHash;
+    uint64 public vrfSubscriptionId;
+    uint16 public vrfRequestConfirmations;
+    uint32 public vrfCallbackGasLimit;
+
+    uint256 public pendingRequestId;
+    uint256[] public lastVrfNumbers;
+
+    event SetVrfConfig(VRFCoordinatorV2Interface vrfCoordinator, bytes32 vrfKeyHash, uint64 vrfSubscriptionId, uint16 vrfRequestConfirmations, uint32 vrfCallbackGasLimit);
+
+    constructor(address agent_) {
+        agent = agent_;
+    }
+
+    /*** AGENT OWNER METHODS ***/
+    function setVrfConfig(
+        VRFCoordinatorV2Interface vrfCoordinator_,
+        bytes32 vrfKeyHash_,
+        uint64 vrfSubscriptionId_,
+        uint16 vrfRequestConfirmations_,
+        uint32 vrfCallbackGasLimit_
+    ) external onlyOwner {
+        vrfCoordinator = vrfCoordinator_;
+        vrfKeyHash = vrfKeyHash_;
+        vrfSubscriptionId = vrfSubscriptionId_;
+        vrfRequestConfirmations = vrfRequestConfirmations_;
+        vrfCallbackGasLimit = vrfCallbackGasLimit_;
+        emit SetVrfConfig(vrfCoordinator_, vrfKeyHash_, vrfSubscriptionId_, vrfRequestConfirmations_, vrfCallbackGasLimit_);
+    }
+
+    function checkAndSendVrfRequest() external {
+        require(msg.sender == agent, "sender must be agent");
+        if (pendingRequestId != 0) {
+            return;
+        }
+        pendingRequestId = vrfCoordinator.requestRandomWords(
+            vrfKeyHash,
+            vrfSubscriptionId,
+            vrfRequestConfirmations,
+            vrfCallbackGasLimit,
+            VRF_NUM_RANDOM_WORDS
+        );
+    }
+
+    function rawFulfillRandomWords(
+        uint256 _requestId,
+        uint256[] memory _randomWords
+    ) external {
+        require(msg.sender == address(vrfCoordinator), "sender not vrfCoordinator");
+        require(_requestId == pendingRequestId, "request not found");
+        lastVrfNumbers = _randomWords;
+        pendingRequestId = 0;
+    }
+
+    function getPseudoRandom() external view returns (uint256) {
+        uint256 blockHashNumber = uint256(blockhash(block.number - 1));
+        if (lastVrfNumbers.length > 0) {
+            blockHashNumber += lastVrfNumbers[address(this).balance % uint256(VRF_NUM_RANDOM_WORDS)];
+        }
+        return blockHashNumber;
+    }
+
+    function getLastVrfNumbers() external view returns (uint256[] memory) {
+        return lastVrfNumbers;
+    }
+}
