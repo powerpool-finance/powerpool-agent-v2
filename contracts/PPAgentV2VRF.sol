@@ -33,11 +33,15 @@ contract PPAgentV2VRF is PPAgentV2Randao {
     uint256 compensation_
   ) internal override {
     super._afterExecutionReverted(jobKey_, calldataSource_, actualKeeperId_, executionResponse_, compensation_);
-    VRFAgentConsumer(VRFConsumer).checkAndSendVrfRequest();
+    _checkAndSendVrfRequest();
   }
 
   function _afterExecutionSucceeded(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal override {
     super._afterExecutionSucceeded(jobKey_, actualKeeperId_, binJob_);
+    _checkAndSendVrfRequest();
+  }
+
+  function _checkAndSendVrfRequest() internal {
     VRFAgentConsumer(VRFConsumer).checkAndSendVrfRequest();
   }
 
