@@ -1293,12 +1293,10 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       bool isActive
     )
   {
-    Keeper memory keeper = keepers[keeperId_];
-
     return (
-      keeper.worker,
-      keeper.cvpStake,
-      keeper.isActive
+      keepers[keeperId_].worker,
+      keepers[keeperId_].cvpStake,
+      keepers[keeperId_].isActive
     );
   }
 
@@ -1337,10 +1335,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     compensation = compensations[keeperId_];
     slashedStake = slashedStakeOf[keeperId_];
 
-    Keeper memory keeper = keepers[keeperId_];
-    currentStake = keeper.cvpStake;
-    isActive = keeper.isActive;
-    worker = keeper.worker;
+    currentStake = keepers[keeperId_].cvpStake;
+    isActive = keepers[keeperId_].isActive;
+    worker = keepers[keeperId_].worker;
 
     admin = keeperAdmins[keeperId_];
   }
