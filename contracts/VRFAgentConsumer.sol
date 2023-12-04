@@ -79,7 +79,7 @@ contract VRFAgentConsumer is Ownable {
     function getPseudoRandom() external view returns (uint256) {
         uint256 blockHashNumber = uint256(blockhash(block.number - 1));
         if (lastVrfNumbers.length > 0) {
-            blockHashNumber += lastVrfNumbers[address(this).balance % uint256(VRF_NUM_RANDOM_WORDS)];
+            blockHashNumber += lastVrfNumbers[agent.balance % uint256(VRF_NUM_RANDOM_WORDS)];
         }
         return blockHashNumber;
     }
