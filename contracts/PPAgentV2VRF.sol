@@ -2,7 +2,11 @@
 pragma solidity ^0.8.20;
 
 import { PPAgentV2Randao } from "./PPAgentV2Randao.sol";
-import { VRFAgentConsumer } from "./VRFAgentConsumer.sol";
+
+interface VRFAgentConsumerInterface {
+  function checkAndSendVrfRequest() external;
+  function getPseudoRandom() external view returns (uint256);
+}
 
 /**
  * @title PPAgentV2VRF
@@ -42,10 +46,10 @@ contract PPAgentV2VRF is PPAgentV2Randao {
   }
 
   function _checkAndSendVrfRequest() internal {
-    VRFAgentConsumer(VRFConsumer).checkAndSendVrfRequest();
+    VRFAgentConsumerInterface(VRFConsumer).checkAndSendVrfRequest();
   }
 
   function _getPseudoRandom() internal override view returns (uint256) {
-    return VRFAgentConsumer(VRFConsumer).getPseudoRandom();
+    return VRFAgentConsumerInterface(VRFConsumer).getPseudoRandom();
   }
 }
