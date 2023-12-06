@@ -336,7 +336,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     uint256 actualKeeperId_,
     bytes memory executionResponse_,
     uint256 compensation_
-  ) internal override {
+  ) internal virtual override {
     if (calldataSource_ == CalldataSourceType.RESOLVER &&
       jobReservedSlasherId[jobKey_] == 0 && jobSlashingPossibleAfter[jobKey_] == 0) {
       revert SlashingNotInitiatedExecutionReverted();
@@ -575,7 +575,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     _initiateKeeperActivation(keeperId_, true);
   }
 
-  function _afterExecutionSucceeded(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal override {
+  function _afterExecutionSucceeded(bytes32 jobKey_, uint256 actualKeeperId_, uint256 binJob_) internal virtual override {
     uint256 assignedKeeperId = jobNextKeeperId[jobKey_];
 
     uint256 intervalSeconds = (binJob_ << 32) >> 232;
@@ -631,8 +631,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   }
 
   function _afterInitiateRedeem(uint256 keeperId_) internal view override {
-    Keeper memory keeper = keepers[keeperId_];
-    if (keeper.isActive && keeper.cvpStake < minKeeperCvp) {
+    if (keepers[keeperId_].isActive && keepers[keeperId_].cvpStake < minKeeperCvp) {
       revert KeeperShouldBeDisabledForStakeLTMinKeeperCvp();
     }
   }
@@ -684,7 +683,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     }
   }
 
-  function _getPseudoRandom() internal view returns (uint256) {
+  function _getPseudoRandom() internal virtual returns (uint256) {
     return block.prevrandao;
   }
 
