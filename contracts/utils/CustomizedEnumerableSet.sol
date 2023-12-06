@@ -9,7 +9,7 @@
 // The file is based on OZ Contracts v4.9.3:
 // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.3/contracts/utils/structs/EnumerableSet.sol
 
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.19;
 
 /**
  * @dev Library for managing
