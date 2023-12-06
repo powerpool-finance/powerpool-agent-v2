@@ -27,10 +27,13 @@ contract VRFAgentConsumer is Ownable {
     uint16 public vrfRequestConfirmations;
     uint32 public vrfCallbackGasLimit;
 
+    uint256 public vrfRequestPeriod;
+    uint256 public lastVrfRequestAt;
+
     uint256 public pendingRequestId;
     uint256[] public lastVrfNumbers;
 
-    event SetVrfConfig(VRFCoordinatorV2Interface vrfCoordinator, bytes32 vrfKeyHash, uint64 vrfSubscriptionId, uint16 vrfRequestConfirmations, uint32 vrfCallbackGasLimit);
+    event SetVrfConfig(VRFCoordinatorV2Interface vrfCoordinator, bytes32 vrfKeyHash, uint64 vrfSubscriptionId, uint16 vrfRequestConfirmations, uint32 vrfCallbackGasLimit, uint256 vrfRequestPeriod);
 
     constructor(address agent_) {
         agent = agent_;
@@ -42,28 +45,16 @@ contract VRFAgentConsumer is Ownable {
         bytes32 vrfKeyHash_,
         uint64 vrfSubscriptionId_,
         uint16 vrfRequestConfirmations_,
-        uint32 vrfCallbackGasLimit_
+        uint32 vrfCallbackGasLimit_,
+        uint256 vrfRequestPeriod_
     ) external onlyOwner {
         vrfCoordinator = vrfCoordinator_;
         vrfKeyHash = vrfKeyHash_;
         vrfSubscriptionId = vrfSubscriptionId_;
         vrfRequestConfirmations = vrfRequestConfirmations_;
         vrfCallbackGasLimit = vrfCallbackGasLimit_;
-        emit SetVrfConfig(vrfCoordinator_, vrfKeyHash_, vrfSubscriptionId_, vrfRequestConfirmations_, vrfCallbackGasLimit_);
-    }
-
-    function checkAndSendVrfRequest() external {
-        require(msg.sender == agent, "sender must be agent");
-        if (pendingRequestId != 0) {
-            return;
-        }
-        pendingRequestId = vrfCoordinator.requestRandomWords(
-            vrfKeyHash,
-            vrfSubscriptionId,
-            vrfRequestConfirmations,
-            vrfCallbackGasLimit,
-            VRF_NUM_RANDOM_WORDS
-        );
+        vrfRequestPeriod = vrfRequestPeriod_;
+        emit SetVrfConfig(vrfCoordinator_, vrfKeyHash_, vrfSubscriptionId_, vrfRequestConfirmations_, vrfCallbackGasLimit_, vrfRequestPeriod_);
     }
 
     function rawFulfillRandomWords(
@@ -74,9 +65,25 @@ contract VRFAgentConsumer is Ownable {
         require(_requestId == pendingRequestId, "request not found");
         lastVrfNumbers = _randomWords;
         pendingRequestId = 0;
+        if (vrfRequestPeriod != 0) {
+            lastVrfRequestAt = block.timestamp;
+        }
     }
 
-    function getPseudoRandom() external view returns (uint256) {
+    function isReadyForRequest() public view returns (bool) {
+        return pendingRequestId == 0 && (vrfRequestPeriod == 0 || lastVrfRequestAt + vrfRequestPeriod < block.timestamp);
+    }
+
+    function getPseudoRandom() external returns (uint256) {
+        if (msg.sender == agent && isReadyForRequest()) {
+            pendingRequestId = vrfCoordinator.requestRandomWords(
+                vrfKeyHash,
+                vrfSubscriptionId,
+                vrfRequestConfirmations,
+                vrfCallbackGasLimit,
+                VRF_NUM_RANDOM_WORDS
+            );
+        }
         uint256 blockHashNumber = uint256(blockhash(block.number - 1));
         if (lastVrfNumbers.length > 0) {
             blockHashNumber += lastVrfNumbers[agent.balance % uint256(VRF_NUM_RANDOM_WORDS)];

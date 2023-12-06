@@ -672,7 +672,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     }
   }
 
-  function _getPseudoRandom() internal virtual view returns (uint256) {
+  function _getPseudoRandom() internal virtual returns (uint256) {
     return block.prevrandao;
   }
 
