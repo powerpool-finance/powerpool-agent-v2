@@ -34,6 +34,7 @@ contract VRFAgentConsumer is Ownable {
     uint256[] public lastVrfNumbers;
 
     event SetVrfConfig(VRFCoordinatorV2Interface vrfCoordinator, bytes32 vrfKeyHash, uint64 vrfSubscriptionId, uint16 vrfRequestConfirmations, uint32 vrfCallbackGasLimit, uint256 vrfRequestPeriod);
+    event ClearPendingRequestId();
 
     constructor(address agent_) {
         agent = agent_;
@@ -55,6 +56,11 @@ contract VRFAgentConsumer is Ownable {
         vrfCallbackGasLimit = vrfCallbackGasLimit_;
         vrfRequestPeriod = vrfRequestPeriod_;
         emit SetVrfConfig(vrfCoordinator_, vrfKeyHash_, vrfSubscriptionId_, vrfRequestConfirmations_, vrfCallbackGasLimit_, vrfRequestPeriod_);
+    }
+
+    function clearPendingRequestId() external onlyOwner {
+        pendingRequestId = 0;
+        emit ClearPendingRequestId();
     }
 
     function rawFulfillRandomWords(
