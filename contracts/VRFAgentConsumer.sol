@@ -14,7 +14,7 @@ interface VRFCoordinatorV2Interface {
 }
 
 /**
- * @title PPAgentV2VRF
+ * @title VRFAgentConsumer
  * @author PowerPool
  */
 contract VRFAgentConsumer is Ownable {
@@ -80,6 +80,10 @@ contract VRFAgentConsumer is Ownable {
         return pendingRequestId == 0 && (vrfRequestPeriod == 0 || lastVrfRequestAt + vrfRequestPeriod < block.timestamp);
     }
 
+    function getLastBlockHash() public virtual view returns (uint256) {
+        return uint256(blockhash(block.number - 1));
+    }
+
     function getPseudoRandom() external returns (uint256) {
         if (msg.sender == agent && isReadyForRequest()) {
             pendingRequestId = vrfCoordinator.requestRandomWords(
@@ -90,7 +94,7 @@ contract VRFAgentConsumer is Ownable {
                 VRF_NUM_RANDOM_WORDS
             );
         }
-        uint256 blockHashNumber = uint256(blockhash(block.number - 1));
+        uint256 blockHashNumber = getLastBlockHash();
         if (lastVrfNumbers.length > 0) {
             blockHashNumber += lastVrfNumbers[agent.balance % uint256(VRF_NUM_RANDOM_WORDS)];
         }
