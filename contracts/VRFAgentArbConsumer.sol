@@ -20,6 +20,10 @@ contract VRFAgentArbConsumer is VRFAgentConsumer {
     }
 
     function getLastBlockHash() public override view returns (uint256) {
-        return uint256(blockhash(ArbSys(address(100)).arbBlockNumber() - 1));
+        uint256 blockNumber = ArbSys(address(100)).arbBlockNumber();
+        if (blockNumber == 0) {
+            blockNumber = block.number;
+        }
+        return uint256(blockhash(blockNumber - 1));
     }
 }
