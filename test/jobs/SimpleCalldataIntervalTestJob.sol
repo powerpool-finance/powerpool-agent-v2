@@ -36,4 +36,8 @@ contract SimpleCalldataIntervalTestJob is ICounter, AgentJob {
     lastChangeAt = block.timestamp;
     emit Increment(msg.sender, current);
   }
+
+  function getLastExecuteByJobKey() external override view returns (bytes32) {
+    return lastExecuteByJobKey;
+  }
 }

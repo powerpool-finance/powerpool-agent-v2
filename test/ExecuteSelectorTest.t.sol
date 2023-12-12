@@ -74,6 +74,8 @@ contract ExecuteSelectorTest is TestHelper {
   }
 
   function testExecWithSelector() public {
+    assertEq(counter.getLastExecuteByJobKey(), bytes32(0));
+
     vm.prank(keeperWorker, keeperWorker);
     _callExecuteHelper(
       agent,
@@ -85,6 +87,7 @@ contract ExecuteSelectorTest is TestHelper {
     );
 
     assertEq(counter.current(), 1);
+    assertEq(counter.getLastExecuteByJobKey(), jobKey);
   }
 
   function testErrExecInsufficientStake() public {
@@ -244,7 +247,7 @@ contract ExecuteSelectorTest is TestHelper {
       rewardPct_: 35,
       fixedReward_: 10,
       blockBaseFee_: 100 gwei,
-      gasUsed_: 39770
+      gasUsed_: 39770 + 22193 // lastExecuteByJobKey set gas
     }), 0.0001 ether);
   }
 
@@ -273,7 +276,7 @@ contract ExecuteSelectorTest is TestHelper {
       rewardPct_: 35,
       fixedReward_: 10,
       blockBaseFee_: 10 gwei,
-      gasUsed_: 34070
+      gasUsed_: 34070 + 22193 // lastExecuteByJobKey set gas
     }), 0.0001 ether);
   }
 
@@ -315,7 +318,7 @@ contract ExecuteSelectorTest is TestHelper {
     uint256 compensationsChange = _compensationOf(kid) - compensationsBefore;
 
     assertEq(counter.current(), 1);
-    assertApproxEqAbs(0.0126933445 ether, keeperBalanceChange, 0.0001 ether);
+    assertApproxEqAbs(0.0134731081 ether, keeperBalanceChange, 0.0001 ether);
     assertEq(keeperBalanceChange, jobCreditsChange);
 
     assertEq(compensationsChange, 0);
@@ -456,7 +459,7 @@ contract ExecuteSelectorTest is TestHelper {
 
     assertEq(counter.current(), 1);
 
-    assertApproxEqAbs(0.01269344845 ether, jobCreditsChange, 0.0001 ether);
+    assertApproxEqAbs(0.0134731081 ether, jobCreditsChange, 0.0001 ether);
     assertEq(compensationsChange, jobCreditsChange);
 
     assertEq(keeperBalanceChange, 0);
@@ -512,7 +515,7 @@ contract ExecuteSelectorTest is TestHelper {
     uint256 compensationsChange = _compensationOf(kid) - compensationsBefore;
 
     assertEq(counter.current(), 1);
-    assertApproxEqAbs(0.01269344845 ether, keeperBalanceChange, 0.0001 ether);
+    assertApproxEqAbs(0.0134731081 ether, keeperBalanceChange, 0.0001 ether);
     assertEq(keeperBalanceChange, jobOwnerCreditsChange);
 
     assertEq(compensationsChange, 0);
