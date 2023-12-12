@@ -1,5 +1,13 @@
 # PPAgentV2 Changelog
 
+### 2.4.0
+
+- Added job key to execute calldata.
+
+### 2.3.0
+
+- Reworked interfaces and inheritance.
+
 ### 2.2.0
 
 - Fix "execute + job update" reentrancy bug.

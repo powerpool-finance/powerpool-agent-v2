@@ -37,9 +37,15 @@ contract OnlySelectorTestJob is ICounter, AgentJob {
     }
     current += 1;
     emit Increment(msg.sender, current);
+
+    _setJobKeyFromCalldata();
   }
 
   function increment2() external pure {
     revert("unexpected increment2");
+  }
+
+  function getLastExecuteByJobKey() external override view returns (bytes32) {
+    return lastExecuteByJobKey;
   }
 }

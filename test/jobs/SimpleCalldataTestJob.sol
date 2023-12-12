@@ -28,9 +28,15 @@ contract SimpleCalldataTestJob is ICounter, AgentJob {
     require(keccak256(abi.encodePacked(d)) == keccak256(abi.encodePacked("d-value")), "invalid d");
     current += 1;
     emit Increment(msg.sender, current);
+
+    _setJobKeyFromCalldata();
   }
 
   function increment2() external pure {
     revert("unexpected increment2");
+  }
+
+  function getLastExecuteByJobKey() external override view returns (bytes32) {
+    return lastExecuteByJobKey;
   }
 }

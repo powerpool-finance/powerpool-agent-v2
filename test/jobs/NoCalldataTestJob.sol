@@ -3,9 +3,11 @@ pragma solidity ^0.8.13;
 
 import "../../contracts/jobs/traits/AgentJob.sol";
 import "./ICounter.sol";
+import "../../lib/forge-std/src/console.sol";
 
 contract NoCalldataTestJob is ICounter, AgentJob {
   event Increment(address pokedBy, uint256 newCurrent);
+  event JobKey(bytes32 jobKey);
 
   uint256 public current;
 
@@ -21,5 +23,11 @@ contract NoCalldataTestJob is ICounter, AgentJob {
   fallback() external onlyAgent {
     current += 1;
     emit Increment(msg.sender, current);
+
+    _setJobKeyFromCalldata();
+  }
+
+  function getLastExecuteByJobKey() external override view returns (bytes32) {
+    return lastExecuteByJobKey;
   }
 }

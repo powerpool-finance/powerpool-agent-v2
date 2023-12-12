@@ -65,7 +65,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   error WorkerAlreadyAssigned();
   error ExecutionReentrancyLocked();
 
-  string public constant VERSION = "2.3.0";
+  string public constant VERSION = "2.4.0";
   uint256 internal constant MAX_PENDING_WITHDRAWAL_TIMEOUT_SECONDS = 30 days;
   uint256 internal constant MAX_FEE_PPM = 5e4;
   uint256 internal constant FIXED_PAYMENT_MULTIPLIER = 1e15;
@@ -397,10 +397,10 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       assembly ("memory-safe") {
         selector := shl(224, shr(8, binJob))
       }
-      (ok,) = jobAddress.call{ gas: jobGas }(abi.encode(selector));
+      (ok,) = jobAddress.call{ gas: jobGas }(bytes.concat(abi.encode(selector), jobKey));
     // Source: Bytes
     } else if (calldataSource == CalldataSourceType.PRE_DEFINED) {
-      (ok,) = jobAddress.call{ gas: jobGas }(preDefinedCalldatas[jobKey]);
+      (ok,) = jobAddress.call{ gas: jobGas }(bytes.concat(preDefinedCalldatas[jobKey], jobKey));
     // Source: Resolver
     } else if (calldataSource == CalldataSourceType.RESOLVER) {
       assembly ("memory-safe") {
@@ -414,8 +414,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
           revert(ptr, 4)
         }
         let cdSize := sub(cdInCdSize, beforeCdSize)
-        mstore(0x40, add(ptr, cdSize))
+        mstore(0x40, add(add(ptr, cdSize), 0x20))
         calldatacopy(ptr, beforeCdSize, cdSize)
+        mstore(add(ptr, cdSize), jobKey)
         // CFG_ASSERT_RESOLVER_SELECTOR = 0x04 from PPAgentLiteFlags
         if and(binJob, 0x04) {
           if iszero(eq(
@@ -430,7 +431,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
           }
         }
         // The remaining gas could not be less than 50_000
-        ok := call(jobGas, jobAddress, 0, ptr, cdSize, 0x0, 0x0)
+        ok := call(jobGas, jobAddress, 0, ptr, add(cdSize, 0x20), 0x0, 0x0)
       }
     } else {
       // Should never be reached

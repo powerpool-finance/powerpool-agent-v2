@@ -11,6 +11,7 @@ import "./jobs/SimpleCalldataTestJob.sol";
 import "./jobs/ComplexCalldataTestJob.sol";
 import "./jobs/SimpleCalldataIntervalTestJob.sol";
 import "./jobs/SimpleCustomizableCalldataTestJob.sol";
+import "../lib/forge-std/src/console.sol";
 
 contract ExecuteResolverTest is TestHelper {
   ICounter internal job;
@@ -90,9 +91,12 @@ contract ExecuteResolverTest is TestHelper {
     assertEq(job.current(), 0);
     _setupJob(address(job), ZERO_SELECTOR, false);
 
+    assertEq(job.getLastExecuteByJobKey(), bytes32(0));
+
     // execute #1
     executeJob();
     assertEq(job.current(), 1);
+    assertEq(job.getLastExecuteByJobKey(), jobKey);
 
     // execute #2
     vm.warp(block.timestamp + 11);
@@ -123,9 +127,12 @@ contract ExecuteResolverTest is TestHelper {
     assertEq(job.current(), 0);
     _setupJob(address(job), OnlySelectorTestJob.increment.selector, false);
 
+    assertEq(job.getLastExecuteByJobKey(), bytes32(0));
+
     // execute #1
     executeJob();
     assertEq(job.current(), 1);
+    assertEq(job.getLastExecuteByJobKey(), jobKey);
 
     // execute #2
     vm.warp(block.timestamp + 11);
@@ -175,9 +182,12 @@ contract ExecuteResolverTest is TestHelper {
     assertEq(job.current(), 0);
     _setupJob(address(job), SimpleCalldataTestJob.increment.selector, false);
 
+    assertEq(job.getLastExecuteByJobKey(), bytes32(0));
+
     // execute #1
     executeJob();
     assertEq(job.current(), 1);
+    assertEq(job.getLastExecuteByJobKey(), jobKey);
 
     // execute #2
     vm.warp(block.timestamp + 11);
@@ -227,9 +237,12 @@ contract ExecuteResolverTest is TestHelper {
     assertEq(job.current(), 0);
     _setupJob(address(job), ComplexCalldataTestJob.increment.selector, false);
 
+    assertEq(job.getLastExecuteByJobKey(), bytes32(0));
+
     // execute #1
     executeJob();
     assertEq(job.current(), 1);
+    assertEq(job.getLastExecuteByJobKey(), jobKey);
 
     // execute #2
     vm.warp(block.timestamp + 11);

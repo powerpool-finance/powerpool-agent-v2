@@ -64,4 +64,8 @@ contract SimpleCustomizableCalldataTestJob is ICounter, AgentJob {
   function increment2() external pure {
     revert("unexpected increment2");
   }
+
+  function getLastExecuteByJobKey() external override view returns (bytes32) {
+    return lastExecuteByJobKey;
+  }
 }
