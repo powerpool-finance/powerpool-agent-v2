@@ -247,7 +247,7 @@ contract ExecuteSelectorTest is TestHelper {
       rewardPct_: 35,
       fixedReward_: 10,
       blockBaseFee_: 100 gwei,
-      gasUsed_: 39770 + 22193 // lastExecuteByJobKey set gas
+      gasUsed_: 40100 + 21863 // lastExecuteByJobKey set gas
     }), 0.0001 ether);
   }
 
@@ -276,7 +276,7 @@ contract ExecuteSelectorTest is TestHelper {
       rewardPct_: 35,
       fixedReward_: 10,
       blockBaseFee_: 10 gwei,
-      gasUsed_: 34070 + 22193 // lastExecuteByJobKey set gas
+      gasUsed_: 34400 + 21863 // lastExecuteByJobKey set gas
     }), 0.0001 ether);
   }
 
