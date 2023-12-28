@@ -96,7 +96,7 @@ contract VRFAgentConsumer is Ownable {
         }
         uint256 blockHashNumber = getLastBlockHash();
         if (lastVrfNumbers.length > 0) {
-            blockHashNumber += lastVrfNumbers[agent.balance % uint256(VRF_NUM_RANDOM_WORDS)];
+            blockHashNumber += lastVrfNumbers[uint256(keccak256(abi.encodePacked(agent.balance))) % uint256(VRF_NUM_RANDOM_WORDS)];
         }
         return blockHashNumber;
     }
