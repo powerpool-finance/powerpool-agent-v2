@@ -64,8 +64,12 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   error OnlyPendingOwner();
   error WorkerAlreadyAssigned();
   error ExecutionReentrancyLocked();
-  error ExecutionResolverReverted();
-  error ExecutionResolverReturnedFalse();
+  error JobCheckResolverReturnedFalse();
+  error UnableToDecodeResolverResponse();
+  error UnexpectedCodeBlock();
+  error JobCheckCanBeExecuted(bytes returndata);
+  error JobCheckCanNotBeExecuted(bytes errReason);
+  error JobCheckUnexpectedError();
 
   string public constant VERSION = "2.4.0";
   uint256 internal constant MAX_PENDING_WITHDRAWAL_TIMEOUT_SECONDS = 30 days;
@@ -338,12 +342,11 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
 
     // 0. Keeper has sufficient stake
     {
-      Keeper memory keeper = keepers[actualKeeperId];
       uint256 minKeeperCvp_ = minKeeperCvp;
-      if (keeper.worker != msg.sender) {
+      if (keepers[actualKeeperId].worker != msg.sender) {
         revert KeeperWorkerNotAuthorized();
       }
-      if (keeper.cvpStake < minKeeperCvp_) {
+      if (keepers[actualKeeperId].cvpStake < minKeeperCvp_) {
         revert InsufficientKeeperStake();
       }
 
@@ -405,15 +408,8 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       (ok,) = jobAddress.call{ gas: jobGas }(bytes.concat(preDefinedCalldatas[jobKey], jobKey));
     // Source: Resolver
     } else if (calldataSource == CalldataSourceType.RESOLVER) {
-      if (ConfigFlags.check(binJob, CFG_CHECK_KEEPER_MIN_CVP_DEPOSIT)) {
-        (bool isSuccess, bytes memory data) = resolvers[jobKey].resolverAddress.call(resolvers[jobKey].resolverCalldata);
-        if (!isSuccess) {
-          revert ExecutionResolverReverted();
-        }
-        (isSuccess, ) = abi.decode(data, (bool, bytes));
-        if (!isSuccess) {
-          revert ExecutionResolverReturnedFalse();
-        }
+      if (ConfigFlags.check(binJob, CFG_CALL_RESOLVER_BEFORE_EXECUTE)) {
+        _checkJobResolverCall(jobKey);
       }
       assembly ("memory-safe") {
         let cdInCdSize := calldatasize()
@@ -553,6 +549,41 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
 
     _afterExecute(actualKeeperId, gasUsed);
+  }
+
+  function _checkJobResolverCall(bytes32 jobKey_) internal {
+    (bool ok, bytes memory result) = address(this).call(
+      abi.encodeWithSelector(PPAgentV2.checkCouldBeExecuted.selector, resolvers[jobKey_].resolverAddress, resolvers[jobKey_].resolverCalldata)
+    );
+    if (ok) {
+      revert UnexpectedCodeBlock();
+    }
+
+    bytes4 selector = bytes4(result);
+    if (selector == PPAgentV2.JobCheckCanNotBeExecuted.selector) {
+      assembly ("memory-safe") {
+        revert(add(32, result), mload(result))
+      }
+    } else if (selector != PPAgentV2.JobCheckCanBeExecuted.selector) {
+      revert JobCheckUnexpectedError();
+    } // else resolver was executed
+
+    uint256 len;
+    assembly ("memory-safe") {
+      len := mload(result)
+    }
+    // We need at least canExecute flag. 32 * 4 + 4.
+    if (len < 132) {
+      revert UnableToDecodeResolverResponse();
+    }
+
+    uint256 canExecute;
+    assembly ("memory-safe") {
+      canExecute := mload(add(result, 100))
+    }
+    if (canExecute != 1) {
+      revert JobCheckResolverReturnedFalse();
+    }
   }
 
   function _checkBaseFee(uint256 binJob_, uint256 cfg_) internal view virtual returns (uint256) {
@@ -752,17 +783,14 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     _assertOnlyJobOwner(jobKey_);
     _assertExecutionNotLocked();
     _assertJobParams(maxBaseFeeGwei_, fixedReward_, rewardPct_);
+    _assertInterval(intervalSeconds_, CalldataSourceType(jobs[jobKey_].calldataSource));
 
-    Job memory job = jobs[jobKey_];
+    uint256 cfg = jobs[jobKey_].config;
 
-    _assertInterval(intervalSeconds_, CalldataSourceType(job.calldataSource));
-
-    uint256 cfg = job.config;
-
-    if (jobMinCvp_ > 0 && !ConfigFlags.check(job.config, CFG_CHECK_KEEPER_MIN_CVP_DEPOSIT)) {
+    if (jobMinCvp_ > 0 && !ConfigFlags.check(jobs[jobKey_].config, CFG_CHECK_KEEPER_MIN_CVP_DEPOSIT)) {
       cfg = cfg | CFG_CHECK_KEEPER_MIN_CVP_DEPOSIT;
     }
-    if (jobMinCvp_ == 0 && ConfigFlags.check(job.config, CFG_CHECK_KEEPER_MIN_CVP_DEPOSIT)) {
+    if (jobMinCvp_ == 0 && ConfigFlags.check(jobs[jobKey_].config, CFG_CHECK_KEEPER_MIN_CVP_DEPOSIT)) {
       cfg = cfg ^ CFG_CHECK_KEEPER_MIN_CVP_DEPOSIT;
     }
 
@@ -1403,6 +1431,22 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       mstore(0, shl(96, jobAddress_))
       mstore(20, shl(232, jobId_))
       jobKey := keccak256(0, 23)
+    }
+  }
+
+  // The function that always reverts
+  function checkCouldBeExecuted(address jobAddress_, bytes memory jobCalldata_) external {
+    // 1. LOCK
+    minKeeperCvp = minKeeperCvp | EXECUTION_IS_LOCKED_FLAG;
+    // 2. EXECUTE
+    (bool ok, bytes memory result) = jobAddress_.call(jobCalldata_);
+    // 3. UNLOCK
+    minKeeperCvp = minKeeperCvp ^ EXECUTION_IS_LOCKED_FLAG;
+
+    if (ok) {
+      revert JobCheckCanBeExecuted(result);
+    } else {
+      revert JobCheckCanNotBeExecuted(result);
     }
   }
 }
