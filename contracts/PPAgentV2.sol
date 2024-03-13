@@ -71,7 +71,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   error JobCheckCanNotBeExecuted(bytes errReason);
   error JobCheckUnexpectedError();
 
-  string public constant VERSION = "2.4.0";
+  string public constant VERSION = "2.5.0";
   uint256 internal constant MAX_PENDING_WITHDRAWAL_TIMEOUT_SECONDS = 30 days;
   uint256 internal constant MAX_FEE_PPM = 5e4;
   uint256 internal constant FIXED_PAYMENT_MULTIPLIER = 1e15;

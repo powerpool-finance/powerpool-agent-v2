@@ -274,7 +274,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     vm.roll(42);
     vm.prank(alice);
     vm.expectRevert(abi.encodeWithSelector(
-      PPAgentV2Randao.JobCheckCanNotBeExecuted.selector,
+      PPAgentV2.JobCheckCanNotBeExecuted.selector,
       abi.encodePacked(PPAgentV2.ExecutionReentrancyLocked.selector)
     ));
     agent.initiateKeeperSlashing(address(topupJob), jobId, kid1, false, cd);
@@ -304,7 +304,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     SimpleCustomizableCalldataTestJob(address(job)).setResolverReturnFalse(true);
 
     // resolver false
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.JobCheckResolverReturnedFalse.selector));
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2.JobCheckResolverReturnedFalse.selector));
     vm.prank(bob, bob);
     agent.initiateKeeperSlashing(address(job), jobId, kid3, true, cd);
 
@@ -312,7 +312,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     SimpleCustomizableCalldataTestJob(address(job)).setRevertResolver(true);
 
     // resolver revert
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.JobCheckCanNotBeExecuted.selector,
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2.JobCheckCanNotBeExecuted.selector,
       abi.encodeWithSelector(0x08c379a0, "forced resolver revert")
       ));
     vm.prank(bob, bob);
