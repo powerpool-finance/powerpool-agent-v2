@@ -64,6 +64,8 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   error OnlyPendingOwner();
   error WorkerAlreadyAssigned();
   error ExecutionReentrancyLocked();
+  error ExecutionResolverReverted();
+  error ExecutionResolverReturnedFalse();
 
   string public constant VERSION = "2.4.0";
   uint256 internal constant MAX_PENDING_WITHDRAWAL_TIMEOUT_SECONDS = 30 days;
@@ -103,7 +105,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   event WithdrawJobOwnerCredits(address indexed jobOwner, address indexed to, uint256 amount);
   event InitiateJobTransfer(bytes32 indexed jobKey, address indexed from, address indexed to);
   event AcceptJobTransfer(bytes32 indexed jobKey_, address indexed to_);
-  event SetJobConfig(bytes32 indexed jobKey, bool isActive_, bool useJobOwnerCredits_, bool assertResolverSelector_);
+  event SetJobConfig(bytes32 indexed jobKey, bool isActive_, bool useJobOwnerCredits_, bool assertResolverSelector_, bool callResolverBeforeExecute_);
   event SetJobResolver(bytes32 indexed jobKey, address resolverAddress, bytes resolverCalldata);
   event SetJobPreDefinedCalldata(bytes32 indexed jobKey, bytes preDefinedCalldata);
   event SetAgentParams(uint256 minKeeperCvp_, uint256 timeoutSeconds_, uint256 feePpm_);
@@ -403,6 +405,16 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       (ok,) = jobAddress.call{ gas: jobGas }(bytes.concat(preDefinedCalldatas[jobKey], jobKey));
     // Source: Resolver
     } else if (calldataSource == CalldataSourceType.RESOLVER) {
+      if (ConfigFlags.check(binJob, CFG_CHECK_KEEPER_MIN_CVP_DEPOSIT)) {
+        (bool isSuccess, bytes memory data) = resolvers[jobKey].resolverAddress.call(resolvers[jobKey].resolverCalldata);
+        if (!isSuccess) {
+          revert ExecutionResolverReverted();
+        }
+        (isSuccess, ) = abi.decode(data, (bool, bytes));
+        if (!isSuccess) {
+          revert ExecutionResolverReturnedFalse();
+        }
+      }
       assembly ("memory-safe") {
         let cdInCdSize := calldatasize()
         // calldata offset is 31
@@ -818,7 +830,8 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     bytes32 jobKey_,
     bool isActive_,
     bool useJobOwnerCredits_,
-    bool assertResolverSelector_
+    bool assertResolverSelector_,
+    bool callResolverBeforeExecute_
   ) public virtual {
     _assertOnlyJobOwner(jobKey_);
     _assertExecutionNotLocked();
@@ -833,11 +846,14 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     if (assertResolverSelector_) {
       newConfig = newConfig | CFG_ASSERT_RESOLVER_SELECTOR;
     }
+    if (callResolverBeforeExecute_) {
+      newConfig = newConfig | CFG_CALL_RESOLVER_BEFORE_EXECUTE;
+    }
 
     uint256 job = getJobRaw(jobKey_) & BM_CLEAR_CONFIG | newConfig;
     _updateRawJob(jobKey_, job);
 
-    emit SetJobConfig(jobKey_, isActive_, useJobOwnerCredits_, assertResolverSelector_);
+    emit SetJobConfig(jobKey_, isActive_, useJobOwnerCredits_, assertResolverSelector_, callResolverBeforeExecute_);
   }
 
   function _updateRawJob(bytes32 jobKey_, uint256 job_) internal {

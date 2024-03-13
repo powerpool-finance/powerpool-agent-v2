@@ -490,10 +490,11 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     bytes32 jobKey_,
     bool isActive_,
     bool useJobOwnerCredits_,
-    bool assertResolverSelector_
+    bool assertResolverSelector_,
+    bool callResolverBeforeExecute_
   ) public override {
     uint256 rawJobBefore = getJobRaw(jobKey_);
-    super.setJobConfig(jobKey_, isActive_, useJobOwnerCredits_, assertResolverSelector_);
+    super.setJobConfig(jobKey_, isActive_, useJobOwnerCredits_, assertResolverSelector_, callResolverBeforeExecute_);
     bool wasActiveBefore = ConfigFlags.check(rawJobBefore, CFG_ACTIVE);
     uint256 assignedKeeperId = jobNextKeeperId[jobKey_];
 
