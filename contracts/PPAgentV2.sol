@@ -70,6 +70,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   error JobCheckCanBeExecuted(bytes returndata);
   error JobCheckCanNotBeExecuted(bytes errReason);
   error JobCheckUnexpectedError();
+  error JobCheckCalldataError();
 
   string public constant VERSION = "2.5.0";
   uint256 internal constant MAX_PENDING_WITHDRAWAL_TIMEOUT_SECONDS = 30 days;
@@ -385,7 +386,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
 
     // 4. Ensure gas price fits base fee
-    uint256 maxBaseFee = _checkBaseFee(binJob, cfg);
+    _checkBaseFee(binJob, cfg);
 
     // 5. Ensure msg.sender is EOA
     if (msg.sender != tx.origin) {
@@ -408,8 +409,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       (ok,) = jobAddress.call{ gas: jobGas }(bytes.concat(preDefinedCalldatas[jobKey], jobKey));
     // Source: Resolver
     } else if (calldataSource == CalldataSourceType.RESOLVER) {
+      bytes32 cdataHash;
       if (ConfigFlags.check(binJob, CFG_CALL_RESOLVER_BEFORE_EXECUTE)) {
-        _checkJobResolverCall(jobKey);
+        cdataHash = _checkJobResolverCall(jobKey);
       }
       assembly ("memory-safe") {
         let cdInCdSize := calldatasize()
@@ -435,6 +437,14 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
           )) {
             // revert SelectorCheckFailed()
             mstore(ptr, 0x74ab678100000000000000000000000000000000000000000000000000000000)
+            revert(ptr, 4)
+          }
+        }
+        if and(binJob, 0x10) {
+          let hash := keccak256(ptr, cdSize)
+          if iszero(eq(hash, cdataHash)) {
+            // revert JobCheckCalldataError()
+            mstore(ptr, 0x428ac18600000000000000000000000000000000000000000000000000000000)
             revert(ptr, 4)
           }
         }
@@ -465,6 +475,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     uint256 compensation;
     uint256 gasUsed;
     {
+      uint256 maxBaseFee = _getBaseFee(binJob);
       binJob = getJobRaw(jobKey);
       unchecked {
         gasUsed = gasStart - gasleft();
@@ -551,7 +562,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     _afterExecute(actualKeeperId, gasUsed);
   }
 
-  function _checkJobResolverCall(bytes32 jobKey_) internal {
+  function _checkJobResolverCall(bytes32 jobKey_) internal returns (bytes32 hash) {
     (bool ok, bytes memory result) = address(this).call(
       abi.encodeWithSelector(PPAgentV2.checkCouldBeExecuted.selector, resolvers[jobKey_].resolverAddress, resolvers[jobKey_].resolverCalldata)
     );
@@ -580,17 +591,26 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     uint256 canExecute;
     assembly ("memory-safe") {
       canExecute := mload(add(result, 100))
+      // 5 * 32 + 4
+      let dataLen := mload(add(result, 164))
+      // starts from 6 * 32 + 4
+      hash := keccak256(add(result, 196), dataLen)
     }
+
     if (canExecute != 1) {
       revert JobCheckResolverReturnedFalse();
+    }
+    return hash;
+  }
+
+  function _getBaseFee(uint256 binJob_) internal pure returns (uint256 maxBaseFee) {
+    unchecked {
+      maxBaseFee = ((binJob_ << 112) >> 240) * 1 gwei;
     }
   }
 
   function _checkBaseFee(uint256 binJob_, uint256 cfg_) internal view virtual returns (uint256) {
-    uint256 maxBaseFee;
-    unchecked {
-      maxBaseFee = ((binJob_ << 112) >> 240)  * 1 gwei;
-    }
+    uint256 maxBaseFee = _getBaseFee(binJob_);
     if (block.basefee > maxBaseFee && !ConfigFlags.check(cfg_, FLAG_ACCEPT_MAX_BASE_FEE_LIMIT)) {
       revert BaseFeeGtGasPrice(block.basefee, maxBaseFee);
     }

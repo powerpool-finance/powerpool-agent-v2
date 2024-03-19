@@ -338,8 +338,12 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
 
     vm.expectRevert(abi.encodeWithSelector(PPAgentV2.JobCheckResolverReturnedFalse.selector));
     _executeJob(2, cd);
-
     SimpleCustomizableCalldataTestJob(address(job)).setResolverReturnFalse(false);
+
+    (, bytes memory incorrectCd) = SimpleCustomizableCalldataTestJob(address(job)).myIncorrectResolver();
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2.JobCheckCalldataError.selector));
+    _executeJob(2, incorrectCd);
+
     _executeJob(2, cd);
 
     assertEq(_stakeOf(kid1), 5_000 ether);

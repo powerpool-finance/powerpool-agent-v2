@@ -548,24 +548,21 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
 
     // if slashing
     if (assignedKeeperId != actualKeeperId_) {
-      RandaoConfig memory _rdConfig = rdConfig;
-
-      Keeper memory _assignedKeeper = keepers[assignedKeeperId];
       uint256 keeperStake = _getKeeperLimitedStake({
-        keeperCurrentStake_: _assignedKeeper.cvpStake,
-        agentMaxCvpStakeCvp_: uint256(_rdConfig.agentMaxCvpStake),
+        keeperCurrentStake_: keepers[assignedKeeperId].cvpStake,
+        agentMaxCvpStakeCvp_: uint256(rdConfig.agentMaxCvpStake),
         job_: binJob_
       });
-      uint256 dynamicSlashAmount = keeperStake * uint256(_rdConfig.slashingFeeBps) / 10_000;
-      uint256 fixedSlashAmount = uint256(_rdConfig.slashingFeeFixedCVP) * 1 ether;
+      uint256 dynamicSlashAmount = keeperStake * uint256(rdConfig.slashingFeeBps) / 10_000;
+      uint256 fixedSlashAmount = uint256(rdConfig.slashingFeeFixedCVP) * 1 ether;
       // NOTICE: totalSlashAmount can't be >= uint88
       uint88 totalSlashAmount = uint88(fixedSlashAmount + dynamicSlashAmount);
       uint256 slashAmountMissing = 0;
-      if (totalSlashAmount > _assignedKeeper.cvpStake) {
+      if (totalSlashAmount > keepers[assignedKeeperId].cvpStake) {
         unchecked {
-          slashAmountMissing = totalSlashAmount - _assignedKeeper.cvpStake;
+          slashAmountMissing = totalSlashAmount - keepers[assignedKeeperId].cvpStake;
         }
-        totalSlashAmount = _assignedKeeper.cvpStake;
+        totalSlashAmount = keepers[assignedKeeperId].cvpStake;
       }
       keepers[assignedKeeperId].cvpStake -= totalSlashAmount;
       keepers[actualKeeperId_].cvpStake += totalSlashAmount;

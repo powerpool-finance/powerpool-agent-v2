@@ -157,7 +157,7 @@ contract VRFTest is AbstractTestHelper {
 
     vm.roll(30);
     vm.warp(fulfillTimestamp + 15);
-    assertEq(agent.jobNextKeeperId(jobKey), 3);
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(consumer.isReadyForRequest(), false);
     vm.prank(bob, bob);
     _callExecuteHelper(
