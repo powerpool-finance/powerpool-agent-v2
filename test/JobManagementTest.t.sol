@@ -11,7 +11,7 @@ contract JobManagementTest is TestHelper {
   event WithdrawJobCredits(bytes32 indexed jobKey, address indexed owner, address indexed to, uint256 amount);
   event InitiateJobTransfer(bytes32 indexed jobKey, address indexed from, address indexed to);
   event AcceptJobTransfer(bytes32 indexed jobKey_, address indexed to_);
-  event SetJobConfig(bytes32 indexed jobKey, bool isActive_, bool useJobOwnerCredits_, bool assertResolverSelector_);
+  event SetJobConfig(bytes32 indexed jobKey, bool isActive_, bool useJobOwnerCredits_, bool assertResolverSelector_, bool callResolverBeforeExecute_);
   event SetJobResolver(bytes32 indexed jobKey, address resolverAddress, bytes resolverCalldata);
   event SetJobPreDefinedCalldata(bytes32 indexed jobKey, bytes preDefinedCalldata);
   event SetUseJobOwnerCredits(bytes32 indexed jobKey, bool useJobOwnerCredits);
@@ -366,9 +366,9 @@ contract JobManagementTest is TestHelper {
 
     // change #1
     vm.expectEmit(true, true, false, true, address(agent));
-    emit SetJobConfig(jobKey, false, true, true);
+    emit SetJobConfig(jobKey, false, true, true, false);
     vm.prank(alice);
-    agent.setJobConfig(jobKey, false, true, true);
+    agent.setJobConfig(jobKey, false, true, true, false);
 
     job = agent.getJobRaw(jobKey);
     assertEq(lens.isJobActivePure(job), false);
@@ -381,10 +381,10 @@ contract JobManagementTest is TestHelper {
 
     // change #2
     vm.expectEmit(true, true, false, true, address(agent));
-    emit SetJobConfig(jobKey, true, true, true);
+    emit SetJobConfig(jobKey, true, true, true, false);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, true, true);
+    agent.setJobConfig(jobKey, true, true, true, false);
 
     job = agent.getJobRaw(jobKey);
     assertEq(lens.isJobActivePure(job), true);
@@ -401,7 +401,7 @@ contract JobManagementTest is TestHelper {
     );
 
     vm.prank(bob);
-    agent.setJobConfig(jobKey, false, true, false);
+    agent.setJobConfig(jobKey, false, true, false, false);
   }
 
   // updateJob()
@@ -632,13 +632,13 @@ contract JobManagementTest is TestHelper {
     assertEq(useOwnerCredits, false);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, true, false);
+    agent.setJobConfig(jobKey, true, true, false, false);
 
     (,useOwnerCredits,,) = lens.parseConfigPure(agent.getJobRaw(jobKey));
     assertEq(useOwnerCredits, true);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, false, false);
+    agent.setJobConfig(jobKey, true, false, false, false);
 
     (,useOwnerCredits,,) = lens.parseConfigPure(agent.getJobRaw(jobKey));
     assertEq(useOwnerCredits, false);

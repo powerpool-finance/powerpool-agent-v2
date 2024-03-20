@@ -132,13 +132,13 @@ contract RandaoActorsTest is TestHelperRandao {
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
 
     vm.prank(alice, alice);
-    agent.setJobConfig(jobKey, false, false, false);
+    agent.setJobConfig(jobKey, false, false, false, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 0);
     assertEq(agent.getJobsAssignedToKeeperLength(2), 0);
 
     vm.prank(alice, alice);
-    agent.setJobConfig(jobKey, false, false, false);
+    agent.setJobConfig(jobKey, false, false, false, false);
   }
 
   function testRdJobOwnerEnableJobWithJobCreditSource() public {
@@ -146,14 +146,14 @@ contract RandaoActorsTest is TestHelperRandao {
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
 
     vm.prank(alice, alice);
-    agent.setJobConfig(jobKey, false, false, false);
+    agent.setJobConfig(jobKey, false, false, false, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 0);
     assertEq(agent.getJobsAssignedToKeeperLength(2), 0);
     assertEq(_jobLastExecutionAt(jobKey), 0);
 
     vm.prank(alice, alice);
-    agent.setJobConfig(jobKey, true, false, false);
+    agent.setJobConfig(jobKey, true, false, false, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
@@ -381,7 +381,7 @@ contract RandaoActorsTest is TestHelperRandao {
     agent.releaseJob(jobKey);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, false, false, true);
+    agent.setJobConfig(jobKey, false, false, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 0);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 0);

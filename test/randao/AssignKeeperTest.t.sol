@@ -296,14 +296,14 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     assertEq(_jobIsActive(jobKey), true);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, false, false, true);
+    agent.setJobConfig(jobKey, false, false, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 0);
     assertEq(agent.getJobsAssignedToKeeperLength(0), 0);
     assertEq(_jobIsActive(jobKey), false);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, false, true);
+    agent.setJobConfig(jobKey, true, false, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 1);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
@@ -312,7 +312,7 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
 
   function testRdNotAssignKeeperIfUseOwnerBalanceAfter() public {
     vm.prank(alice);
-    agent.setJobConfig(jobKey, false, false, true);
+    agent.setJobConfig(jobKey, false, false, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 0);
     assertEq(agent.getJobsAssignedToKeeperLength(0), 0);
@@ -320,7 +320,7 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     assertEq(_jobIsActive(jobKey), false);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, true, true);
+    agent.setJobConfig(jobKey, true, true, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 0);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
@@ -329,7 +329,7 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
 
   function testRdNotAssignKeeperIfInsufficientCredits() public {
     vm.prank(alice);
-    agent.setJobConfig(jobKey, false, false, true);
+    agent.setJobConfig(jobKey, false, false, true, false);
     vm.prank(alice);
     agent.withdrawJobCredits(jobKey, alice, 0.95 ether);
 
@@ -337,7 +337,7 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     assertEq(_jobCredits(jobKey), 0.05 ether);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, false, true);
+    agent.setJobConfig(jobKey, true, false, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 0);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
@@ -352,7 +352,7 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, true, true);
+    agent.setJobConfig(jobKey, true, true, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 1);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
@@ -368,7 +368,7 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     assertEq(agent.jobOwnerCredits(alice), 0.09 ether);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, true, true);
+    agent.setJobConfig(jobKey, true, true, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 0);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
@@ -377,13 +377,13 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
 
   function testRdSwitchFromInsufficientCSJobOwnerToJobSufficient() public {
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, true, true);
+    agent.setJobConfig(jobKey, true, true, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 0);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, false, true);
+    agent.setJobConfig(jobKey, true, false, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 1);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
@@ -391,13 +391,13 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
 
   function testRdSwitchFromInsufficientCSJobOwnerToJobInsufficient() public {
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, true, true);
+    agent.setJobConfig(jobKey, true, true, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 0);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, false, true);
+    agent.setJobConfig(jobKey, true, false, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 1);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
@@ -407,13 +407,13 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     vm.prank(alice);
     agent.depositJobOwnerCredits{value: 0.1 ether }(alice);
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, true, true);
+    agent.setJobConfig(jobKey, true, true, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 1);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, false, true);
+    agent.setJobConfig(jobKey, true, false, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 1);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
@@ -425,13 +425,13 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     vm.prank(alice);
     agent.withdrawJobCredits(jobKey, alice, 0.91 ether);
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, true, true);
+    agent.setJobConfig(jobKey, true, true, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 1);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, false, true);
+    agent.setJobConfig(jobKey, true, false, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 0);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 0);
@@ -439,13 +439,13 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
 
   function testRdNotChangedJobCredits() public {
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, false, true);
+    agent.setJobConfig(jobKey, true, false, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 1);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, false, true);
+    agent.setJobConfig(jobKey, true, false, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 1);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
@@ -455,13 +455,13 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     vm.prank(alice);
     agent.depositJobOwnerCredits{value: 0.1 ether }(alice);
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, true, true);
+    agent.setJobConfig(jobKey, true, true, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 1);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, true, true);
+    agent.setJobConfig(jobKey, true, true, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 1);
     assertEq(agent.getJobsAssignedToKeeperLength(1), 1);
@@ -593,7 +593,7 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
 
   function testRdJobTransferOwnerCSActiveBothInsufficient() public {
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, true, true);
+    agent.setJobConfig(jobKey, true, true, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 0);
     assertEq(agent.jobOwnerCredits(alice), 0);
@@ -613,7 +613,7 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     agent.depositJobOwnerCredits{ value: 10 ether }(alice);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, true, true);
+    agent.setJobConfig(jobKey, true, true, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 1);
     assertEq(agent.jobOwnerCredits(alice), 10 ether);
@@ -633,7 +633,7 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     agent.depositJobOwnerCredits{ value: 10 ether }(bob);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, true, true);
+    agent.setJobConfig(jobKey, true, true, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 0);
     assertEq(agent.jobOwnerCredits(alice), 0);
@@ -653,7 +653,7 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     agent.depositJobOwnerCredits{ value: 10 ether }(bob);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, false, true, true);
+    agent.setJobConfig(jobKey, false, true, true, false);
 
     assertEq(agent.jobNextKeeperId(jobKey), 0);
     assertEq(agent.jobOwnerCredits(alice), 0);

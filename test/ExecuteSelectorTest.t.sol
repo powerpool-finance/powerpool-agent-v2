@@ -135,7 +135,7 @@ contract ExecuteSelectorTest is TestHelper {
 
   function testErrExecInactiveJob() public {
     vm.prank(alice);
-    agent.setJobConfig(jobKey, false, false, false);
+    agent.setJobConfig(jobKey, false, false, false, false);
 
     vm.expectRevert(abi.encodeWithSelector(
         PPAgentV2.InactiveJob.selector,
@@ -492,7 +492,7 @@ contract ExecuteSelectorTest is TestHelper {
     agent.depositJobOwnerCredits{value: 1 ether }(alice);
 
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, true, false);
+    agent.setJobConfig(jobKey, true, true, false, false);
 
     uint256 keeperBalanceBefore = keeperWorker.balance;
     uint256 jobCreditsBefore = _jobDetails(jobKey).credits;
@@ -544,7 +544,7 @@ contract ExecuteSelectorTest is TestHelper {
   function testFailExecJobOwnerCreditsNotFunds() public {
     vm.fee(99 gwei);
     vm.prank(alice);
-    agent.setJobConfig(jobKey, true, true, false);
+    agent.setJobConfig(jobKey, true, true, false, false);
 
     // TODO: assert only revert+error selector
     // vm.expectRevert(abi.encodeWithSelector(PPAgentV2.InsufficientJobOwnerCredits.selector))
