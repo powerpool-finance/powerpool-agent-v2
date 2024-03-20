@@ -386,7 +386,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
 
     // 4. Ensure gas price fits base fee
-    _checkBaseFee(binJob, cfg);
+    uint256 maxBaseFee = _checkBaseFee(binJob, cfg);
 
     // 5. Ensure msg.sender is EOA
     if (msg.sender != tx.origin) {
@@ -394,7 +394,6 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
 
     bool ok;
-    uint256 jobGas = gasleft() - 50_000;
 
     // Source: Selector
     CalldataSourceType calldataSource = CalldataSourceType((binJob << 56) >> 248);
@@ -403,10 +402,10 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       assembly ("memory-safe") {
         selector := shl(224, shr(8, binJob))
       }
-      (ok,) = jobAddress.call{ gas: jobGas }(bytes.concat(abi.encode(selector), jobKey));
+      (ok,) = jobAddress.call{ gas: gasleft() - 50_000 }(bytes.concat(abi.encode(selector), jobKey));
     // Source: Bytes
     } else if (calldataSource == CalldataSourceType.PRE_DEFINED) {
-      (ok,) = jobAddress.call{ gas: jobGas }(bytes.concat(preDefinedCalldatas[jobKey], jobKey));
+      (ok,) = jobAddress.call{ gas: gasleft() - 50_000 }(bytes.concat(preDefinedCalldatas[jobKey], jobKey));
     // Source: Resolver
     } else if (calldataSource == CalldataSourceType.RESOLVER) {
       bytes32 cdataHash;
@@ -449,7 +448,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
           }
         }
         // The remaining gas could not be less than 50_000
-        ok := call(jobGas, jobAddress, 0, ptr, add(cdSize, 0x20), 0x0, 0x0)
+        ok := call(sub(gas(), 50000), jobAddress, 0, ptr, add(cdSize, 0x20), 0x0, 0x0)
       }
     } else {
       // Should never be reached
@@ -475,7 +474,6 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     uint256 compensation;
     uint256 gasUsed;
     {
-      uint256 maxBaseFee = _getBaseFee(binJob);
       binJob = getJobRaw(jobKey);
       unchecked {
         gasUsed = gasStart - gasleft();
