@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {VRFCoordinatorV2Interface} from "./interfaces/VRFCoordinatorV2Interface.sol";
 import {IERC677Receiver} from "./interfaces/IERC677Receiver.sol";
 import {VRF} from "./VRF.sol";
@@ -12,6 +13,7 @@ import "./utils/ChainSpecificUtil.sol";
 contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677Receiver {
   // solhint-disable-next-line chainlink-solidity/prefix-immutable-variables-with-i
   IERC20 public immutable CVP;
+  using SafeERC20 for IERC20;
 
   // We need to maintain a list of consuming addresses.
   // This bound ensures we are able to loop over them as needed.
@@ -21,7 +23,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677
   error InsufficientBalance();
   error InvalidConsumer(uint64 subId, address consumer);
   error InvalidSubscription();
-  error OnlyCallableFromLink();
+  error OnlyCallableFromCvp();
   error InvalidCalldata();
   error MustBeSubOwner(address owner);
   error PendingRequestExists();
@@ -79,7 +81,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677
   error NumWordsTooBig(uint32 have, uint32 want);
   error ProvingKeyAlreadyRegistered(bytes32 keyHash);
   error NoSuchProvingKey(bytes32 keyHash);
-  error InvalidLinkWeiPrice(int256 linkWei);
+  error InvalidCvpWeiPrice(int256 cvpWei);
   error InsufficientGasForConsumer(uint256 have, uint256 want);
   error NoCorrespondingRequest();
   error IncorrectCommitment();
@@ -117,23 +119,23 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677
     // Reentrancy protection.
     bool reentrancyLock;
     // stalenessSeconds is how long before we consider the feed price to be stale
-    // and fallback to fallbackWeiPerUnitLink.
+    // and fallback to fallbackWeiPerUnitCvp.
     uint32 stalenessSeconds;
     // Gas to cover oracle payment after we calculate the payment.
     // We make it configurable in case those operations are repriced.
     uint32 gasAfterPaymentCalculation;
   }
-  int256 private s_fallbackWeiPerUnitLink;
+  int256 private s_fallbackWeiPerUnitCvp;
   Config private s_config;
   FeeConfig private s_feeConfig;
   struct FeeConfig {
     // Flat fee charged per fulfillment in millionths of cvp
     // So fee range is [0, 2^32/10^6].
-    uint32 fulfillmentFlatFeeLinkPPMTier1;
-    uint32 fulfillmentFlatFeeLinkPPMTier2;
-    uint32 fulfillmentFlatFeeLinkPPMTier3;
-    uint32 fulfillmentFlatFeeLinkPPMTier4;
-    uint32 fulfillmentFlatFeeLinkPPMTier5;
+    uint32 fulfillmentFlatFeeCvpPPMTier1;
+    uint32 fulfillmentFlatFeeCvpPPMTier2;
+    uint32 fulfillmentFlatFeeCvpPPMTier3;
+    uint32 fulfillmentFlatFeeCvpPPMTier4;
+    uint32 fulfillmentFlatFeeCvpPPMTier5;
     uint24 reqsForTier2;
     uint24 reqsForTier3;
     uint24 reqsForTier4;
@@ -144,7 +146,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677
     uint32 maxGasLimit,
     uint32 stalenessSeconds,
     uint32 gasAfterPaymentCalculation,
-    int256 fallbackWeiPerUnitLink,
+    int256 fallbackWeiPerUnitCvp,
     FeeConfig feeConfig
   );
 
@@ -203,7 +205,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677
    * @param maxGasLimit global max for request gas limit
    * @param stalenessSeconds if the eth/cvp feed is more stale then this, use the fallback price
    * @param gasAfterPaymentCalculation gas used in doing accounting after completing the gas measurement
-   * @param fallbackWeiPerUnitLink fallback eth/cvp price in the case of a stale feed
+   * @param fallbackWeiPerUnitCvp fallback eth/cvp price in the case of a stale feed
    * @param feeConfig fee tier configuration
    */
   function setConfig(
@@ -211,7 +213,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677
     uint32 maxGasLimit,
     uint32 stalenessSeconds,
     uint32 gasAfterPaymentCalculation,
-    int256 fallbackWeiPerUnitLink,
+    int256 fallbackWeiPerUnitCvp,
     FeeConfig memory feeConfig
   ) external onlyOwner {
     if (minimumRequestConfirmations > MAX_REQUEST_CONFIRMATIONS) {
@@ -221,8 +223,8 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677
         MAX_REQUEST_CONFIRMATIONS
       );
     }
-    if (fallbackWeiPerUnitLink <= 0) {
-      revert InvalidLinkWeiPrice(fallbackWeiPerUnitLink);
+    if (fallbackWeiPerUnitCvp <= 0) {
+      revert InvalidCvpWeiPrice(fallbackWeiPerUnitCvp);
     }
     s_config = Config({
       minimumRequestConfirmations: minimumRequestConfirmations,
@@ -232,13 +234,13 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677
       reentrancyLock: false
     });
     s_feeConfig = feeConfig;
-    s_fallbackWeiPerUnitLink = fallbackWeiPerUnitLink;
+    s_fallbackWeiPerUnitCvp = fallbackWeiPerUnitCvp;
     emit ConfigSet(
       minimumRequestConfirmations,
       maxGasLimit,
       stalenessSeconds,
       gasAfterPaymentCalculation,
-      fallbackWeiPerUnitLink,
+      fallbackWeiPerUnitCvp,
       s_feeConfig
     );
   }
@@ -265,11 +267,11 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677
     external
     view
     returns (
-      uint32 fulfillmentFlatFeeLinkPPMTier1,
-      uint32 fulfillmentFlatFeeLinkPPMTier2,
-      uint32 fulfillmentFlatFeeLinkPPMTier3,
-      uint32 fulfillmentFlatFeeLinkPPMTier4,
-      uint32 fulfillmentFlatFeeLinkPPMTier5,
+      uint32 fulfillmentFlatFeeCvpPPMTier1,
+      uint32 fulfillmentFlatFeeCvpPPMTier2,
+      uint32 fulfillmentFlatFeeCvpPPMTier3,
+      uint32 fulfillmentFlatFeeCvpPPMTier4,
+      uint32 fulfillmentFlatFeeCvpPPMTier5,
       uint24 reqsForTier2,
       uint24 reqsForTier3,
       uint24 reqsForTier4,
@@ -277,11 +279,11 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677
     )
   {
     return (
-      s_feeConfig.fulfillmentFlatFeeLinkPPMTier1,
-      s_feeConfig.fulfillmentFlatFeeLinkPPMTier2,
-      s_feeConfig.fulfillmentFlatFeeLinkPPMTier3,
-      s_feeConfig.fulfillmentFlatFeeLinkPPMTier4,
-      s_feeConfig.fulfillmentFlatFeeLinkPPMTier5,
+      s_feeConfig.fulfillmentFlatFeeCvpPPMTier1,
+      s_feeConfig.fulfillmentFlatFeeCvpPPMTier2,
+      s_feeConfig.fulfillmentFlatFeeCvpPPMTier3,
+      s_feeConfig.fulfillmentFlatFeeCvpPPMTier4,
+      s_feeConfig.fulfillmentFlatFeeCvpPPMTier5,
       s_feeConfig.reqsForTier2,
       s_feeConfig.reqsForTier3,
       s_feeConfig.reqsForTier4,
@@ -293,8 +295,8 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677
     return s_totalBalance;
   }
 
-  function getFallbackWeiPerUnitLink() external view returns (int256) {
-    return s_fallbackWeiPerUnitLink;
+  function getFallbackWeiPerUnitCvp() external view returns (int256) {
+    return s_fallbackWeiPerUnitCvp;
   }
 
   /**
@@ -490,18 +492,18 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677
   function getFeeTier(uint64 reqCount) public view returns (uint32) {
     FeeConfig memory fc = s_feeConfig;
     if (0 <= reqCount && reqCount <= fc.reqsForTier2) {
-      return fc.fulfillmentFlatFeeLinkPPMTier1;
+      return fc.fulfillmentFlatFeeCvpPPMTier1;
     }
     if (fc.reqsForTier2 < reqCount && reqCount <= fc.reqsForTier3) {
-      return fc.fulfillmentFlatFeeLinkPPMTier2;
+      return fc.fulfillmentFlatFeeCvpPPMTier2;
     }
     if (fc.reqsForTier3 < reqCount && reqCount <= fc.reqsForTier4) {
-      return fc.fulfillmentFlatFeeLinkPPMTier3;
+      return fc.fulfillmentFlatFeeCvpPPMTier3;
     }
     if (fc.reqsForTier4 < reqCount && reqCount <= fc.reqsForTier5) {
-      return fc.fulfillmentFlatFeeLinkPPMTier4;
+      return fc.fulfillmentFlatFeeCvpPPMTier4;
     }
-    return fc.fulfillmentFlatFeeLinkPPMTier5;
+    return fc.fulfillmentFlatFeeCvpPPMTier5;
   }
 
   /*
@@ -541,7 +543,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677
     // The gasAfterPaymentCalculation is meant to cover these additional operations where we
     // decrement the subscription balance and increment the oracles withdrawable balance.
     // We also add the flat cvp fee to the payment amount.
-    // Its specified in millionths of cvp, if s_config.fulfillmentFlatFeeLinkPPM = 1
+    // Its specified in millionths of cvp, if s_config.fulfillmentFlatFeeCvpPPM = 1
     // 1 cvp / 1e6 = 1e18 juels / 1e6 = 1e12 juels.
     uint96 payment = _calculatePaymentAmount(
       startGas,
@@ -563,28 +565,28 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677
   function _calculatePaymentAmount(
     uint256 startGas,
     uint256 gasAfterPaymentCalculation,
-    uint32 fulfillmentFlatFeeLinkPPM,
+    uint32 fulfillmentFlatFeeCvpPPM,
     uint256 weiPerUnitGas
   ) internal view returns (uint96) {
-    int256 weiPerUnitLink;
-    weiPerUnitLink = _getFeedData();
-    if (weiPerUnitLink <= 0) {
-      revert InvalidLinkWeiPrice(weiPerUnitLink);
+    int256 weiPerUnitCvp;
+    weiPerUnitCvp = _getFeedData();
+    if (weiPerUnitCvp <= 0) {
+      revert InvalidCvpWeiPrice(weiPerUnitCvp);
     }
     // Will return non-zero on chains that have this enabled
     uint256 l1CostWei = ChainSpecificUtil._getCurrentTxL1GasFees(msg.data);
     // (1e18 juels/cvp) ((wei/gas * gas) + l1wei) / (wei/cvp) = juels
     uint256 paymentNoFee = (1e18 * (weiPerUnitGas * (gasAfterPaymentCalculation + startGas - gasleft()) + l1CostWei)) /
-      uint256(weiPerUnitLink);
-    uint256 fee = 1e12 * uint256(fulfillmentFlatFeeLinkPPM);
+      uint256(weiPerUnitCvp);
+    uint256 fee = 1e12 * uint256(fulfillmentFlatFeeCvpPPM);
     if (paymentNoFee > (1e27 - fee)) {
       revert PaymentTooLarge(); // Payment + fee cannot be more than all of the cvp in existence.
     }
     return uint96(paymentNoFee + fee);
   }
 
-  function _getFeedData() private view returns (int256 weiPerUnitLink) {
-    return 0;
+  function _getFeedData() private view returns (int256 weiPerUnitCvp) {
+    return 1e18;
   }
 
   /*
@@ -603,10 +605,19 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677
     }
   }
 
-  function onTokenTransfer(address /* sender */, uint256 amount, bytes calldata data) external override nonReentrant {
+  function onTokenTransfer(address sender, uint256 amount, bytes memory data) public override nonReentrant {
     if (msg.sender != address(CVP)) {
-      revert OnlyCallableFromLink();
+      revert OnlyCallableFromCvp();
     }
+    _fundSubscription(sender, amount, data);
+  }
+
+  function deposit(uint256 _amount, uint64 _subId) external {
+    CVP.transferFrom(msg.sender, address(this), _amount);
+    _fundSubscription(msg.sender, _amount, abi.encode(_subId));
+  }
+
+  function _fundSubscription(address /* sender */, uint256 amount, bytes memory data) internal nonReentrant {
     if (data.length != 32) {
       revert InvalidCalldata();
     }
