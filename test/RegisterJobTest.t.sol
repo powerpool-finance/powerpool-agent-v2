@@ -396,7 +396,7 @@ contract RegisterJob is TestHelper {
     params.intervalSeconds = 1_000;
 
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.ResolverJobCantHaveInterval.selector)
+      abi.encodeWithSelector(PPAgentV2.JobDoesNotSupposedToHaveInterval.selector)
     );
     agent.registerJob({
       params_: params,

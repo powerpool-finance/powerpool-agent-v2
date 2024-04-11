@@ -49,7 +49,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   error MissingAmount();
   error WithdrawAmountExceedsAvailable(uint256 wanted, uint256 actual);
   error JobShouldHaveInterval();
-  error ResolverJobCantHaveInterval();
+  error JobDoesNotSupposedToHaveInterval();
   error InvalidJobAddress();
   error InvalidKeeperId();
   error MissingResolverAddress();
@@ -81,7 +81,8 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   enum CalldataSourceType {
     SELECTOR,
     PRE_DEFINED,
-    RESOLVER
+    RESOLVER,
+    OFFCHAIN
   }
 
   address public immutable CVP;
@@ -240,8 +241,15 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
   }
 
-  function _assertJobCalldataSource(bytes32 jobKey_, CalldataSourceType source_) internal view {
-    if (CalldataSourceType(jobs[jobKey_].calldataSource) != source_) {
+  function _assertJobCalldataSource(
+    bytes32 jobKey_,
+    CalldataSourceType source1_,
+    CalldataSourceType orSource2_
+  ) internal view {
+    if (
+      CalldataSourceType(jobs[jobKey_].calldataSource) != source1_ &&
+      CalldataSourceType(jobs[jobKey_].calldataSource) != orSource2_
+    ) {
       revert NotSupportedByJobCalldataSource();
     }
   }
@@ -256,13 +264,13 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
   }
 
-  function _assertInterval(uint256 interval_, CalldataSourceType calldataSource_) internal pure {
+  function _assertInterval(uint256 interval_, CalldataSourceType cdSource_) internal pure {
     if (interval_ == 0 &&
-      (calldataSource_ == CalldataSourceType.SELECTOR || calldataSource_ == CalldataSourceType.PRE_DEFINED)) {
+      (cdSource_ == CalldataSourceType.SELECTOR || cdSource_ == CalldataSourceType.PRE_DEFINED)) {
       revert JobShouldHaveInterval();
     }
-    if (interval_ != 0 && calldataSource_ == CalldataSourceType.RESOLVER) {
-      revert ResolverJobCantHaveInterval();
+    if (interval_ != 0 && (cdSource_ == CalldataSourceType.RESOLVER || cdSource_ == CalldataSourceType.OFFCHAIN)) {
+      revert JobDoesNotSupposedToHaveInterval();
     }
   }
 
@@ -407,7 +415,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     } else if (calldataSource == CalldataSourceType.PRE_DEFINED) {
       (ok,) = jobAddress.call{ gas: gasleft() - 50_000 }(bytes.concat(preDefinedCalldatas[jobKey], jobKey));
     // Source: Resolver
-    } else if (calldataSource == CalldataSourceType.RESOLVER) {
+    } else if (calldataSource == CalldataSourceType.RESOLVER || calldataSource == CalldataSourceType.OFFCHAIN) {
       bytes32 cdataHash;
       if (ConfigFlags.check(binJob, CFG_CALL_RESOLVER_BEFORE_EXECUTE)) {
         cdataHash = _checkJobResolverCall(jobKey);
@@ -617,14 +625,14 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
 
   function _afterExecutionReverted(
     bytes32 jobKey_,
-    CalldataSourceType calldataSource_,
+    CalldataSourceType cdSource_,
     uint256 actualKeeperId_,
     bytes memory executionResponse_,
     uint256
   ) internal virtual {
     jobKey_;
     actualKeeperId_;
-    calldataSource_;
+    cdSource_;
 
     if (executionResponse_.length == 0) {
       revert JobCallRevertedWithoutDetails();
@@ -723,7 +731,10 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
 
     if (CalldataSourceType(params_.calldataSource) == CalldataSourceType.PRE_DEFINED) {
       _setJobPreDefinedCalldata(jobKey, preDefinedCalldata_);
-    } else if (CalldataSourceType(params_.calldataSource) == CalldataSourceType.RESOLVER) {
+    } else if (
+      CalldataSourceType(params_.calldataSource) == CalldataSourceType.RESOLVER ||
+      CalldataSourceType(params_.calldataSource) == CalldataSourceType.OFFCHAIN
+    ) {
       _setJobResolver(jobKey, resolver_);
     }
 
@@ -832,7 +843,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   function setJobResolver(bytes32 jobKey_, Resolver calldata resolver_) external {
     _assertOnlyJobOwner(jobKey_);
     _assertExecutionNotLocked();
-    _assertJobCalldataSource(jobKey_, CalldataSourceType.RESOLVER);
+    _assertJobCalldataSource(jobKey_, CalldataSourceType.RESOLVER, CalldataSourceType.OFFCHAIN);
 
     _setJobResolver(jobKey_, resolver_);
   }
@@ -854,7 +865,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   function setJobPreDefinedCalldata(bytes32 jobKey_, bytes calldata preDefinedCalldata_) external {
     _assertOnlyJobOwner(jobKey_);
     _assertExecutionNotLocked();
-    _assertJobCalldataSource(jobKey_, CalldataSourceType.PRE_DEFINED);
+    _assertJobCalldataSource(jobKey_, CalldataSourceType.PRE_DEFINED, CalldataSourceType.PRE_DEFINED);
 
     _setJobPreDefinedCalldata(jobKey_, preDefinedCalldata_);
   }
