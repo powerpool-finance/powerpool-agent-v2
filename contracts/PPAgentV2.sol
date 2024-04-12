@@ -223,37 +223,6 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
   }
 
-  function _assertWorkerNotAssigned(address worker_) internal view {
-    if (workerKeeperIds[worker_] != 0) {
-      revert WorkerAlreadyAssigned();
-    }
-  }
-
-  function _assertNonZeroAmount(uint256 amount_) internal pure {
-    if (amount_ == 0) {
-      revert MissingAmount();
-    }
-  }
-
-  function _assertNonZeroValue() internal view {
-    if (msg.value == 0) {
-      revert MissingDeposit();
-    }
-  }
-
-  function _assertJobCalldataSource(
-    bytes32 jobKey_,
-    CalldataSourceType source1_,
-    CalldataSourceType orSource2_
-  ) internal view {
-    if (
-      CalldataSourceType(jobs[jobKey_].calldataSource) != source1_ &&
-      CalldataSourceType(jobs[jobKey_].calldataSource) != orSource2_
-    ) {
-      revert NotSupportedByJobCalldataSource();
-    }
-  }
-
   function _assertJobParams(uint256 maxBaseFeeGwei_, uint256 fixedReward_, uint256 rewardPct_) internal pure {
     if (maxBaseFeeGwei_ == 0) {
       revert MissingMaxBaseFeeGwei();
@@ -843,7 +812,13 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   function setJobResolver(bytes32 jobKey_, Resolver calldata resolver_) external {
     _assertOnlyJobOwner(jobKey_);
     _assertExecutionNotLocked();
-    _assertJobCalldataSource(jobKey_, CalldataSourceType.RESOLVER, CalldataSourceType.OFFCHAIN);
+
+    if (
+      CalldataSourceType(jobs[jobKey_].calldataSource) != CalldataSourceType.RESOLVER &&
+      CalldataSourceType(jobs[jobKey_].calldataSource) != CalldataSourceType.OFFCHAIN
+    ) {
+      revert NotSupportedByJobCalldataSource();
+    }
 
     _setJobResolver(jobKey_, resolver_);
   }
@@ -865,7 +840,10 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   function setJobPreDefinedCalldata(bytes32 jobKey_, bytes calldata preDefinedCalldata_) external {
     _assertOnlyJobOwner(jobKey_);
     _assertExecutionNotLocked();
-    _assertJobCalldataSource(jobKey_, CalldataSourceType.PRE_DEFINED, CalldataSourceType.PRE_DEFINED);
+
+    if (CalldataSourceType(jobs[jobKey_].calldataSource) != CalldataSourceType.PRE_DEFINED) {
+      revert NotSupportedByJobCalldataSource();
+    }
 
     _setJobPreDefinedCalldata(jobKey_, preDefinedCalldata_);
   }
@@ -960,7 +938,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    * @param jobKey_ The jobKey to deposit for
    */
   function depositJobCredits(bytes32 jobKey_) external virtual payable {
-    _assertNonZeroValue();
+    if (msg.value == 0) {
+      revert MissingDeposit();
+    }
 
     if (jobOwners[jobKey_] == address(0)) {
       revert JobWithoutOwner();
@@ -1010,7 +990,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
 
     _assertOnlyJobOwner(jobKey_);
     _assertExecutionNotLocked();
-    _assertNonZeroAmount(amount_);
+    if (amount_ == 0) {
+      revert MissingAmount();
+    }
 
     if (creditsBefore < amount_) {
       revert CreditsWithdrawalUnderflow();
@@ -1033,7 +1015,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    * @param for_ The job owner address to deposit for
    */
   function depositJobOwnerCredits(address for_) external payable {
-    _assertNonZeroValue();
+    if (msg.value == 0) {
+      revert MissingDeposit();
+    }
 
     _processJobOwnerCreditsDeposit(for_);
   }
@@ -1062,7 +1046,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
 
     _assertExecutionNotLocked();
-    _assertNonZeroAmount(amount_);
+    if (amount_ == 0) {
+      revert MissingAmount();
+    }
 
     if (creditsBefore < amount_) {
       revert CreditsWithdrawalUnderflow();
@@ -1092,8 +1078,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    * @return keeperId The registered keeper ID
    */
   function registerAsKeeper(address worker_, uint256 initialDepositAmount_) public virtual returns (uint256 keeperId) {
-    _assertWorkerNotAssigned(worker_);
-
+    if (workerKeeperIds[worker_] != 0) {
+      revert WorkerAlreadyAssigned();
+    }
     if (initialDepositAmount_ < minKeeperCvp) {
       revert InsufficientAmount();
     }
@@ -1117,7 +1104,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    */
   function setWorkerAddress(uint256 keeperId_, address worker_) external {
     _assertOnlyKeeperAdmin(keeperId_);
-    _assertWorkerNotAssigned(worker_);
+    if (workerKeeperIds[worker_] != 0) {
+      revert WorkerAlreadyAssigned();
+    }
 
     address prev = keepers[keeperId_].worker;
     delete workerKeeperIds[prev];
@@ -1140,7 +1129,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       amount_ = available;
     }
 
-    _assertNonZeroAmount(amount_);
+    if (amount_ == 0) {
+      revert MissingAmount();
+    }
     _assertOnlyKeeperAdminOrWorker(keeperId_);
 
     if (amount_ > available) {
@@ -1164,7 +1155,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    * @param amount_ The amount to stake
    */
   function stake(uint256 keeperId_, uint256 amount_) external {
-    _assertNonZeroAmount(amount_);
+    if (amount_ == 0) {
+      revert MissingAmount();
+    }
     _assertKeeperIdExists(keeperId_);
     _stake(keeperId_, amount_);
   }
@@ -1196,7 +1189,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    */
   function initiateRedeem(uint256 keeperId_, uint256 amount_) external returns (uint256 pendingWithdrawalAfter) {
     _assertOnlyKeeperAdmin(keeperId_);
-    _assertNonZeroAmount(amount_);
+    if (amount_ == 0) {
+      revert MissingAmount();
+    }
     _beforeInitiateRedeem(keeperId_);
 
     uint256 stakeOfBefore = keepers[keeperId_].cvpStake;
@@ -1266,7 +1261,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   function ownerSlash(uint256 keeperId_, address to_, uint256 currentAmount_, uint256 pendingAmount_) public {
     _assertOnlyOwner();
     uint256 totalAmount = currentAmount_ + pendingAmount_;
-    _assertNonZeroAmount(totalAmount);
+    if (totalAmount == 0) {
+      revert MissingAmount();
+    }
 
     if (currentAmount_ > 0) {
       keepers[keeperId_].cvpStake -= uint88(currentAmount_);

@@ -189,7 +189,9 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
    * @param jobKeys_ The list of job keys to activate
    */
   function depositJobOwnerCreditsAndAssignKeepers(address for_, bytes32[] calldata jobKeys_) external payable {
-    _assertNonZeroValue();
+    if (msg.value == 0) {
+      revert MissingDeposit();
+    }
 
     _processJobOwnerCreditsDeposit(for_);
 
@@ -201,7 +203,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     for (uint256 i = 0; i < jobKeys_.length; i++) {
       bytes32 jobKey = jobKeys_[i];
       uint256 assignedKeeperId = jobNextKeeperId[jobKey];
-      if (assignedKeeperId != 0) {
+      if (jobNextKeeperId[jobKey] != 0) {
         revert JobHasKeeperAssigned(assignedKeeperId);
       }
       _assertOnlyJobOwner(jobKey);
@@ -406,7 +408,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     if (_jobSlashingPossibleAfter != 0 &&
       // but not overdue yet
       (_jobSlashingPossibleAfter + rdConfig.period2) > block.timestamp
-      ) {
+    ) {
       revert TooEarlyToReinitiateSlashing();
     }
 
@@ -576,7 +578,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
       );
     }
 
-    if (shouldAssignKeeper(jobKey_)) {
+    if (_shouldAssignKeeperBin(jobKey_, getJobRaw(jobKey_))) {
       _unassignKeeper(jobKey_, assignedKeeperId);
       _chooseNextKeeper(jobKey_, assignedKeeperId);
     } else {
@@ -585,7 +587,11 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   }
 
   function _beforeInitiateRedeem(uint256 keeperId_) internal view override {
-    _ensureCanReleaseKeeper(keeperId_);
+    // ensure can release keeper
+    uint256 len = getJobsAssignedToKeeperLength(keeperId_);
+    if (len > 0) {
+      revert KeeperIsAssignedToJobs(len);
+    }
   }
 
   function _afterInitiateRedeem(uint256 keeperId_) internal view override {
@@ -634,33 +640,16 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     emit JobKeeperChanged(jobKey_, previousKeeperId_, nextKeeperId_);
   }
 
-  function _ensureCanReleaseKeeper(uint256 keeperId_) internal view {
-    uint256 len = getJobsAssignedToKeeperLength(keeperId_);
-    if (len > 0) {
-      revert KeeperIsAssignedToJobs(len);
-    }
-  }
-
   function _getPseudoRandom() internal virtual returns (uint256) {
     return block.prevrandao;
   }
 
   function _releaseKeeperIfRequired(bytes32 jobKey_, uint256 keeperId_) internal returns (bool released) {
     uint256 binJob = getJobRaw(jobKey_);
-    return _releaseKeeperIfRequiredBinJob(jobKey_, keeperId_, binJob, false);
-  }
-
-  function _releaseKeeperIfRequiredBinJob(
-    bytes32 jobKey_,
-    uint256 keeperId_,
-    uint256 binJob_,
-    bool checkAlreadyReleased
-  ) internal returns (bool released) {
-    if ((!checkAlreadyReleased || jobNextKeeperId[jobKey_] != 0) && !_shouldAssignKeeperBin(jobKey_, binJob_)) {
+    if (jobNextKeeperId[jobKey_] != 0 && !_shouldAssignKeeperBin(jobKey_, binJob)) {
       _releaseKeeper(jobKey_, keeperId_);
       return true;
     }
-
     return false;
   }
 
@@ -681,15 +670,11 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   }
 
   function _assignNextKeeperIfRequired(bytes32 jobKey_, uint256 currentKeeperId_) internal returns (bool assigned) {
-    if (currentKeeperId_ == 0 && shouldAssignKeeper(jobKey_)) {
+    if (currentKeeperId_ == 0 && _shouldAssignKeeperBin(jobKey_, getJobRaw(jobKey_))) {
       _chooseNextKeeper(jobKey_, currentKeeperId_);
       return true;
     }
     return false;
-  }
-
-  function shouldAssignKeeper(bytes32 jobKey_) public view returns (bool) {
-    return _shouldAssignKeeperBin(jobKey_, getJobRaw(jobKey_));
   }
 
   function _shouldAssignKeeperBin(bytes32 jobKey_, uint256 binJob_) internal view returns (bool) {
