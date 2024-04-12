@@ -22,4 +22,8 @@ contract MockExposedAgent is PPAgentV2Randao {
   ) public pure returns (uint256) {
     return _getKeeperLimitedStake(keeperCurrentStake_, agentMaxCvpStakeCvp_, job_);
   }
+
+  function shouldAssignKeeper(bytes32 jobKey_) public view returns (bool) {
+    return _shouldAssignKeeperBin(jobKey_, getJobRaw(jobKey_));
+  }
 }
