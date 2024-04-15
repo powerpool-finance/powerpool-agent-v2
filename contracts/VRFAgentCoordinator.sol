@@ -48,7 +48,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   // get all the current subscriptions via getSubscription.
   uint64 private s_currentSubId;
 
-  event SubscriptionCreated(uint64 indexed subId, address owner);
+  event SubscriptionCreated(uint64 indexed subId, address owner, address coordinatorClient);
   event SubscriptionConsumerAdded(uint64 indexed subId, address consumer);
   event SubscriptionConsumerRemoved(uint64 indexed subId, address consumer);
   event SubscriptionCanceled(uint64 indexed subId);
@@ -421,7 +421,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
       consumers: consumers
     });
 
-    emit SubscriptionCreated(subId, msg.sender);
+    emit SubscriptionCreated(subId, msg.sender, address(client));
     return subId;
   }
 
