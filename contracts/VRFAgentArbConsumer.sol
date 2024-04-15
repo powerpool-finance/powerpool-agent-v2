@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "./ChainlinkVRFAgentConsumer.sol";
+import "./VRFAgentConsumer.sol";
 import { ArbSys } from "./interfaces/ArbSys.sol";
 
 /**
  * @title VRFAgentArbConsumer
  * @author PowerPool
  */
-contract VRFAgentArbConsumer is ChainlinkVRFAgentConsumer {
-    constructor(address agent_) ChainlinkVRFAgentConsumer(agent_) {
+contract VRFAgentArbConsumer is VRFAgentConsumer {
+    constructor(address agent_) VRFAgentConsumer(agent_) {
     }
 
     function getLastBlockHash() public override view returns (uint256) {

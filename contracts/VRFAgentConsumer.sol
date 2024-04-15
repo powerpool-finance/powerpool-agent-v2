@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./interfaces/VRFAgentCoordinatorInterface.sol";
+import "./interfaces/ChainlinkVRFCoordinatorV2Interface.sol";
 
 /**
  * @title VRFAgentConsumer
@@ -88,8 +88,8 @@ contract VRFAgentConsumer is Ownable {
     }
 
     function _requestRandomWords() internal virtual returns (uint256) {
-        return VRFAgentCoordinatorInterface(vrfCoordinator).requestRandomWords(
-            agent,
+        return ChainlinkVRFCoordinatorV2Interface(vrfCoordinator).requestRandomWords(
+            vrfKeyHash,
             vrfSubscriptionId,
             vrfRequestConfirmations,
             vrfCallbackGasLimit,
