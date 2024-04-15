@@ -32,11 +32,11 @@ contract VRFAgentCoordinatorClient is Ownable {
         uint16 requestConfirmations,
         uint32 callbackGasLimit,
         uint32 numWords
-    ) external {
+    ) external returns (uint256) {
         if (!clientConsumers[msg.sender]) {
             revert InvalidConsumer(subscriptionId, msg.sender);
         }
-        vrfCoordinator.requestRandomWords(agent, subId, requestConfirmations, callbackGasLimit, numWords);
+        return vrfCoordinator.requestRandomWords(agent, subId, requestConfirmations, callbackGasLimit, numWords);
     }
 
     function addConsumer(address _consumer) external onlyOwner {
