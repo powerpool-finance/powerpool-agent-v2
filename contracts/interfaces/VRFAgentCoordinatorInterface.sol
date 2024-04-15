@@ -1,20 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-interface VRFCoordinatorV2Interface {
+interface VRFAgentCoordinatorInterface {
     /**
      * @notice Get configuration relevant for making requests
      * @return minimumRequestConfirmations global min for request confirmations
      * @return maxGasLimit global max for request gas limit
-     * @return s_provingKeyHashes list of registered key hashes
+     * @return s_agentProviders list of registered agents
      */
-    function getRequestConfig() external view returns (uint16, uint32, bytes32[] memory);
+    function getRequestConfig() external view returns (uint16, uint32, address[] memory);
 
     /**
      * @notice Request a set of random words.
-     * @param keyHash - Corresponds to a particular oracle job which uses
-     * that key for generating the VRF proof. Different keyHash's have different gas price
-     * ceilings, so you can select a specific one to bound your maximum per request cost.
+     * @param agent - Corresponds to a agent provider address
      * @param subId  - The ID of the VRF subscription. Must be funded
      * with the minimum subscription balance required for the selected keyHash.
      * @param minimumRequestConfirmations - How many blocks you'd like the
@@ -34,7 +32,7 @@ interface VRFCoordinatorV2Interface {
      * a request to a response in fulfillRandomWords.
      */
     function requestRandomWords(
-        bytes32 keyHash,
+        address agent,
         uint64 subId,
         uint16 minimumRequestConfirmations,
         uint32 callbackGasLimit,
@@ -45,25 +43,16 @@ interface VRFCoordinatorV2Interface {
      * @notice Create a VRF subscription.
      * @return subId - A unique subscription id.
      * @dev You can manage the consumer set dynamically with addConsumer/removeConsumer.
-     * @dev Note to fund the subscription, use transferAndCall. For example
-     * @dev  CVPTOKEN.transferAndCall(
-     * @dev    address(COORDINATOR),
-     * @dev    amount,
-     * @dev    abi.encode(subId));
      */
     function createSubscription() external returns (uint64 subId);
 
     /**
      * @notice Get a VRF subscription.
      * @param subId - ID of the subscription
-     * @return balance - CVP balance of the subscription in juels.
-     * @return reqCount - number of requests for this subscription, determines fee tier.
      * @return owner - owner of the subscription.
      * @return consumers - list of consumer address which are able to use this subscription.
      */
-    function getSubscription(
-        uint64 subId
-    ) external view returns (uint96 balance, uint64 reqCount, address owner, address[] memory consumers);
+    function getSubscription(uint64 subId) external view returns (address owner, address[] memory consumers);
 
     /**
      * @notice Request subscription owner transfer.

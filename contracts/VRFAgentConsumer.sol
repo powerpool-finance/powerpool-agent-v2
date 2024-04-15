@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import {VRFCoordinatorV2Interface} from "./interfaces/VRFCoordinatorV2Interface.sol";
+import "./interfaces/VRFAgentCoordinatorInterface.sol";
 
 /**
  * @title VRFAgentConsumer
@@ -12,7 +12,7 @@ contract VRFAgentConsumer is Ownable {
     uint32 public constant VRF_NUM_RANDOM_WORDS = 10;
 
     address public agent;
-    VRFCoordinatorV2Interface public vrfCoordinator;
+    address public vrfCoordinator;
     bytes32 public vrfKeyHash;
     uint64 public vrfSubscriptionId;
     uint16 public vrfRequestConfirmations;
@@ -24,7 +24,7 @@ contract VRFAgentConsumer is Ownable {
     uint256 public pendingRequestId;
     uint256[] public lastVrfNumbers;
 
-    event SetVrfConfig(VRFCoordinatorV2Interface vrfCoordinator, bytes32 vrfKeyHash, uint64 vrfSubscriptionId, uint16 vrfRequestConfirmations, uint32 vrfCallbackGasLimit, uint256 vrfRequestPeriod);
+    event SetVrfConfig(address vrfCoordinator, bytes32 vrfKeyHash, uint64 vrfSubscriptionId, uint16 vrfRequestConfirmations, uint32 vrfCallbackGasLimit, uint256 vrfRequestPeriod);
     event ClearPendingRequestId();
 
     constructor(address agent_) {
@@ -33,7 +33,7 @@ contract VRFAgentConsumer is Ownable {
 
     /*** AGENT OWNER METHODS ***/
     function setVrfConfig(
-        VRFCoordinatorV2Interface vrfCoordinator_,
+        address vrfCoordinator_,
         bytes32 vrfKeyHash_,
         uint64 vrfSubscriptionId_,
         uint16 vrfRequestConfirmations_,
@@ -77,13 +77,7 @@ contract VRFAgentConsumer is Ownable {
 
     function getPseudoRandom() external returns (uint256) {
         if (msg.sender == agent && isReadyForRequest()) {
-            pendingRequestId = vrfCoordinator.requestRandomWords(
-                vrfKeyHash,
-                vrfSubscriptionId,
-                vrfRequestConfirmations,
-                vrfCallbackGasLimit,
-                VRF_NUM_RANDOM_WORDS
-            );
+            pendingRequestId = _requestRandomWords();
         }
         uint256 blockHashNumber = getLastBlockHash();
         if (lastVrfNumbers.length > 0) {
@@ -91,6 +85,16 @@ contract VRFAgentConsumer is Ownable {
             blockHashNumber = uint256(keccak256(abi.encodePacked(blockHashNumber, lastVrfNumbers[vrfNumberIndex])));
         }
         return blockHashNumber;
+    }
+
+    function _requestRandomWords() internal virtual returns (uint256) {
+        return VRFAgentCoordinatorInterface(vrfCoordinator).requestRandomWords(
+            agent,
+            vrfSubscriptionId,
+            vrfRequestConfirmations,
+            vrfCallbackGasLimit,
+            VRF_NUM_RANDOM_WORDS
+        );
     }
 
     function getLastVrfNumbers() external view returns (uint256[] memory) {

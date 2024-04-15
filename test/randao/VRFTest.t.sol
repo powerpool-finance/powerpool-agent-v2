@@ -64,7 +64,7 @@ contract VRFTest is AbstractTestHelper {
     consumer = new VRFAgentConsumer(address(agent));
     counter = new OnlySelectorTestJob(address(agent));
     agent.initializeRandao(owner, 3_000 ether, 3 days, rdConfig);
-    consumer.setVrfConfig(coordinator, bytes32(0), uint64(0), uint16(0), uint32(0), 0);
+    consumer.setVrfConfig(address(coordinator), bytes32(0), uint64(0), uint16(0), uint32(0), 0);
 
     vm.prank(owner);
     agent.setVRFConsumer(address(consumer));
@@ -146,7 +146,7 @@ contract VRFTest is AbstractTestHelper {
     assertEq(coordinator.lastRequestId(), 2);
     assertEq(consumer.pendingRequestId(), coordinator.lastRequestId());
 
-    consumer.setVrfConfig(coordinator, bytes32(0), uint64(0), uint16(0), uint32(0), 30);
+    consumer.setVrfConfig(address(coordinator), bytes32(0), uint64(0), uint16(0), uint32(0), 30);
 
     vm.roll(25);
     uint256 fulfillTimestamp = block.timestamp + 15;

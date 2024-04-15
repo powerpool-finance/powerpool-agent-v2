@@ -4,13 +4,13 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "../../contracts/VRFAgentConsumer.sol";
 
-contract MockVRFCoordinator is VRFCoordinatorV2Interface {
+contract MockVRFCoordinator is VRFAgentCoordinatorInterface {
   address public requestedByContract;
   uint256 public requestedNumWords;
   uint256 public lastRequestId;
 
   function requestRandomWords(
-    bytes32 /*keyHash*/,
+    address /*agent*/,
     uint64 /*subId*/,
     uint16 /*minimumRequestConfirmations*/,
     uint32 /*callbackGasLimit*/,
@@ -30,7 +30,7 @@ contract MockVRFCoordinator is VRFCoordinatorV2Interface {
     VRFAgentConsumer(requestedByContract).rawFulfillRandomWords(lastRequestId, words);
   }
 
-  function getRequestConfig() external view returns (uint16, uint32, bytes32[] memory) {
+  function getRequestConfig() external view returns (uint16, uint32, address[] memory) {
 
   }
 
@@ -40,7 +40,7 @@ contract MockVRFCoordinator is VRFCoordinatorV2Interface {
 
   function getSubscription(
     uint64 subId
-  ) external view returns (uint96 balance, uint64 reqCount, address owner, address[] memory consumers) {
+  ) external view returns (address owner, address[] memory consumers) {
 
   }
 

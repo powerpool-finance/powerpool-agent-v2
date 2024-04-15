@@ -2,35 +2,41 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import {VRFCoordinatorV2Interface} from "./interfaces/VRFCoordinatorV2Interface.sol";
+import "./interfaces/VRFAgentCoordinatorInterface.sol";
 
 /**
  * @title VRFAgentConsumer
  * @author PowerPool
  */
 contract VRFAgentCoordinatorClient is Ownable {
-    VRFCoordinatorV2Interface public immutable vrfCoordinator;
+    VRFAgentCoordinatorInterface public immutable vrfCoordinator;
     uint64 public immutable subscriptionId;
+    address public immutable agent;
 
     mapping(address => bool) public clientConsumers;
 
     event AddClientConsumer(address consumer);
 
-    constructor(VRFCoordinatorV2Interface _vrfCoordinator, uint64 _subscriptionId) {
+    error InvalidConsumer(uint64 subId, address consumer);
+
+    constructor(VRFAgentCoordinatorInterface _vrfCoordinator, uint64 _subscriptionId, address _agent) {
         vrfCoordinator = _vrfCoordinator;
         subscriptionId = _subscriptionId;
+        agent = _agent;
     }
 
     /*** AGENT OWNER METHODS ***/
     function requestRandomWords(
-        bytes32 keyHash,
+        bytes32 /* keyHash */,
         uint64 subId,
         uint16 requestConfirmations,
         uint32 callbackGasLimit,
         uint32 numWords
     ) external {
-        require(clientConsumers[msg.sender], "sender should be consumer");
-        vrfCoordinator.requestRandomWords(keyHash, subId, requestConfirmations, callbackGasLimit, numWords);
+        if (!clientConsumers[msg.sender]) {
+            revert InvalidConsumer(subscriptionId, msg.sender);
+        }
+        vrfCoordinator.requestRandomWords(agent, subId, requestConfirmations, callbackGasLimit, numWords);
     }
 
     function syncConsumers(address _consumer) external onlyOwner {

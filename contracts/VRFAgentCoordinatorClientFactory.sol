@@ -15,10 +15,11 @@ contract VRFAgentCoordinatorClientFactory is Ownable {
     /*** AGENT OWNER METHODS ***/
     function createCoordinatorClient(
         address owner,
-        VRFCoordinatorV2Interface coordinator,
-        uint64 subscriptionId
+        VRFAgentCoordinatorInterface coordinator,
+        uint64 subscriptionId,
+        address agent
     ) external onlyOwner returns (VRFAgentCoordinatorClient client) {
-        client = new VRFAgentCoordinatorClient(coordinator, subscriptionId);
+        client = new VRFAgentCoordinatorClient(coordinator, subscriptionId, agent);
         client.transferOwnership(owner);
     }
 }
