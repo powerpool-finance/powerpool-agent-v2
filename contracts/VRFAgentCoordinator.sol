@@ -8,11 +8,13 @@ import {IERC677Receiver} from "./interfaces/IERC677Receiver.sol";
 import {VRF} from "./VRF.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./VRFAgentConsumer.sol";
+import "./VRFAgentCoordinatorClientFactory.sol";
 import "./utils/ChainSpecificUtil.sol";
 
 contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677Receiver {
   // solhint-disable-next-line chainlink-solidity/prefix-immutable-variables-with-i
   IERC20 public immutable CVP;
+  VRFAgentCoordinatorClientFactory public coordinatorFactory;
   using SafeERC20 for IERC20;
 
   // We need to maintain a list of consuming addresses.
@@ -103,13 +105,13 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677
   event ProvingKeyDeregistered(bytes32 keyHash, address indexed oracle);
   event RandomWordsRequested(
     bytes32 indexed keyHash,
-    uint256 requestId,
+    uint256 indexed requestId,
     uint256 preSeed,
     uint64 indexed subId,
     uint16 minimumRequestConfirmations,
     uint32 callbackGasLimit,
     uint32 numWords,
-    address indexed sender
+    address sender
   );
   event RandomWordsFulfilled(uint256 indexed requestId, uint256 outputSeed, uint96 payment, bool success);
 
@@ -150,8 +152,9 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677
     FeeConfig feeConfig
   );
 
-  constructor(IERC20 cvp) Ownable() {
-    CVP = cvp;
+  constructor(IERC20 _cvp, VRFAgentCoordinatorClientFactory _coordinatorFactory) Ownable() {
+    CVP = _cvp;
+    coordinatorFactory = _coordinatorFactory;
   }
 
   /**
@@ -660,10 +663,13 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677
   function createSubscription() external override nonReentrant returns (uint64) {
     s_currentSubId++;
     uint64 currentSubId = s_currentSubId;
+
+    VRFAgentCoordinatorClient client = coordinatorFactory.createCoordinatorClient(msg.sender, this, currentSubId);
+
     address[] memory consumers = new address[](0);
     s_subscriptions[currentSubId] = Subscription({balance: 0, reqCount: 0});
     s_subscriptionConfigs[currentSubId] = SubscriptionConfig({
-      owner: msg.sender,
+      owner: address(client),
       requestedOwner: address(0),
       consumers: consumers
     });
@@ -785,19 +791,27 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFCoordinatorV2Interface, IERC677
   function pendingRequestExists(uint64 subId) public view override returns (bool) {
     SubscriptionConfig memory subConfig = s_subscriptionConfigs[subId];
     for (uint256 i = 0; i < subConfig.consumers.length; i++) {
-      for (uint256 j = 0; j < s_provingKeyHashes.length; j++) {
-        (uint256 reqId, ) = _computeRequestId(
-          s_provingKeyHashes[j],
-          subConfig.consumers[i],
-          subId,
-          s_consumers[subConfig.consumers[i]][subId]
-        );
-        if (s_requestCommitments[reqId] != 0) {
-          return true;
-        }
+      uint256 reqId = lastPendingRequestId(subId, subConfig.consumers[i]);
+      if (s_requestCommitments[reqId] != 0) {
+        return true;
       }
     }
     return false;
+  }
+
+  /**
+   * @inheritdoc VRFCoordinatorV2Interface
+   * @dev Looping is bounded to MAX_CONSUMERS*(number of keyhashes).
+   * @dev Used to disable subscription canceling while outstanding request are present.
+   */
+  function lastPendingRequestId(uint64 subId, address consumer) public view override returns (uint256) {
+    for (uint256 i = 0; i < s_provingKeyHashes.length; i++) {
+      (uint256 reqId, ) = _computeRequestId(s_provingKeyHashes[i], consumer, subId, s_consumers[consumer][subId]);
+      if (s_requestCommitments[reqId] != 0) {
+        return s_requestCommitments[reqId];
+      }
+    }
+    return 0;
   }
 
   modifier onlySubOwner(uint64 subId) {
