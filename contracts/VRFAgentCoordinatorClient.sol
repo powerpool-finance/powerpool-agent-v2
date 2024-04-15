@@ -19,7 +19,7 @@ contract VRFAgentCoordinatorClient is Ownable {
 
     error InvalidConsumer(uint64 subId, address consumer);
 
-    constructor(VRFAgentCoordinatorInterface _vrfCoordinator, uint64 _subscriptionId, address _agent) {
+    constructor(VRFAgentCoordinatorInterface _vrfCoordinator, uint64 _subscriptionId, address _agent) Ownable() {
         vrfCoordinator = _vrfCoordinator;
         subscriptionId = _subscriptionId;
         agent = _agent;
