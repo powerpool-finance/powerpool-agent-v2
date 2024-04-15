@@ -414,12 +414,13 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     address agent = s_agentProvidersList[s_agentProvidersList.length - 1];
     VRFAgentCoordinatorClient client = coordinatorFactory.createCoordinatorClient(msg.sender, this, subId, agent);
 
-    address[] memory consumers = new address[](0);
+    address[] memory consumers = new address[](1);
     s_subscriptionConfigs[subId] = SubscriptionConfig({
       owner: address(client),
       requestedOwner: address(0),
       consumers: consumers
     });
+    _addConsumer(subId, address(client));
 
     emit SubscriptionCreated(subId, msg.sender, address(client));
     return subId;
@@ -486,6 +487,10 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
    * @inheritdoc VRFAgentCoordinatorInterface
    */
   function addConsumer(uint64 subId, address consumer) external override onlySubOwner(subId) nonReentrant {
+    _addConsumer(subId, consumer);
+  }
+
+  function _addConsumer(uint64 subId, address consumer) internal {
     // Already maxed, cannot add any more consumers.
     if (s_subscriptionConfigs[subId].consumers.length == MAX_CONSUMERS) {
       revert TooManyConsumers();
@@ -500,7 +505,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     s_subscriptionConfigs[subId].consumers.push(consumer);
 
     emit SubscriptionConsumerAdded(subId, consumer);
-  }
+}
 
   /**
    * @inheritdoc VRFAgentCoordinatorInterface
