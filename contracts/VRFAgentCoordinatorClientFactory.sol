@@ -5,14 +5,14 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./VRFAgentCoordinatorClient.sol";
 
 /**
- * @title VRFAgentConsumer
+ * @title VRFAgentCoordinatorClientFactory
  * @author PowerPool
  */
 contract VRFAgentCoordinatorClientFactory is Ownable {
     constructor() {
     }
 
-    /*** AGENT OWNER METHODS ***/
+    /*** OWNER METHODS ***/
     function createCoordinatorClient(
         address owner,
         VRFAgentCoordinatorInterface coordinator,

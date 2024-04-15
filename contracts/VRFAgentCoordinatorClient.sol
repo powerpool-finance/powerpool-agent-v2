@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/VRFAgentCoordinatorInterface.sol";
 
 /**
- * @title VRFAgentConsumer
+ * @title VRFAgentCoordinatorClient
  * @author PowerPool
  */
 contract VRFAgentCoordinatorClient is Ownable {
@@ -39,7 +39,7 @@ contract VRFAgentCoordinatorClient is Ownable {
         vrfCoordinator.requestRandomWords(agent, subId, requestConfirmations, callbackGasLimit, numWords);
     }
 
-    function syncConsumers(address _consumer) external onlyOwner {
+    function addConsumer(address _consumer) external onlyOwner {
         clientConsumers[_consumer] = true;
         emit AddClientConsumer(_consumer);
     }
