@@ -7,13 +7,11 @@ import "./interfaces/VRFAgentCoordinatorInterface.sol";
 import {VRF} from "./VRF.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./VRFAgentConsumer.sol";
-import "./VRFAgentCoordinatorClientFactory.sol";
 import "./utils/ChainSpecificUtil.sol";
 
 contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   // solhint-disable-next-line chainlink-solidity/prefix-immutable-variables-with-i
   IERC20 public immutable CVP;
-  VRFAgentCoordinatorClientFactory public coordinatorFactory;
   using SafeERC20 for IERC20;
 
   // We need to maintain a list of consuming addresses.
@@ -48,7 +46,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   // get all the current subscriptions via getSubscription.
   uint64 private s_currentSubId;
 
-  event SubscriptionCreated(uint64 indexed subId, address owner, address coordinatorClient);
+  event SubscriptionCreated(uint64 indexed subId, address owner);
   event SubscriptionConsumerAdded(uint64 indexed subId, address consumer);
   event SubscriptionConsumerRemoved(uint64 indexed subId, address consumer);
   event SubscriptionCanceled(uint64 indexed subId);
@@ -113,9 +111,8 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     uint32 maxGasLimit
   );
 
-  constructor(IERC20 _cvp, VRFAgentCoordinatorClientFactory _coordinatorFactory) Ownable() {
+  constructor(IERC20 _cvp) Ownable() {
     CVP = _cvp;
-    coordinatorFactory = _coordinatorFactory;
   }
 
   /**
@@ -331,9 +328,9 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     if (!s_agentProviders[msg.sender]) {
       revert InvalidProvider();
     }
-    if (publicKeyToAddress(proof.pk) != tx.origin) {
-      revert InvalidTxOrigin();
-    }
+//    if (publicKeyToAddress(proof.pk) != tx.origin) {
+//      revert InvalidTxOrigin();
+//    }
     requestId = uint256(keccak256(abi.encode(msg.sender, proof.seed)));
     bytes32 commitment = s_requestCommitments[requestId];
     if (commitment == 0) {
@@ -412,17 +409,15 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     uint64 subId = s_currentSubId;
 
     address agent = s_agentProvidersList[s_agentProvidersList.length - 1];
-    VRFAgentCoordinatorClient client = coordinatorFactory.createCoordinatorClient(msg.sender, this, subId, agent);
 
     address[] memory consumers = new address[](1);
     s_subscriptionConfigs[subId] = SubscriptionConfig({
-      owner: address(client),
+      owner: msg.sender,
       requestedOwner: address(0),
       consumers: consumers
     });
-    _addConsumer(subId, address(client));
 
-    emit SubscriptionCreated(subId, msg.sender, address(client));
+    emit SubscriptionCreated(subId, msg.sender);
     return subId;
   }
 
@@ -571,6 +566,10 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
       }
     }
     return 0;
+  }
+
+  function fulfillResolver(uint64 subscriptionId) external view returns (bool, bytes memory) {
+    return (pendingRequestExists(subscriptionId), bytes(""));
   }
 
   modifier onlySubOwner(uint64 subId) {
