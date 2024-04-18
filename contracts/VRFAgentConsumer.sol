@@ -3,12 +3,13 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/VRFAgentCoordinatorInterface.sol";
+import "./interfaces/VRFAgentConsumerInterface.sol";
 
 /**
  * @title VRFAgentConsumer
  * @author PowerPool
  */
-contract VRFAgentConsumer is Ownable {
+contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     uint32 public constant VRF_NUM_RANDOM_WORDS = 10;
 
     address public agent;
@@ -24,8 +25,12 @@ contract VRFAgentConsumer is Ownable {
     uint256 public pendingRequestId;
     uint256[] public lastVrfNumbers;
 
+    string public offChainIpfsHash;
+    bool public useLocalIpfsHash;
+
     event SetVrfConfig(address vrfCoordinator, bytes32 vrfKeyHash, uint64 vrfSubscriptionId, uint16 vrfRequestConfirmations, uint32 vrfCallbackGasLimit, uint256 vrfRequestPeriod);
     event ClearPendingRequestId();
+    event SetOffChainIpfsHash(string ipfsHash);
 
     constructor(address agent_) {
         agent = agent_;
@@ -52,6 +57,12 @@ contract VRFAgentConsumer is Ownable {
     function clearPendingRequestId() external onlyOwner {
         pendingRequestId = 0;
         emit ClearPendingRequestId();
+    }
+
+    function setOffChainIpfsHash(string calldata _ipfsHash) external onlyOwner {
+        offChainIpfsHash = _ipfsHash;
+        useLocalIpfsHash = bytes(offChainIpfsHash).length > 0;
+        emit SetOffChainIpfsHash(_ipfsHash);
     }
 
     function rawFulfillRandomWords(
@@ -99,5 +110,17 @@ contract VRFAgentConsumer is Ownable {
 
     function getLastVrfNumbers() external view returns (uint256[] memory) {
         return lastVrfNumbers;
+    }
+
+    function fulfillResolver(uint64 _subId) external view returns (bool, bytes memory) {
+        if (useLocalIpfsHash) {
+            return (VRFAgentCoordinatorInterface(vrfCoordinator).pendingRequestExists(_subId), bytes(offChainIpfsHash));
+        } else {
+            return VRFAgentCoordinatorInterface(vrfCoordinator).fulfillResolver(_subId);
+        }
+    }
+
+    function lastPendingRequestId(uint64 _subId) external view returns (uint256) {
+        return VRFAgentCoordinatorInterface(vrfCoordinator).lastPendingRequestId(_subId, address(this));
     }
 }

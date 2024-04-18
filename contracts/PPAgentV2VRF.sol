@@ -3,9 +3,7 @@ pragma solidity ^0.8.19;
 
 import { PPAgentV2Randao } from "./PPAgentV2Randao.sol";
 
-interface VRFAgentConsumerInterface {
-  function getPseudoRandom() external returns (uint256);
-}
+import "./interfaces/VRFAgentConsumerInterface.sol";
 
 /**
  * @title PPAgentV2VRF

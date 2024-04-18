@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./interfaces/VRFAgentCoordinatorInterface.sol";
+import "./interfaces/VRFAgentConsumerFactoryInterface.sol";
 import {VRF} from "./VRF.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./VRFAgentConsumer.sol";
@@ -84,6 +85,12 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   mapping(address => bool) /* keyHash */ /* oracle */ private s_agentProviders;
   address[] private s_agentProvidersList;
   mapping(uint256 => bytes32) /* requestID */ /* commitment */ private s_requestCommitments;
+
+  VRFAgentConsumerFactoryInterface consumerFactory;
+  string private offChainIpfsHash;
+
+  event SetConsumerFactory(address consumerFactory);
+  event SetOffChainIpfsHash(string offChainIpfsHash);
   event AgentProviderRegistered(address indexed agent);
   event AgentProviderDeregistered(address indexed agent);
   event RandomWordsRequested(
@@ -111,8 +118,27 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     uint32 maxGasLimit
   );
 
-  constructor(IERC20 _cvp) Ownable() {
+  constructor(IERC20 _cvp, VRFAgentConsumerFactoryInterface _consumerFactory) Ownable() {
     CVP = _cvp;
+    consumerFactory = _consumerFactory;
+  }
+
+  /**
+   * @notice Set consumer factory
+   * @param _consumerFactory address of the consumer factory
+   */
+  function setConsumerFactory(VRFAgentConsumerFactoryInterface _consumerFactory) external onlyOwner {
+    consumerFactory = _consumerFactory;
+    emit SetConsumerFactory(address(_consumerFactory));
+  }
+
+  /**
+   * @notice Set OffChain IPFS hash
+   * @param _offChainIpfsHash IPFS hash of OffChain script
+   */
+  function setOffChainIpfsHash(string calldata _offChainIpfsHash) external onlyOwner {
+    offChainIpfsHash = _offChainIpfsHash;
+    emit SetOffChainIpfsHash(_offChainIpfsHash);
   }
 
   /**
@@ -192,7 +218,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     if (s_subscriptionConfigs[subId].owner == address(0)) {
       revert InvalidSubscription();
     }
-    _cancelSubscriptionHelper(subId, s_subscriptionConfigs[subId].owner);
+    _cancelSubscriptionHelper(subId);
   }
 
   /**
@@ -360,8 +386,8 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
    * @param rc request commitment pre-image, committed to at request time
    */
   function fulfillRandomWords(Proof memory proof, RequestCommitment memory rc) external nonReentrant {
-    uint256 startGas = gasleft();
     (bytes32 keyHash, uint256 requestId, uint256 randomness) = _getRandomnessFromProof(proof, rc);
+    //TODO: compare keyHash and proof.pk?
 
     uint256[] memory randomWords = new uint256[](rc.numWords);
     for (uint256 i = 0; i < rc.numWords; i++) {
@@ -404,11 +430,9 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   /**
    * @inheritdoc VRFAgentCoordinatorInterface
    */
-  function createSubscription() external override nonReentrant returns (uint64) {
+  function createSubscription() public override returns (uint64) {
     s_currentSubId++;
     uint64 subId = s_currentSubId;
-
-    address agent = s_agentProvidersList[s_agentProvidersList.length - 1];
 
     address[] memory consumers = new address[](1);
     s_subscriptionConfigs[subId] = SubscriptionConfig({
@@ -419,6 +443,16 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
 
     emit SubscriptionCreated(subId, msg.sender);
     return subId;
+  }
+
+  function createSubscriptionWithConsumer() external override nonReentrant returns (uint64, address) {
+    uint64 subId = createSubscription();
+    address latestAgent = s_agentProvidersList[s_agentProvidersList.length - 1];
+    VRFAgentConsumerInterface agentConsumer = consumerFactory.createConsumer(latestAgent, msg.sender);
+
+    _addConsumer(subId, address(agentConsumer));
+
+    return (subId, address(agentConsumer));
   }
 
   /**
@@ -505,14 +539,14 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   /**
    * @inheritdoc VRFAgentCoordinatorInterface
    */
-  function cancelSubscription(uint64 subId, address to) external override onlySubOwner(subId) nonReentrant {
+  function cancelSubscription(uint64 subId) external override onlySubOwner(subId) nonReentrant {
     if (pendingRequestExists(subId)) {
       revert PendingRequestExists();
     }
-    _cancelSubscriptionHelper(subId, to);
+    _cancelSubscriptionHelper(subId);
   }
 
-  function _cancelSubscriptionHelper(uint64 subId, address to) private nonReentrant {
+  function _cancelSubscriptionHelper(uint64 subId) private nonReentrant {
     SubscriptionConfig memory subConfig = s_subscriptionConfigs[subId];
     // Note bounded by MAX_CONSUMERS;
     // If no consumers, does nothing.
@@ -542,6 +576,14 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     return keccak256(abi.encode(publicKey));
   }
 
+  function getOffChainIpfsHash() external view returns (string memory) {
+    return offChainIpfsHash;
+  }
+
+  function getConsumerFactory() external view returns (address) {
+    return address(consumerFactory);
+  }
+
   /**
    * @inheritdoc VRFAgentCoordinatorInterface
    * @dev Looping is bounded to MAX_CONSUMERS*(number of keyhashes).
@@ -568,9 +610,10 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     return 0;
   }
 
-  function fulfillResolver(uint64 subscriptionId) external view returns (bool, bytes memory) {
-    return (pendingRequestExists(subscriptionId), bytes(""));
+  function fulfillResolver(uint64 _subId) external view returns (bool, bytes memory) {
+    return (pendingRequestExists(_subId), bytes(offChainIpfsHash));
   }
+
 
   modifier onlySubOwner(uint64 subId) {
     address owner = s_subscriptionConfigs[subId].owner;

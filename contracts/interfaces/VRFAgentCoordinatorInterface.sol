@@ -46,6 +46,8 @@ interface VRFAgentCoordinatorInterface {
      */
     function createSubscription() external returns (uint64 subId);
 
+    function createSubscriptionWithConsumer() external returns (uint64 subId, address consumer);
+
     /**
      * @notice Get a VRF subscription.
      * @param subId - ID of the subscription
@@ -86,9 +88,8 @@ interface VRFAgentCoordinatorInterface {
     /**
      * @notice Cancel a subscription
      * @param subId - ID of the subscription
-     * @param to - Where to send the remaining CVP to
      */
-    function cancelSubscription(uint64 subId, address to) external;
+    function cancelSubscription(uint64 subId) external;
 
     /*
      * @notice Check to see if there exists a request commitment consumers
@@ -98,4 +99,11 @@ interface VRFAgentCoordinatorInterface {
      * otherwise.
      */
     function pendingRequestExists(uint64 subId) external view returns (bool);
+
+    function fulfillResolver(uint64 _subId) external view returns (bool, bytes calldata);
+
+    /*
+     * @notice Get last pending request id
+     */
+    function lastPendingRequestId(uint64 subId, address consumer) external view returns (uint256);
 }

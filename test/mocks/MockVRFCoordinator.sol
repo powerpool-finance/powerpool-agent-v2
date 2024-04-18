@@ -73,11 +73,23 @@ contract MockVRFCoordinator is VRFAgentCoordinatorInterface {
 
   }
 
-  function cancelSubscription(uint64 subId, address to) external {
+  function cancelSubscription(uint64 subId) external {
 
   }
 
   function pendingRequestExists(uint64 subId) external view returns (bool) {
+
+  }
+
+  function lastPendingRequestId(uint64 subId, address consumer) public view returns (uint256) {
+
+  }
+
+  function createSubscriptionWithConsumer() external override returns (uint64, address) {
+
+  }
+
+  function fulfillResolver(uint64 _subId) external view returns (bool, bytes memory) {
 
   }
 }
