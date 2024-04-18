@@ -27,6 +27,9 @@ contract PPAgentV2VRF is PPAgentV2Randao {
   }
 
   function _getPseudoRandom() internal override returns (uint256) {
+    if (address(VRFConsumer) == address(0)) {
+      return super._getPseudoRandom();
+    }
     return VRFAgentConsumerInterface(VRFConsumer).getPseudoRandom();
   }
 }
