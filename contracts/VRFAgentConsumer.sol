@@ -130,14 +130,16 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
         uint256 requestAtBlock,
         uint256 requestId,
         uint64 requestNonce,
-        uint32 numbRandomWords
+        uint32 numbRandomWords,
+        uint32 callbackGasLimit
     ) {
         return (
             subscriptionId,
             lastVrfRequestAtBlock,
             requestId,
             VRFAgentCoordinatorInterface(vrfCoordinator).getCurrentNonce(address(this), vrfSubscriptionId) + 1,
-            VRF_NUM_RANDOM_WORDS
+            VRF_NUM_RANDOM_WORDS,
+            vrfCallbackGasLimit
         );
     }
 }
