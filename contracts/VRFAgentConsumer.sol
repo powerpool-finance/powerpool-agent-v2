@@ -121,7 +121,21 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
         }
     }
 
-    function lastPendingRequestId(uint64 _subId) external view returns (uint256) {
-        return VRFAgentCoordinatorInterface(vrfCoordinator).lastPendingRequestId(_subId, address(this));
+    function lastPendingRequestId() external view returns (uint256) {
+        return VRFAgentCoordinatorInterface(vrfCoordinator).lastPendingRequestId(address(this), vrfSubscriptionId);
+    }
+
+    function getRequestData() external view returns (
+        uint256 subscriptionId,
+        uint256 requestAtBlock,
+        uint256 requestId,
+        uint64 requestNonce
+    ) {
+        return (
+            subscriptionId,
+            lastVrfRequestAtBlock,
+            requestId,
+            VRFAgentCoordinatorInterface(vrfCoordinator).getCurrentNonce(address(this), vrfSubscriptionId) + 1
+        );
     }
 }

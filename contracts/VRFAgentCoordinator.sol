@@ -592,7 +592,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   function pendingRequestExists(uint64 subId) public view override returns (bool) {
     SubscriptionConfig memory subConfig = s_subscriptionConfigs[subId];
     for (uint256 i = 0; i < subConfig.consumers.length; i++) {
-      uint256 reqId = lastPendingRequestId(subId, subConfig.consumers[i]);
+      uint256 reqId = lastPendingRequestId(subConfig.consumers[i], subId);
       if (s_requestCommitments[reqId] != 0) {
         return true;
       }
@@ -600,7 +600,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     return false;
   }
 
-  function lastPendingRequestId(uint64 subId, address consumer) public view returns (uint256) {
+  function lastPendingRequestId(address consumer, uint64 subId) public view returns (uint256) {
     for (uint256 i = 0; i < s_agentProvidersList.length; i++) {
       (uint256 reqId, ) = _computeRequestId(s_agentProvidersList[i], consumer, subId, s_consumers[consumer][subId]);
       if (s_requestCommitments[reqId] != 0) {
@@ -608,6 +608,10 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
       }
     }
     return 0;
+  }
+
+  function getCurrentNonce(address consumer, uint64 subId) public view returns (uint64) {
+    return s_consumers[consumer][subId];
   }
 
   function fulfillResolver(uint64 _subId) external view returns (bool, bytes memory) {

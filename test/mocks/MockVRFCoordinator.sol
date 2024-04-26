@@ -81,7 +81,7 @@ contract MockVRFCoordinator is VRFAgentCoordinatorInterface {
 
   }
 
-  function lastPendingRequestId(uint64 subId, address consumer) public view returns (uint256) {
+  function lastPendingRequestId(address consumer, uint64 subId) public view returns (uint256) {
 
   }
 
@@ -90,6 +90,10 @@ contract MockVRFCoordinator is VRFAgentCoordinatorInterface {
   }
 
   function fulfillResolver(uint64 _subId) external view returns (bool, bytes memory) {
+
+  }
+
+  function getCurrentNonce(address consumer, uint64 subId) public view returns (uint64) {
 
   }
 }

@@ -105,5 +105,10 @@ interface VRFAgentCoordinatorInterface {
     /*
      * @notice Get last pending request id
      */
-    function lastPendingRequestId(uint64 subId, address consumer) external view returns (uint256);
+    function lastPendingRequestId(address consumer, uint64 subId) external view returns (uint256);
+
+    /*
+     * @notice Get current nonce
+     */
+    function getCurrentNonce(address consumer, uint64 subId) external view returns (uint64);
 }
