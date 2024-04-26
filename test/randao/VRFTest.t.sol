@@ -131,7 +131,7 @@ contract VRFTest is AbstractTestHelper {
     assertNotEq(consumer.getPseudoRandom(), uint256(blockhash(block.number - 1)));
     assertEq(consumer.pendingRequestId(), 0);
     assertEq(coordinator.lastRequestId(), 1);
-    assertEq(consumer.lastVrfRequestAt(), 0);
+    assertEq(consumer.lastVrfRequestAtBlock(), 0);
 
     vm.prank(bob, bob);
     vm.roll(20);
@@ -146,17 +146,17 @@ contract VRFTest is AbstractTestHelper {
     assertEq(coordinator.lastRequestId(), 2);
     assertEq(consumer.pendingRequestId(), coordinator.lastRequestId());
 
-    consumer.setVrfConfig(address(coordinator), bytes32(0), uint64(0), uint16(0), uint32(0), 30);
+    consumer.setVrfConfig(address(coordinator), bytes32(0), uint64(0), uint16(0), uint32(0), 5);
 
+    uint256 fulfillBlockNumber = block.number + 5;
     vm.roll(25);
-    uint256 fulfillTimestamp = block.timestamp + 15;
-    vm.warp(fulfillTimestamp);
+    vm.warp(block.timestamp + 31);
     coordinator.callFulfill();
     assertEq(consumer.pendingRequestId(), 0);
-    assertEq(consumer.lastVrfRequestAt(), fulfillTimestamp);
+    assertEq(consumer.lastVrfRequestAtBlock(), fulfillBlockNumber);
 
     vm.roll(30);
-    vm.warp(fulfillTimestamp + 15);
+    vm.warp(block.timestamp + 31);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(consumer.isReadyForRequest(), false);
     vm.prank(keeperWorker, keeperWorker);
@@ -173,7 +173,7 @@ contract VRFTest is AbstractTestHelper {
     assertEq(coordinator.lastRequestId(), 2);
 
     vm.roll(40);
-    vm.warp(fulfillTimestamp + 31);
+    vm.warp(block.timestamp + 31);
     assertEq(agent.jobNextKeeperId(jobKey), 1);
     assertEq(consumer.isReadyForRequest(), true);
     vm.prank(alice, alice);

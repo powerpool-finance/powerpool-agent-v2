@@ -19,8 +19,8 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     uint16 public vrfRequestConfirmations;
     uint32 public vrfCallbackGasLimit;
 
-    uint256 public vrfRequestPeriod;
-    uint256 public lastVrfRequestAt;
+    uint256 public vrfRequestPeriodBlocks;
+    uint256 public lastVrfRequestAtBlock;
 
     uint256 public pendingRequestId;
     uint256[] public lastVrfNumbers;
@@ -28,7 +28,7 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     string public offChainIpfsHash;
     bool public useLocalIpfsHash;
 
-    event SetVrfConfig(address vrfCoordinator, bytes32 vrfKeyHash, uint64 vrfSubscriptionId, uint16 vrfRequestConfirmations, uint32 vrfCallbackGasLimit, uint256 vrfRequestPeriod);
+    event SetVrfConfig(address vrfCoordinator, bytes32 vrfKeyHash, uint64 vrfSubscriptionId, uint16 vrfRequestConfirmations, uint32 vrfCallbackGasLimit, uint256 vrfRequestPeriodBlocks);
     event ClearPendingRequestId();
     event SetOffChainIpfsHash(string ipfsHash);
 
@@ -43,15 +43,15 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
         uint64 vrfSubscriptionId_,
         uint16 vrfRequestConfirmations_,
         uint32 vrfCallbackGasLimit_,
-        uint256 vrfRequestPeriod_
+        uint256 vrfRequestPeriodBlocks_
     ) external onlyOwner {
         vrfCoordinator = vrfCoordinator_;
         vrfKeyHash = vrfKeyHash_;
         vrfSubscriptionId = vrfSubscriptionId_;
         vrfRequestConfirmations = vrfRequestConfirmations_;
         vrfCallbackGasLimit = vrfCallbackGasLimit_;
-        vrfRequestPeriod = vrfRequestPeriod_;
-        emit SetVrfConfig(vrfCoordinator_, vrfKeyHash_, vrfSubscriptionId_, vrfRequestConfirmations_, vrfCallbackGasLimit_, vrfRequestPeriod_);
+        vrfRequestPeriodBlocks = vrfRequestPeriodBlocks_;
+        emit SetVrfConfig(vrfCoordinator_, vrfKeyHash_, vrfSubscriptionId_, vrfRequestConfirmations_, vrfCallbackGasLimit_, vrfRequestPeriodBlocks_);
     }
 
     function clearPendingRequestId() external onlyOwner {
@@ -73,13 +73,14 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
         require(_requestId == pendingRequestId, "request not found");
         lastVrfNumbers = _randomWords;
         pendingRequestId = 0;
-        if (vrfRequestPeriod != 0) {
-            lastVrfRequestAt = block.timestamp;
+        if (vrfRequestPeriodBlocks != 0) {
+            lastVrfRequestAtBlock = block.number;
         }
     }
 
     function isReadyForRequest() public view returns (bool) {
-        return pendingRequestId == 0 && (vrfRequestPeriod == 0 || lastVrfRequestAt + vrfRequestPeriod < block.timestamp);
+        return pendingRequestId == 0
+            && (vrfRequestPeriodBlocks == 0 || lastVrfRequestAtBlock + vrfRequestPeriodBlocks < block.number);
     }
 
     function getLastBlockHash() public virtual view returns (uint256) {
@@ -112,11 +113,11 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
         return lastVrfNumbers;
     }
 
-    function fulfillResolver(uint64 _subId) external view returns (bool, bytes memory) {
+    function fulfillResolver() external view returns (bool, bytes memory) {
         if (useLocalIpfsHash) {
-            return (VRFAgentCoordinatorInterface(vrfCoordinator).pendingRequestExists(_subId), bytes(offChainIpfsHash));
+            return (VRFAgentCoordinatorInterface(vrfCoordinator).pendingRequestExists(vrfSubscriptionId), bytes(offChainIpfsHash));
         } else {
-            return VRFAgentCoordinatorInterface(vrfCoordinator).fulfillResolver(_subId);
+            return VRFAgentCoordinatorInterface(vrfCoordinator).fulfillResolver(vrfSubscriptionId);
         }
     }
 
