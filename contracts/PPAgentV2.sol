@@ -678,7 +678,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       revert MissingJobAddress();
     }
 
-    if (params_.calldataSource > 2) {
+    if (params_.calldataSource > 3) {
       revert InvalidCalldataSource();
     }
 
