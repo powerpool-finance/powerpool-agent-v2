@@ -139,7 +139,7 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
             vrfSubscriptionId,
             lastVrfRequestAtBlock,
             pendingRequestId,
-            VRFAgentCoordinatorInterface(vrfCoordinator).getCurrentNonce(address(this), vrfSubscriptionId) + 1,
+            VRFAgentCoordinatorInterface(vrfCoordinator).getCurrentNonce(address(this), vrfSubscriptionId),
             VRF_NUM_RANDOM_WORDS,
             vrfCallbackGasLimit
         );
