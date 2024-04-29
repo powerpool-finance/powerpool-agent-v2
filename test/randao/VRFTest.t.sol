@@ -45,7 +45,7 @@ contract VRFTest is AbstractTestHelper {
       accrueReward: true
     });
     cvp = new MockCVP();
-    IPPAgentV2RandaoViewer.RandaoConfig memory rdConfig = IPPAgentV2RandaoViewer.RandaoConfig({
+      IPPAgentV2RandaoViewer.RandaoConfig memory rdConfig = IPPAgentV2RandaoViewer.RandaoConfig({
       slashingEpochBlocks: 10,
       period1: 15,
       period2: 30,
@@ -91,30 +91,30 @@ contract VRFTest is AbstractTestHelper {
 
   function _setupJob(address job_, bytes4 selector_, bool assertSelector_) internal {
     PPAgentV2.Resolver memory resolver = IPPAgentV2Viewer.Resolver({
-      resolverAddress: address(0),
-      resolverCalldata: bytes("")
+    resolverAddress: address(0),
+    resolverCalldata: bytes("")
     });
     IPPAgentV2JobOwner.RegisterJobParams memory params = IPPAgentV2JobOwner.RegisterJobParams({
-      jobAddress: job_,
-      jobSelector: selector_,
-      maxBaseFeeGwei: 100,
-      rewardPct: 35,
-      fixedReward: 10,
-      useJobOwnerCredits: false,
-      assertResolverSelector: assertSelector_,
-      jobMinCvp: 0,
+    jobAddress: job_,
+    jobSelector: selector_,
+    maxBaseFeeGwei: 100,
+    rewardPct: 35,
+    fixedReward: 10,
+    useJobOwnerCredits: false,
+    assertResolverSelector: assertSelector_,
+    jobMinCvp: 0,
 
-      // For interval jobs
-      calldataSource: CALLDATA_SOURCE_SELECTOR,
-      intervalSeconds: 15
+    // For interval jobs
+    calldataSource: CALLDATA_SOURCE_SELECTOR,
+    intervalSeconds: 15
     });
     vm.prank(alice);
     vm.deal(alice, 1 ether);
     vm.roll(10);
     (jobKey,jobId) = agent.registerJob{ value: 1 ether }({
-      params_: params,
-      resolver_: resolver,
-      preDefinedCalldata_: new bytes(0)
+    params_: params,
+    resolver_: resolver,
+    preDefinedCalldata_: new bytes(0)
     });
   }
 
@@ -131,7 +131,7 @@ contract VRFTest is AbstractTestHelper {
     assertNotEq(consumer.getPseudoRandom(), uint256(blockhash(block.number - 1)));
     assertEq(consumer.pendingRequestId(), 0);
     assertEq(coordinator.lastRequestId(), 1);
-    assertEq(consumer.lastVrfRequestAtBlock(), 0);
+    assertEq(consumer.lastVrfFulfillAt(), 0);
 
     vm.prank(bob, bob);
     vm.roll(20);
@@ -146,17 +146,17 @@ contract VRFTest is AbstractTestHelper {
     assertEq(coordinator.lastRequestId(), 2);
     assertEq(consumer.pendingRequestId(), coordinator.lastRequestId());
 
-    consumer.setVrfConfig(address(coordinator), bytes32(0), uint64(0), uint16(0), uint32(0), 5);
+    consumer.setVrfConfig(address(coordinator), bytes32(0), uint64(0), uint16(0), uint32(0), 30);
 
-    uint256 fulfillBlockNumber = block.number + 5;
     vm.roll(25);
-    vm.warp(block.timestamp + 31);
+    uint256 fulfillTimestamp = block.timestamp + 15;
+    vm.warp(fulfillTimestamp);
     coordinator.callFulfill();
     assertEq(consumer.pendingRequestId(), 0);
-    assertEq(consumer.lastVrfRequestAtBlock(), fulfillBlockNumber);
+    assertEq(consumer.lastVrfFulfillAt(), fulfillTimestamp);
 
     vm.roll(30);
-    vm.warp(block.timestamp + 31);
+    vm.warp(fulfillTimestamp + 15);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(consumer.isReadyForRequest(), false);
     vm.prank(keeperWorker, keeperWorker);
@@ -173,7 +173,7 @@ contract VRFTest is AbstractTestHelper {
     assertEq(coordinator.lastRequestId(), 2);
 
     vm.roll(40);
-    vm.warp(block.timestamp + 31);
+    vm.warp(fulfillTimestamp + 31);
     assertEq(agent.jobNextKeeperId(jobKey), 1);
     assertEq(consumer.isReadyForRequest(), true);
     vm.prank(alice, alice);
