@@ -12,7 +12,6 @@ import "./utils/ChainSpecificUtil.sol";
 
 contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   // solhint-disable-next-line chainlink-solidity/prefix-immutable-variables-with-i
-  IERC20 public immutable CVP;
   using SafeERC20 for IERC20;
 
   // We need to maintain a list of consuming addresses.
@@ -22,7 +21,6 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   error TooManyConsumers();
   error InvalidConsumer(uint64 subId, address consumer);
   error InvalidSubscription();
-  error OnlyCallableFromCvp();
   error InvalidCalldata();
   error MustBeSubOwner(address owner);
   error PendingRequestExists();
@@ -66,7 +64,6 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   error NumWordsTooBig(uint32 have, uint32 want);
   error AgentProviderAlreadyRegistered();
   error NoSuchProvingKey(bytes32 keyHash);
-  error InvalidCvpWeiPrice(int256 cvpWei);
   error InsufficientGasForConsumer(uint256 have, uint256 want);
   error InvalidProvider();
   error InvalidTxOrigin();
@@ -111,15 +108,13 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     // Reentrancy protection.
     bool reentrancyLock;
   }
-  int256 private s_fallbackWeiPerUnitCvp;
   Config private s_config;
   event ConfigSet(
     uint16 minimumRequestConfirmations,
     uint32 maxGasLimit
   );
 
-  constructor(IERC20 _cvp, VRFAgentConsumerFactoryInterface _consumerFactory) Ownable() {
-    CVP = _cvp;
+  constructor(VRFAgentConsumerFactoryInterface _consumerFactory) Ownable() {
     consumerFactory = _consumerFactory;
   }
 
@@ -210,7 +205,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   }
 
   /**
-   * @notice Owner cancel subscription, sends remaining cvp directly to the subscription owner.
+   * @notice Owner cancel subscription
    * @param subId subscription id
    * @dev notably can be called even if there are pending requests, outstanding ones may fail onchain
    */
@@ -614,7 +609,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     return s_consumers[consumer][subId];
   }
 
-  function fulfillResolver(uint64 _subId) external view returns (bool, bytes memory) {
+  function fulfillRandomnessResolver(uint64 _subId) external view returns (bool, bytes memory) {
     return (pendingRequestExists(_subId), bytes(offChainIpfsHash));
   }
 

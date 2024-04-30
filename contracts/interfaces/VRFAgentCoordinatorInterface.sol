@@ -100,7 +100,7 @@ interface VRFAgentCoordinatorInterface {
      */
     function pendingRequestExists(uint64 subId) external view returns (bool);
 
-    function fulfillResolver(uint64 _subId) external view returns (bool, bytes calldata);
+    function fulfillRandomnessResolver(uint64 _subId) external view returns (bool, bytes calldata);
 
     /*
      * @notice Get last pending request id

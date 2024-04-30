@@ -115,11 +115,11 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
         return lastVrfNumbers;
     }
 
-    function fulfillResolver() external view returns (bool, bytes memory) {
+    function fulfillRandomnessResolver() external view returns (bool, bytes memory) {
         if (useLocalIpfsHash) {
             return (VRFAgentCoordinatorInterface(vrfCoordinator).pendingRequestExists(vrfSubscriptionId), bytes(offChainIpfsHash));
         } else {
-            return VRFAgentCoordinatorInterface(vrfCoordinator).fulfillResolver(vrfSubscriptionId);
+            return VRFAgentCoordinatorInterface(vrfCoordinator).fulfillRandomnessResolver(vrfSubscriptionId);
         }
     }
 

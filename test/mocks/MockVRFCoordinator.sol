@@ -89,7 +89,7 @@ contract MockVRFCoordinator is VRFAgentCoordinatorInterface {
 
   }
 
-  function fulfillResolver(uint64 _subId) external view returns (bool, bytes memory) {
+  function fulfillRandomnessResolver(uint64 _subId) external view returns (bool, bytes memory) {
 
   }
 
