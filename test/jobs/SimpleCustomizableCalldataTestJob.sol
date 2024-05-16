@@ -46,6 +46,13 @@ contract SimpleCustomizableCalldataTestJob is ICounter, AgentJob {
     ));
   }
 
+  function myIncorrectResolver() external pure returns (bool, bytes memory) {
+    return (true, abi.encodeWithSelector(
+      SimpleCustomizableCalldataTestJob.increment.selector,
+      6, true, uint24(42), "d-value"
+    ));
+  }
+
   function increment(uint256 a, bool b, uint24 c, string calldata d) external onlyAgent {
     if (revertExecutionWithEmptyReturndata) {
       revert();

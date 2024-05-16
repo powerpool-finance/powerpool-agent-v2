@@ -36,14 +36,8 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   error KeeperIsAlreadyActive();
   error KeeperIsAlreadyInactive();
   error CantAssignKeeper();
-  error UnexpectedCodeBlock();
-  error InitiateSlashingUnexpectedError();
-  error UnableToDecodeResolverResponse();
   error NonIntervalJob();
-  error JobCheckResolverReturnedFalse();
   error TooEarlyToReinitiateSlashing();
-  error JobCheckCanBeExecuted(bytes returndata);
-  error JobCheckCanNotBeExecuted(bytes errReason);
   error TooEarlyToRelease(bytes32 jobKey, uint256 period2End);
   error TooEarlyForActivationFinalization(uint256 now, uint256 availableAt);
   error KeeperShouldBeDisabledForStakeLTMinKeeperCvp();
@@ -361,14 +355,13 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
 
     // 0. Keeper has sufficient stake
     {
-      Keeper memory keeper = keepers[slasherKeeperId_];
-      if (keeper.worker != msg.sender) {
+      if (keepers[slasherKeeperId_].worker != msg.sender) {
         revert KeeperWorkerNotAuthorized();
       }
-      if (keeper.cvpStake < minKeeperCvp) {
+      if (keepers[slasherKeeperId_].cvpStake < minKeeperCvp) {
         revert InsufficientKeeperStake();
       }
-      if (!keeper.isActive) {
+      if (!keepers[slasherKeeperId_].isActive) {
         revert InactiveKeeper();
       }
     }
@@ -419,55 +412,22 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
 
     // 7. check if could be executed
     if (useResolver_) {
-      IPPAgentV2Viewer.Resolver memory resolver = resolvers[jobKey];
-      (bool ok, bytes memory result) = address(this).call(
-        abi.encodeWithSelector(PPAgentV2Randao.checkCouldBeExecuted.selector, resolver.resolverAddress, resolver.resolverCalldata)
-      );
-      if (ok) {
-        revert UnexpectedCodeBlock();
-      }
-
-      bytes4 selector = bytes4(result);
-
-      if (selector == PPAgentV2Randao.JobCheckCanNotBeExecuted.selector) {
-        assembly ("memory-safe") {
-          revert(add(32, result), mload(result))
-        }
-      } else if (selector != PPAgentV2Randao.JobCheckCanBeExecuted.selector) {
-        revert InitiateSlashingUnexpectedError();
-      } // else resolver was executed
-
-      uint256 len;
-      assembly ("memory-safe") {
-        len := mload(result)
-      }
-      // We need at least canExecute flag. 32 * 4 + 4.
-      if (len < 132) {
-        revert UnableToDecodeResolverResponse();
-      }
-
-      uint256 canExecute;
-      assembly ("memory-safe") {
-        canExecute := mload(add(result, 100))
-      }
-      if (canExecute != 1) {
-        revert JobCheckResolverReturnedFalse();
-      }
+      _checkJobResolverCall(jobKey);
     } else {
       _assertJobCalldataMatchesSelector(binJob, jobCalldata_);
       (bool ok, bytes memory result) = address(this).call(
-        abi.encodeWithSelector(PPAgentV2Randao.checkCouldBeExecuted.selector, jobAddress_, jobCalldata_)
+        abi.encodeWithSelector(PPAgentV2.checkCouldBeExecuted.selector, jobAddress_, jobCalldata_)
       );
       if (ok) {
         revert UnexpectedCodeBlock();
       }
       bytes4 selector = bytes4(result);
-      if (selector == PPAgentV2Randao.JobCheckCanNotBeExecuted.selector) {
+      if (selector == PPAgentV2.JobCheckCanNotBeExecuted.selector) {
         assembly ("memory-safe") {
             revert(add(32, result), mload(result))
         }
-      } else if (selector != PPAgentV2Randao.JobCheckCanBeExecuted.selector) {
-        revert InitiateSlashingUnexpectedError();
+      } else if (selector != PPAgentV2.JobCheckCanBeExecuted.selector) {
+        revert JobCheckUnexpectedError();
       } // else can be executed
     }
 
@@ -490,10 +450,11 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     bytes32 jobKey_,
     bool isActive_,
     bool useJobOwnerCredits_,
-    bool assertResolverSelector_
+    bool assertResolverSelector_,
+    bool callResolverBeforeExecute_
   ) public override {
     uint256 rawJobBefore = getJobRaw(jobKey_);
-    super.setJobConfig(jobKey_, isActive_, useJobOwnerCredits_, assertResolverSelector_);
+    super.setJobConfig(jobKey_, isActive_, useJobOwnerCredits_, assertResolverSelector_, callResolverBeforeExecute_);
     bool wasActiveBefore = ConfigFlags.check(rawJobBefore, CFG_ACTIVE);
     uint256 assignedKeeperId = jobNextKeeperId[jobKey_];
 
@@ -587,24 +548,21 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
 
     // if slashing
     if (assignedKeeperId != actualKeeperId_) {
-      RandaoConfig memory _rdConfig = rdConfig;
-
-      Keeper memory _assignedKeeper = keepers[assignedKeeperId];
       uint256 keeperStake = _getKeeperLimitedStake({
-        keeperCurrentStake_: _assignedKeeper.cvpStake,
-        agentMaxCvpStakeCvp_: uint256(_rdConfig.agentMaxCvpStake),
+        keeperCurrentStake_: keepers[assignedKeeperId].cvpStake,
+        agentMaxCvpStakeCvp_: uint256(rdConfig.agentMaxCvpStake),
         job_: binJob_
       });
-      uint256 dynamicSlashAmount = keeperStake * uint256(_rdConfig.slashingFeeBps) / 10_000;
-      uint256 fixedSlashAmount = uint256(_rdConfig.slashingFeeFixedCVP) * 1 ether;
+      uint256 dynamicSlashAmount = keeperStake * uint256(rdConfig.slashingFeeBps) / 10_000;
+      uint256 fixedSlashAmount = uint256(rdConfig.slashingFeeFixedCVP) * 1 ether;
       // NOTICE: totalSlashAmount can't be >= uint88
       uint88 totalSlashAmount = uint88(fixedSlashAmount + dynamicSlashAmount);
       uint256 slashAmountMissing = 0;
-      if (totalSlashAmount > _assignedKeeper.cvpStake) {
+      if (totalSlashAmount > keepers[assignedKeeperId].cvpStake) {
         unchecked {
-          slashAmountMissing = totalSlashAmount - _assignedKeeper.cvpStake;
+          slashAmountMissing = totalSlashAmount - keepers[assignedKeeperId].cvpStake;
         }
-        totalSlashAmount = _assignedKeeper.cvpStake;
+        totalSlashAmount = keepers[assignedKeeperId].cvpStake;
       }
       keepers[assignedKeeperId].cvpStake -= totalSlashAmount;
       keepers[actualKeeperId_].cvpStake += totalSlashAmount;
@@ -845,17 +803,15 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
       return (gasUsed_ + _getJobGasOverhead()) * baseFee_;
     }
 
-    RandaoConfig memory _rdConfig = rdConfig;
-
     uint256 stake = _getKeeperLimitedStake({
       keeperCurrentStake_: keepers[keeperId_].cvpStake,
-      agentMaxCvpStakeCvp_: uint256(_rdConfig.agentMaxCvpStake),
+      agentMaxCvpStakeCvp_: uint256(rdConfig.agentMaxCvpStake),
       job_: job_
     });
 
-    return _rdConfig.jobFixedRewardFinney * 0.001 ether +
-      (baseFee_ * (gasUsed_ + _getJobGasOverhead()) * _rdConfig.jobCompensationMultiplierBps / 10_000) +
-      (stake / _rdConfig.stakeDivisor);
+    return rdConfig.jobFixedRewardFinney * 0.001 ether +
+      (baseFee_ * (gasUsed_ + _getJobGasOverhead()) * rdConfig.jobCompensationMultiplierBps / 10_000) +
+      (stake / rdConfig.stakeDivisor);
   }
 
   /*
@@ -936,21 +892,5 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
     uint256 totalActiveKeepers = activeKeepers.length();
     uint256 index = ((blockNumber_ / rdConfig.slashingEpochBlocks + uint256(jobKey_)) % totalActiveKeepers);
     return activeKeepers.at(index);
-  }
-
-  // The function that always reverts
-  function checkCouldBeExecuted(address jobAddress_, bytes memory jobCalldata_) external {
-    // 1. LOCK
-    minKeeperCvp = minKeeperCvp | EXECUTION_IS_LOCKED_FLAG;
-    // 2. EXECUTE
-    (bool ok, bytes memory result) = jobAddress_.call(jobCalldata_);
-    // 3. UNLOCK
-    minKeeperCvp = minKeeperCvp ^ EXECUTION_IS_LOCKED_FLAG;
-
-    if (ok) {
-      revert JobCheckCanBeExecuted(result);
-    } else {
-      revert JobCheckCanNotBeExecuted(result);
-    }
   }
 }

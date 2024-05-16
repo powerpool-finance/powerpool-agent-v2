@@ -124,7 +124,7 @@ contract VRFTest is AbstractTestHelper {
     _setupJob(address(job), OnlySelectorTestJob.increment.selector, true);
     assertEq(coordinator.lastRequestId(), 1);
     assertEq(consumer.pendingRequestId(), coordinator.lastRequestId());
-    assertEq(agent.jobNextKeeperId(jobKey), 3);
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
 
     assertEq(consumer.getPseudoRandom(), uint256(blockhash(block.number - 1)));
     coordinator.callFulfill();
@@ -133,14 +133,14 @@ contract VRFTest is AbstractTestHelper {
     assertEq(coordinator.lastRequestId(), 1);
     assertEq(consumer.lastVrfRequestAt(), 0);
 
-    vm.prank(bob, bob);
+    vm.prank(keeperWorker, keeperWorker);
     vm.roll(20);
     _callExecuteHelper(
       agent,
       address(job),
       jobId,
       defaultFlags,
-      kid3,
+      kid2,
       new bytes(0)
     );
     assertEq(coordinator.lastRequestId(), 2);
@@ -174,15 +174,15 @@ contract VRFTest is AbstractTestHelper {
 
     vm.roll(40);
     vm.warp(fulfillTimestamp + 31);
-    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.jobNextKeeperId(jobKey), 3);
     assertEq(consumer.isReadyForRequest(), true);
-    vm.prank(keeperWorker, keeperWorker);
+    vm.prank(bob, bob);
     _callExecuteHelper(
       agent,
       address(job),
       jobId,
       defaultFlags,
-      kid2,
+      kid3,
       new bytes(0)
     );
 
