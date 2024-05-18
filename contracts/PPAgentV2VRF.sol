@@ -11,7 +11,7 @@ import "./interfaces/VRFAgentConsumerInterface.sol";
  */
 contract PPAgentV2VRF is PPAgentV2Randao {
 
-  address VRFConsumer;
+  address public VRFConsumer;
 
   event SetVRFConsumer(address consumer);
 
