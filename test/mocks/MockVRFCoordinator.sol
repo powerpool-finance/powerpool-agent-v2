@@ -38,7 +38,7 @@ contract MockVRFCoordinator is VRFAgentCoordinatorInterface {
   function callFulfill() external {
     uint256[] memory words = new uint256[](requestedNumWords);
     for (uint256 i = 0; i < words.length; i++) {
-      words[i] = i + lastRequestId + 12;
+      words[i] = i + lastRequestId + 54;
     }
     VRFAgentConsumer(requestedByContract).rawFulfillRandomWords(lastRequestId, words);
   }
