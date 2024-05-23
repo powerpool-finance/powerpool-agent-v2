@@ -794,7 +794,7 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
       job_: job_
     });
 
-    return rdConfig.jobFixedRewardFinney * 0.001 ether +
+    return rdConfig.jobFixedRewardFinney * FIXED_PAYMENT_MULTIPLIER +
       (baseFee_ * (gasUsed_ + _getJobGasOverhead()) * rdConfig.jobCompensationMultiplierBps / 10_000) +
       (stake / rdConfig.stakeDivisor);
   }

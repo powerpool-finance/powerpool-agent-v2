@@ -56,7 +56,7 @@ contract VRFTest is AbstractTestHelper {
       jobCompensationMultiplierBps: 10_000,
       stakeDivisor: 50_000_000,
       keeperActivationTimeoutHours: 8,
-      jobFixedRewardFinney: 3
+      jobFixedRewardFinney: 30
     });
 
     coordinator = new MockVRFCoordinator();

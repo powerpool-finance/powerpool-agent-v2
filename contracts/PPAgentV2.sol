@@ -75,7 +75,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   string public constant VERSION = "2.5.0";
   uint256 internal constant MAX_PENDING_WITHDRAWAL_TIMEOUT_SECONDS = 30 days;
   uint256 internal constant MAX_FEE_PPM = 5e4;
-  uint256 internal constant FIXED_PAYMENT_MULTIPLIER = 1e15;
+  uint256 internal constant FIXED_PAYMENT_MULTIPLIER = 1e14;
   uint256 internal constant EXECUTION_IS_LOCKED_FLAG = 0x1000000000000000000000000000000000000000000000000000000000000000;
 
   enum CalldataSourceType {
