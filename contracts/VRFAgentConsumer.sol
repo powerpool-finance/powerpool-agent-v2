@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/VRFAgentCoordinatorInterface.sol";
 import "./interfaces/VRFAgentConsumerInterface.sol";
+import "./interfaces/VRFChainlinkCoordinatorInterface.sol";
 
 /**
  * @title VRFAgentConsumer
@@ -102,13 +103,23 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     }
 
     function _requestRandomWords() internal virtual returns (uint256) {
-        return VRFAgentCoordinatorInterface(vrfCoordinator).requestRandomWords(
-            agent,
-            vrfSubscriptionId,
-            vrfRequestConfirmations,
-            vrfCallbackGasLimit,
-            VRF_NUM_RANDOM_WORDS
-        );
+        if (vrfKeyHash == bytes32(0)) {
+            return VRFAgentCoordinatorInterface(vrfCoordinator).requestRandomWords(
+                agent,
+                vrfSubscriptionId,
+                vrfRequestConfirmations,
+                vrfCallbackGasLimit,
+                VRF_NUM_RANDOM_WORDS
+            );
+        } else {
+            return VRFChainlinkCoordinatorInterface(vrfCoordinator).requestRandomWords(
+                vrfKeyHash,
+                vrfSubscriptionId,
+                vrfRequestConfirmations,
+                vrfCallbackGasLimit,
+                VRF_NUM_RANDOM_WORDS
+            );
+        }
     }
 
     function getLastVrfNumbers() external view returns (uint256[] memory) {
