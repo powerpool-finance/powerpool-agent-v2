@@ -16,8 +16,8 @@ contract VRFAgentManager is Ownable {
   PPAgentV2VRF public agent;
 
   bytes32 public vrfJobKey;
-  uint256 public vrfJobMinBalance;
-  uint256 public vrfJobMaxDeposit;
+  uint256 public vrfJobMinBalance; // balance for 3 executes
+  uint256 public vrfJobMaxDeposit; // balance for 9 executes
 
   bytes32 public autoDepositJobKey;
   uint256 public autoDepositJobMinBalance;
@@ -111,23 +111,40 @@ contract VRFAgentManager is Ownable {
     return feeTotal;
   }
 
-  function getBalanceRequiredToDeposit() public view returns(uint256 requiredBalance, bool isVrfIn, bool isAutoDepositIn) {
-    isVrfIn = isVrfJobDepositRequired();
-    if (isVrfIn) {
-      requiredBalance += vrfJobMaxDeposit - vrfJobMinBalance;
+  function getAvailableBalance() public view returns(uint256) {
+    return getAgentFeeTotal() + address(this).balance;
+  }
+
+  function getBalanceRequiredToDeposit() public view returns(uint256 amountToDeposit, uint256 vrfAmountIn, uint256 autoDepositAmountIn) {
+    uint256 availableBalance = getAvailableBalance();
+    if (isVrfJobDepositRequired()) {
+      vrfAmountIn = vrfJobMaxDeposit - vrfJobMinBalance;
+      amountToDeposit += vrfAmountIn;
     }
-    isAutoDepositIn = isAutoDepositJobDepositRequired();
-    if (isAutoDepositIn) {
-      requiredBalance += autoDepositJobMaxDeposit - autoDepositJobMinBalance;
+    if (isAutoDepositJobDepositRequired()) {
+      autoDepositAmountIn = autoDepositJobMaxDeposit - autoDepositJobMinBalance;
+      amountToDeposit += autoDepositAmountIn;
     }
-    return (requiredBalance, isVrfIn, isAutoDepositIn);
+    if (amountToDeposit < availableBalance) {
+      uint256 balanceRatio = availableBalance * 1 ether / amountToDeposit;
+      vrfAmountIn = vrfAmountIn * balanceRatio / 1 ether;
+      autoDepositAmountIn = autoDepositAmountIn * balanceRatio / 1 ether;
+    }
+    if (vrfAmountIn < vrfJobMinBalance / 3) {
+      vrfAmountIn = 0;
+    }
+    if (autoDepositAmountIn < autoDepositJobMinBalance / 3) {
+      autoDepositAmountIn = 0;
+    }
+    amountToDeposit = vrfAmountIn + autoDepositAmountIn;
+    return (amountToDeposit, vrfAmountIn, autoDepositAmountIn);
   }
 
   function vrfAutoDepositJobsResolver() external view returns(bool, bytes memory) {
-    (uint256 requiredBalance, ,) = getBalanceRequiredToDeposit();
+    (uint256 amountToDeposit, ,) = getBalanceRequiredToDeposit();
 
     return (
-      requiredBalance > 0 && getAgentFeeTotal() + address(this).balance >= requiredBalance,
+      amountToDeposit > 0,
       abi.encodeWithSelector(VRFAgentManager.processVrfJobDeposit.selector)
     );
   }
