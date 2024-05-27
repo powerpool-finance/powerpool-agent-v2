@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "../../contracts/VRFAgentConsumer.sol";
+import "../../lib/forge-std/src/console.sol";
 
 contract MockVRFCoordinator is VRFAgentCoordinatorInterface {
   address public requestedByContract;

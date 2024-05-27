@@ -23,6 +23,7 @@ contract VRFAgentManager is Ownable {
   uint256 public autoDepositJobMinBalance;
   uint256 public autoDepositJobMaxDeposit;
 
+  error MinMoreThanMax();
   error JobDepositNotRequired();
   error DepositBalanceIsNotEnough();
 
@@ -36,21 +37,26 @@ contract VRFAgentManager is Ownable {
     vrfJobKey = vrfJobKey_;
     vrfJobMinBalance = minBalance_;
     vrfJobMaxDeposit = maxDeposit_;
+    if (minBalance_ > maxDeposit_) {
+      revert MinMoreThanMax();
+    }
   }
 
   function setAutoDepositConfig(bytes32 autoDepositJobKey_, uint256 minBalance_, uint256 maxDeposit_) external onlyOwner {
     autoDepositJobKey = autoDepositJobKey_;
     autoDepositJobMinBalance = minBalance_;
     autoDepositJobMaxDeposit = maxDeposit_;
+    if (minBalance_ > maxDeposit_) {
+      revert MinMoreThanMax();
+    }
   }
 
   function registerAutoDepositJob(
     uint16 maxBaseFeeGwei_,
     uint16 rewardPct_,
     uint32 fixedReward_,
-    uint256 jobMinCvp_,
-    uint24 intervalSeconds_
-  ) external onlyOwner {
+    uint256 jobMinCvp_
+  ) external payable onlyOwner returns(bytes32 jobKey, uint256 jobId) {
     IPPAgentV2JobOwner.RegisterJobParams memory params = IPPAgentV2JobOwner.RegisterJobParams({
       jobAddress: address(this),
       jobSelector: VRFAgentManager.processVrfJobDeposit.selector,
@@ -61,14 +67,14 @@ contract VRFAgentManager is Ownable {
       fixedReward: fixedReward_,
       jobMinCvp: jobMinCvp_,
       calldataSource: 2,
-      intervalSeconds: intervalSeconds_
+      intervalSeconds: 0
     });
-    (bytes32 jobKey, ) = agent.registerJob(params, getAutoDepositResolverStruct(), new bytes(0));
+    (jobKey, jobId) = agent.registerJob{value: msg.value}(params, getAutoDepositResolverStruct(), new bytes(0));
     autoDepositJobKey = jobKey;
   }
 
   function processVrfJobDeposit() external {
-    (uint256 requiredBalance, bool isVrfIn, bool isAutoDepositIn) = getBalanceRequiredToDeposit();
+    (uint256 requiredBalance, uint256 vrfAmountIn, uint256 autoDepositAmountIn) = getBalanceRequiredToDeposit();
     if (requiredBalance == 0) {
       revert JobDepositNotRequired();
     }
@@ -80,11 +86,11 @@ contract VRFAgentManager is Ownable {
       revert DepositBalanceIsNotEnough();
     }
 
-    if (isVrfIn) {
-      agent.depositJobCredits{value: vrfJobMaxDeposit - vrfJobMinBalance}(vrfJobKey);
+    if (vrfAmountIn != 0) {
+      agent.depositJobCredits{value: vrfAmountIn}(vrfJobKey);
     }
-    if (isVrfIn) {
-      agent.depositJobCredits{value: autoDepositJobMaxDeposit - autoDepositJobMinBalance}(autoDepositJobKey);
+    if (autoDepositAmountIn != 0) {
+      agent.depositJobCredits{value: autoDepositAmountIn}(autoDepositJobKey);
     }
   }
 
@@ -125,7 +131,7 @@ contract VRFAgentManager is Ownable {
       autoDepositAmountIn = autoDepositJobMaxDeposit - autoDepositJobMinBalance;
       amountToDeposit += autoDepositAmountIn;
     }
-    if (amountToDeposit < availableBalance) {
+    if (amountToDeposit > availableBalance) {
       uint256 balanceRatio = availableBalance * 1 ether / amountToDeposit;
       vrfAmountIn = vrfAmountIn * balanceRatio / 1 ether;
       autoDepositAmountIn = autoDepositAmountIn * balanceRatio / 1 ether;
@@ -211,5 +217,9 @@ contract VRFAgentManager is Ownable {
 
   function withdrawExcessBalance(address payable to_, uint256 amount_) external onlyOwner {
     to_.transfer(amount_);
+  }
+
+  function migrateToNewManager(address newVrfAgentManager_) external onlyOwner {
+    agent.transferOwnership(newVrfAgentManager_);
   }
 }

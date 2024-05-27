@@ -7,6 +7,7 @@ import "../mocks/MockCVP.sol";
 import "../jobs/OnlySelectorTestJob.sol";
 import "../mocks/MockCompensationTracker.sol";
 import "../mocks/MockVRFCoordinator.sol";
+import "../../contracts/VRFAgentManager.sol";
 
 contract VRFTest is AbstractTestHelper {
   ICounter internal job;
@@ -51,7 +52,7 @@ contract VRFTest is AbstractTestHelper {
       period2: 30,
       slashingFeeFixedCVP: 50,
       slashingFeeBps: 300,
-      jobMinCreditsFinney: 100,
+      jobMinCreditsFinney: 1,
       agentMaxCvpStake: 50_000,
       jobCompensationMultiplierBps: 10_000,
       stakeDivisor: 50_000_000,
@@ -66,6 +67,8 @@ contract VRFTest is AbstractTestHelper {
     agent.initializeRandao(owner, 3_000 ether, 3 days, rdConfig);
     consumer.setVrfConfig(address(coordinator), bytes32(0), uint64(0), uint16(0), uint32(0), 0);
 
+    vm.prank(owner);
+    agent.setAgentParams(1, 10, 1e4);
     vm.prank(owner);
     agent.setVRFConsumer(address(consumer));
 
@@ -111,7 +114,7 @@ contract VRFTest is AbstractTestHelper {
     vm.prank(alice);
     vm.deal(alice, 1 ether);
     vm.roll(10);
-    (jobKey,jobId) = agent.registerJob{ value: 1 ether }({
+    (jobKey, jobId) = agent.registerJob{ value: 1 ether }({
       params_: params,
       resolver_: resolver,
       preDefinedCalldata_: new bytes(0)
@@ -188,5 +191,126 @@ contract VRFTest is AbstractTestHelper {
 
     assertEq(consumer.pendingRequestId(), 3);
     assertEq(coordinator.lastRequestId(), 3);
+  }
+
+  function testAutoDepositJobShouldDoTheThing() public {
+    _setupJob(address(coordinator), coordinator.callFulfill.selector, true);
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
+
+    consumer.setVrfConfig(address(coordinator), bytes32(0), uint64(0), uint16(0), uint32(0), 30);
+    (, , uint256 feeTotal, , ) = agent.getConfig();
+    assertEq(feeTotal, 1e16);
+
+    VRFAgentManager agentManager = new VRFAgentManager(agent);
+    agentManager.setVrfConfig(jobKey, 1.5e16, 1e17);
+    agentManager.setAutoDepositConfig(bytes32(0), 1 ether, 2 ether);
+    vm.prank(owner);
+    agent.transferOwnership(address(agentManager));
+
+    (, , feeTotal, , ) = agent.getConfig();
+    assertEq(feeTotal, 1e16);
+
+    (
+      bytes32 autoDepositJobKey,
+      uint256 autoDepositJobId
+    ) = agentManager.registerAutoDepositJob{value: 1e16}(100, 35, 10, 0);
+
+    assertNotEq(agentManager.autoDepositJobKey(), bytes32(0));
+    assertEq(agentManager.autoDepositJobKey(), autoDepositJobKey);
+
+    vm.prank(keeperWorker, keeperWorker);
+    vm.roll(20);
+    uint256 fulfillTimestamp = block.timestamp;
+    _callExecuteHelper(
+      agent,
+      address(coordinator),
+      jobId,
+      defaultFlags,
+      kid2,
+      new bytes(0)
+    );
+    assertEq(consumer.lastVrfFulfillAt(), fulfillTimestamp);
+
+    (
+      uint256 amountToDeposit,
+      uint256 vrfAmountIn,
+      uint256 autoDepositAmountIn
+    ) = agentManager.getBalanceRequiredToDeposit();
+    assertEq(amountToDeposit, 0);
+    assertEq(vrfAmountIn, 0);
+    assertEq(autoDepositAmountIn, 0);
+
+    (bool isCallAutoDeposit, bytes memory autoDepositCalldata) = agentManager.vrfAutoDepositJobsResolver();
+    assertEq(isCallAutoDeposit, false);
+
+    agentManager.setAutoDepositConfig(autoDepositJobKey, 1e16, 1e17);
+
+    (amountToDeposit, vrfAmountIn, autoDepositAmountIn) = agentManager.getBalanceRequiredToDeposit();
+    assertApproxEqAbs(amountToDeposit, 1.01e16, 1);
+    assertEq(vrfAmountIn, 0);
+    assertApproxEqAbs(autoDepositAmountIn, 1.01e16, 1);
+    (isCallAutoDeposit, autoDepositCalldata) = agentManager.vrfAutoDepositJobsResolver();
+    assertEq(isCallAutoDeposit, true);
+
+    uint256 autoDepositBalanceBefore = agentManager.getAutoDepositJobBalance();
+
+    assertEq(agent.jobNextKeeperId(autoDepositJobKey), 2);
+    vm.prank(keeperWorker, keeperWorker);
+    vm.roll(20);
+    _callExecuteHelper(
+      agent,
+      address(agentManager),
+      autoDepositJobId,
+      defaultFlags,
+      kid2,
+      autoDepositCalldata
+    );
+
+    uint256 autoDepositBalanceAfter = agentManager.getAutoDepositJobBalance();
+    assertGt(autoDepositBalanceAfter, autoDepositBalanceBefore);
+
+    (amountToDeposit, vrfAmountIn, autoDepositAmountIn) = agentManager.getBalanceRequiredToDeposit();
+    assertEq(amountToDeposit, 0);
+    assertEq(vrfAmountIn, 0);
+    assertEq(autoDepositAmountIn, 0);
+
+    (isCallAutoDeposit, autoDepositCalldata) = agentManager.vrfAutoDepositJobsResolver();
+    assertEq(isCallAutoDeposit, false);
+
+    (address jobOwner, , , , ,) = agent.getJob(jobKey);
+    assertEq(jobOwner, alice);
+    vm.startPrank(alice);
+    agent.withdrawJobCredits(jobKey, payable(alice), agentManager.getVrfFullfillJobBalance());
+    vm.stopPrank();
+    assertEq(agentManager.getVrfFullfillJobBalance(), 0);
+
+    agent.depositJobCredits{value: 100 ether}(autoDepositJobKey);
+
+    (amountToDeposit, vrfAmountIn, autoDepositAmountIn) = agentManager.getBalanceRequiredToDeposit();
+    assertApproxEqAbs(amountToDeposit, 8.5e16, 1);
+    assertApproxEqAbs(vrfAmountIn, 8.5e16, 1);
+    assertEq(autoDepositAmountIn, 0);
+
+    agentManager.setVrfConfig(jobKey, 1 ether, 2 ether);
+
+    (amountToDeposit, vrfAmountIn, autoDepositAmountIn) = agentManager.getBalanceRequiredToDeposit();
+    assertApproxEqAbs(amountToDeposit, 1 ether, 1);
+    assertApproxEqAbs(vrfAmountIn, 1 ether, 1);
+    assertEq(autoDepositAmountIn, 0);
+
+    uint256 vrfJobBalanceBefore = agentManager.getVrfFullfillJobBalance();
+    assertEq(agent.jobNextKeeperId(autoDepositJobKey), 2);
+    vm.prank(keeperWorker, keeperWorker);
+    vm.roll(20);
+    _callExecuteHelper(
+      agent,
+      address(agentManager),
+      autoDepositJobId,
+      defaultFlags,
+      kid2,
+      autoDepositCalldata
+    );
+    uint256 vrfJobBalanceAfter = agentManager.getVrfFullfillJobBalance();
+    assertGt(vrfJobBalanceAfter, vrfJobBalanceBefore);
   }
 }
