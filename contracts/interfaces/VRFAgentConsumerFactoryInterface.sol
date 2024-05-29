@@ -5,6 +5,6 @@ import "./VRFAgentConsumerInterface.sol";
 
 interface VRFAgentConsumerFactoryInterface {
 
-    function createConsumer(address agent_, address owner_) external returns (VRFAgentConsumerInterface);
+    function createConsumer(address agent_, address owner_, uint64 subId_) external returns (VRFAgentConsumerInterface);
 
 }

@@ -14,8 +14,10 @@ contract VRFAgentConsumerFactory is VRFAgentConsumerFactoryInterface, Ownable {
 
     }
 
-    function createConsumer(address agent_, address owner_) external onlyOwner returns (VRFAgentConsumerInterface consumer) {
+    function createConsumer(address agent_, address owner_, uint64 subId_) external onlyOwner returns (VRFAgentConsumerInterface consumer) {
+        address coordinator = msg.sender;
         consumer = new VRFAgentConsumer(agent_);
+        consumer.setVrfConfig(coordinator, bytes32(0), subId_, 1, 1500000, 10);
         Ownable(address(consumer)).transferOwnership(owner_);
         return consumer;
     }

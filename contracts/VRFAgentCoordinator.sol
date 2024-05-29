@@ -443,7 +443,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   function createSubscriptionWithConsumer() external override nonReentrant returns (uint64, address) {
     uint64 subId = createSubscription();
     address latestAgent = s_agentProvidersList[s_agentProvidersList.length - 1];
-    VRFAgentConsumerInterface agentConsumer = consumerFactory.createConsumer(latestAgent, msg.sender);
+    VRFAgentConsumerInterface agentConsumer = consumerFactory.createConsumer(latestAgent, msg.sender, subId);
 
     _addConsumer(subId, address(agentConsumer));
 
