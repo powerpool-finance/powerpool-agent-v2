@@ -213,7 +213,7 @@ contract VRFTest is AbstractTestHelper {
     (
       bytes32 autoDepositJobKey,
       uint256 autoDepositJobId
-    ) = agentManager.registerAutoDepositJob{value: 1e16}(100, 35, 10, 0);
+    ) = agentManager.registerAutoDepositJob{value: 1e16}(100, 35, 10, 0, false);
 
     assertNotEq(agentManager.autoDepositJobKey(), bytes32(0));
     assertEq(agentManager.autoDepositJobKey(), autoDepositJobKey);

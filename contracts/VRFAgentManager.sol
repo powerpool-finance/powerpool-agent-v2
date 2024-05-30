@@ -55,7 +55,8 @@ contract VRFAgentManager is Ownable {
     uint16 maxBaseFeeGwei_,
     uint16 rewardPct_,
     uint32 fixedReward_,
-    uint256 jobMinCvp_
+    uint256 jobMinCvp_,
+    bool activateJob
   ) external payable onlyOwner returns(bytes32 jobKey, uint256 jobId) {
     IPPAgentV2JobOwner.RegisterJobParams memory params = IPPAgentV2JobOwner.RegisterJobParams({
       jobAddress: address(this),
@@ -71,6 +72,10 @@ contract VRFAgentManager is Ownable {
     });
     (jobKey, jobId) = agent.registerJob{value: msg.value}(params, getAutoDepositResolverStruct(), new bytes(0));
     autoDepositJobKey = jobKey;
+    if (activateJob) {
+      agent.setJobConfig(autoDepositJobKey, true, false, true, false);
+      _assignKeeperToAutoDepositJob();
+    }
   }
 
   function processVrfJobDeposit() external {
@@ -195,6 +200,16 @@ contract VRFAgentManager is Ownable {
     uint256 feePpm_
   ) external onlyOwner {
     agent.setAgentParams(minKeeperCvp_, timeoutSeconds_, feePpm_);
+  }
+
+  function _assignKeeperToAutoDepositJob() internal {
+    bytes32[] memory assignJobKeys = new bytes32[](1);
+    assignJobKeys[0] = autoDepositJobKey;
+    agent.assignKeeper(assignJobKeys);
+  }
+
+  function assignKeeperToAutoDepositJob() external onlyOwner {
+    _assignKeeperToAutoDepositJob();
   }
 
   function ownerSlash(uint256 keeperId_, address to_, uint256 currentAmount_, uint256 pendingAmount_) external onlyOwner {
