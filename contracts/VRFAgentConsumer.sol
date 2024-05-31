@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/VRFAgentCoordinatorInterface.sol";
 import "./interfaces/VRFAgentConsumerInterface.sol";
 import "./interfaces/VRFChainlinkCoordinatorInterface.sol";
+import "./utils/ChainSpecificUtil.sol";
 
 /**
  * @title VRFAgentConsumer
@@ -86,13 +87,13 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     }
 
     function getLastBlockHash() public virtual view returns (uint256) {
-        return uint256(blockhash(block.number - 1));
+        return uint256(ChainSpecificUtil._getBlockhash(uint64(ChainSpecificUtil._getBlockNumber()) - 1));
     }
 
     function getPseudoRandom() external returns (uint256) {
         if (msg.sender == agent && isReadyForRequest()) {
             pendingRequestId = _requestRandomWords();
-            lastVrfRequestAtBlock = block.number;
+            lastVrfRequestAtBlock = ChainSpecificUtil._getBlockNumber();
         }
         uint256 blockHashNumber = getLastBlockHash();
         if (lastVrfNumbers.length > 0) {
