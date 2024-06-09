@@ -191,6 +191,13 @@ contract VRFTest is AbstractTestHelper {
 
     assertEq(consumer.pendingRequestId(), 3);
     assertEq(coordinator.lastRequestId(), 3);
+
+    uint256 timestampBefore = block.timestamp;
+    assertEq(consumer.isReadyForRequest(), false);
+    vm.roll(296);
+    assertEq(block.number - consumer.lastVrfRequestAtBlock() >= 256, true);
+    assertEq(consumer.isReadyForRequest(), true);
+    assertEq(timestampBefore, block.timestamp);
   }
 
   function testAutoDepositJobShouldDoTheThing() public {

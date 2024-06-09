@@ -82,7 +82,7 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     }
 
     function isReadyForRequest() public view returns (bool) {
-        return pendingRequestId == 0
+        return ((pendingRequestId != 0 && ChainSpecificUtil._getBlockNumber() - lastVrfRequestAtBlock >= 256) || pendingRequestId == 0)
             && (vrfRequestPeriod == 0 || lastVrfFulfillAt + vrfRequestPeriod < block.timestamp);
     }
 
