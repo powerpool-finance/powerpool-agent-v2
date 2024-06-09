@@ -417,19 +417,13 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
           }
         }
         if and(binJob, 0x10) {
-          let hash := keccak256(ptr, cdSize)
-          if iszero(eq(hash, cdataHash)) {
+          if eq(calldataSource, 2) {
+            let hash := keccak256(ptr, cdSize)
+            if iszero(eq(hash, cdataHash)) {
             // revert JobCheckCalldataError()
-            mstore(ptr, 0x428ac18600000000000000000000000000000000000000000000000000000000)
-            revert(ptr, 4)
-          }
-        }
-        if and(binJob, 0x10) {
-          let hash := keccak256(ptr, cdSize)
-          if iszero(eq(hash, cdataHash)) {
-            // revert JobCheckCalldataError()
-            mstore(ptr, 0x428ac18600000000000000000000000000000000000000000000000000000000)
-            revert(ptr, 4)
+              mstore(ptr, 0x428ac18600000000000000000000000000000000000000000000000000000000)
+              revert(ptr, 4)
+            }
           }
         }
         // The remaining gas could not be less than 50_000
