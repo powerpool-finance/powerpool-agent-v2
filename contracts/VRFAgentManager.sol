@@ -202,6 +202,10 @@ contract VRFAgentManager is Ownable {
     agent.setAgentParams(minKeeperCvp_, timeoutSeconds_, feePpm_);
   }
 
+  function setVRFConsumer(address VRFConsumer_) external onlyOwner {
+    agent.setVRFConsumer(VRFConsumer_);
+  }
+
   function _assignKeeperToAutoDepositJob() internal {
     bytes32[] memory assignJobKeys = new bytes32[](1);
     assignJobKeys[0] = autoDepositJobKey;
