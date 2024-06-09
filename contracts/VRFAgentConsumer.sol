@@ -142,6 +142,7 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     function getRequestData() external view returns (
         uint256 subscriptionId,
         uint256 requestAtBlock,
+        bytes32 requestAtBlockHash,
         uint256 requestId,
         uint64 requestNonce,
         uint32 numbRandomWords,
@@ -150,6 +151,7 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
         return (
             vrfSubscriptionId,
             lastVrfRequestAtBlock,
+            ChainSpecificUtil._getBlockhash(uint64(lastVrfRequestAtBlock)),
             pendingRequestId,
             VRFAgentCoordinatorInterface(vrfCoordinator).getCurrentNonce(address(this), vrfSubscriptionId),
             VRF_NUM_RANDOM_WORDS,
