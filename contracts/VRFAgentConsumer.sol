@@ -132,7 +132,7 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     }
 
     function fulfillRandomnessResolver() external view returns (bool, bytes memory) {
-        if (isPendingRequestOverdue()) {
+        if (isPendingRequestOverdue() || (lastVrfFulfillAt != 0 && pendingRequestId == 0)) {
             return (false, bytes(""));
         }
         if (useLocalIpfsHash) {
