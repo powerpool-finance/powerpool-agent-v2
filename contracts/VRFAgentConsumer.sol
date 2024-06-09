@@ -81,8 +81,12 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
         }
     }
 
+    function isPendingRequestOverdue() public view returns (bool) {
+        return pendingRequestId != 0 && ChainSpecificUtil._getBlockNumber() - lastVrfRequestAtBlock >= 256;
+    }
+
     function isReadyForRequest() public view returns (bool) {
-        return ((pendingRequestId != 0 && ChainSpecificUtil._getBlockNumber() - lastVrfRequestAtBlock >= 256) || pendingRequestId == 0)
+        return (isPendingRequestOverdue() || pendingRequestId == 0)
             && (vrfRequestPeriod == 0 || lastVrfFulfillAt + vrfRequestPeriod < block.timestamp);
     }
 
@@ -128,6 +132,9 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     }
 
     function fulfillRandomnessResolver() external view returns (bool, bytes memory) {
+        if (isPendingRequestOverdue()) {
+            return (false, bytes(""));
+        }
         if (useLocalIpfsHash) {
             return (VRFAgentCoordinatorInterface(vrfCoordinator).pendingRequestExists(vrfSubscriptionId), bytes(offChainIpfsHash));
         } else {
