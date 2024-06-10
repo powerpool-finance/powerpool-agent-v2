@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "./utils/InitializableOptimized.sol";
+import "./utils/OwnableOptimized.sol";
 import "./PPAgentV2Flags.sol";
 import "./PPAgentV2Interfaces.sol";
 
@@ -17,8 +17,7 @@ library ConfigFlags {
  * @title PowerAgentLite
  * @author PowerPool
  */
-contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, PPAgentV2Flags, Initializable, Ownable {
-  error OnlyOwner();
+contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, PPAgentV2Flags, InitializableOptimized, OwnableOptimized {
   error NonEOASender();
   error InsufficientKeeperStake();
   error InsufficientJobScopedKeeperStake();
@@ -190,12 +189,6 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   function _assertExecutionNotLocked() internal view {
     if (ConfigFlags.check(minKeeperCvp, EXECUTION_IS_LOCKED_FLAG)) {
       revert ExecutionReentrancyLocked();
-    }
-  }
-
-  function _assertOnlyOwner() internal view {
-    if (msg.sender != owner()) {
-      revert OnlyOwner();
     }
   }
 
@@ -1261,7 +1254,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    * @param pendingAmount_ The amount to slash from the pendingWithdrawals balance
    */
   function ownerSlash(uint256 keeperId_, address to_, uint256 currentAmount_, uint256 pendingAmount_) public {
-    _assertOnlyOwner();
+    _checkOwner();
     uint256 totalAmount = currentAmount_ + pendingAmount_;
     if (totalAmount == 0) {
       revert MissingAmount();
@@ -1287,7 +1280,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    * @param to_ The address to send rewards to
    */
   function withdrawFees(address payable to_) external {
-    _assertOnlyOwner();
+    _checkOwner();
 
     uint256 amount = feeTotal;
     feeTotal = 0;
@@ -1307,7 +1300,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     uint256 timeoutSeconds_,
     uint256 feePpm_
   ) external {
-    _assertOnlyOwner();
+    _checkOwner();
     _assertExecutionNotLocked();
     _setAgentParams(minKeeperCvp_, timeoutSeconds_, feePpm_);
   }
