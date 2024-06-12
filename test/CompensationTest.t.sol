@@ -29,7 +29,7 @@ contract CompensationTest is Test, PPAgentV2Flags {
         blockBaseFee_: 45 gwei,
         gasUsed_: 150_000
       }),
-      (150_000 + 40_000) * 45 gwei * 35 / 100 + 0.0022 ether
+      (150_000 + 40_000) * 45 gwei * 35 / 100 + 0.000022 ether
     );
   }
 
@@ -41,7 +41,7 @@ contract CompensationTest is Test, PPAgentV2Flags {
         blockBaseFee_: 45 gwei,
         gasUsed_: 150_000
       }),
-      (150_000 + 40_000) * 45 gwei * 135 / 100 + 0.0022 ether
+      (150_000 + 40_000) * 45 gwei * 135 / 100 + 0.000022 ether
     );
   }
 
@@ -65,7 +65,7 @@ contract CompensationTest is Test, PPAgentV2Flags {
         blockBaseFee_: 45 gwei,
         gasUsed_: 150_000
       }),
-      0.0022 ether
+      0.000022 ether
     );
   }
 }

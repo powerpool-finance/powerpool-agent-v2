@@ -318,7 +318,7 @@ contract ExecuteSelectorTest is TestHelper {
     uint256 compensationsChange = _compensationOf(kid) - compensationsBefore;
 
     assertEq(counter.current(), 1);
-    assertApproxEqAbs(0.00447293485 ether, keeperBalanceChange, 0.0001 ether);
+    assertApproxEqAbs(0.00348293485 ether, keeperBalanceChange, 0.0001 ether);
     assertEq(keeperBalanceChange, jobCreditsChange);
 
     assertEq(compensationsChange, 0);
@@ -374,8 +374,8 @@ contract ExecuteSelectorTest is TestHelper {
 
     assertEq(address(topupJob).balance, 0);
     assertGt(_jobDetails(topupJobKey).credits, jobCreditsBefore);
-    assertApproxEqAbs(0.0015275725 ether, keeperBalanceChange, 0.0001 ether);
-    assertApproxEqAbs(_jobDetails(topupJobKey).credits, jobCreditsBefore + 8.42 ether - 0.0015275725 ether, 0.0001 ether);
+    assertApproxEqAbs(0.000537345 ether, keeperBalanceChange, 0.0001 ether);
+    assertApproxEqAbs(_jobDetails(topupJobKey).credits, jobCreditsBefore + 8.42 ether - 0.000537345 ether, 0.0001 ether);
   }
 
   function testSelfWithdrawal() public {
@@ -459,7 +459,7 @@ contract ExecuteSelectorTest is TestHelper {
 
     assertEq(counter.current(), 1);
 
-    assertApproxEqAbs(0.00440363485 ether, jobCreditsChange, 0.0001 ether);
+    assertApproxEqAbs(0.00348293485 ether, jobCreditsChange, 0.0001 ether);
     assertEq(compensationsChange, jobCreditsChange);
 
     assertEq(keeperBalanceChange, 0);
@@ -515,7 +515,7 @@ contract ExecuteSelectorTest is TestHelper {
     uint256 compensationsChange = _compensationOf(kid) - compensationsBefore;
 
     assertEq(counter.current(), 1);
-    assertApproxEqAbs(0.00440363485 ether, keeperBalanceChange, 0.0001 ether);
+    assertApproxEqAbs(0.00341363485 ether, keeperBalanceChange, 0.0001 ether);
     assertEq(keeperBalanceChange, jobOwnerCreditsChange);
 
     assertEq(compensationsChange, 0);

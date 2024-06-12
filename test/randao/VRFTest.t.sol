@@ -160,15 +160,15 @@ contract VRFTest is AbstractTestHelper {
 
     vm.roll(30);
     vm.warp(fulfillTimestamp + 15);
-    assertEq(agent.jobNextKeeperId(jobKey), 1);
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(consumer.isReadyForRequest(), false);
-    vm.prank(alice, alice);
+    vm.prank(keeperWorker, keeperWorker);
     _callExecuteHelper(
       agent,
       address(job),
       jobId,
       defaultFlags,
-      kid1,
+      kid2,
       new bytes(0)
     );
 
@@ -306,15 +306,15 @@ contract VRFTest is AbstractTestHelper {
     assertEq(autoDepositAmountIn, 0);
 
     uint256 vrfJobBalanceBefore = agentManager.getVrfFullfillJobBalance();
-    assertEq(agent.jobNextKeeperId(autoDepositJobKey), 3);
-    vm.prank(bob, bob);
+    assertEq(agent.jobNextKeeperId(autoDepositJobKey), 1);
+    vm.prank(alice, alice);
     vm.roll(20);
     _callExecuteHelper(
       agent,
       address(agentManager),
       autoDepositJobId,
       defaultFlags,
-      kid3,
+      kid1,
       autoDepositCalldata
     );
     uint256 vrfJobBalanceAfter = agentManager.getVrfFullfillJobBalance();

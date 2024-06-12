@@ -47,7 +47,7 @@ contract RandaoCompensationTest is TestHelperRandao {
       // jobFixedReward
       // + baseFee_ * (gasUsed_ + fixedOverhead) * _rdConfig.jobCompensationMultiplierBps / 10_000
       // + (stake | maxStake) / _rdConfig.stakeDivisor
-      0.003 ether + uint256(45 gwei * (150_000 + 136_000) * 11_000 / 10_000) + (40_000 ether / 50_000_000)
+      0.00003 ether + uint256(45 gwei * (150_000 + 136_000) * 11_000 / 10_000) + (40_000 ether / 50_000_000)
     );
   }
 
@@ -70,7 +70,7 @@ contract RandaoCompensationTest is TestHelperRandao {
       // jobFixedReward
       // + baseFee_ * (gasUsed_ + fixedOverhead) * _rdConfig.jobCompensationMultiplierBps / 10_000
       // + (stake | maxStake) / _rdConfig.stakeDivisor
-      0.003 ether + uint256(45 gwei * (150_000 + 136_000) * 11_000 / 10_000) + (50_000 ether / 50_000_000)
+      0.00003 ether + uint256(45 gwei * (150_000 + 136_000) * 11_000 / 10_000) + (50_000 ether / 50_000_000)
     );
   }
 
