@@ -3,9 +3,7 @@ pragma solidity ^0.8.19;
 
 import { PPAgentV2Randao } from "./PPAgentV2Randao.sol";
 
-interface VRFAgentConsumerInterface {
-  function getPseudoRandom() external returns (uint256);
-}
+import "./interfaces/VRFAgentConsumerInterface.sol";
 
 /**
  * @title PPAgentV2VRF
@@ -13,7 +11,7 @@ interface VRFAgentConsumerInterface {
  */
 contract PPAgentV2VRF is PPAgentV2Randao {
 
-  address VRFConsumer;
+  address public VRFConsumer;
 
   event SetVRFConsumer(address consumer);
 
@@ -29,6 +27,9 @@ contract PPAgentV2VRF is PPAgentV2Randao {
   }
 
   function _getPseudoRandom() internal override returns (uint256) {
+    if (address(VRFConsumer) == address(0)) {
+      return super._getPseudoRandom();
+    }
     return VRFAgentConsumerInterface(VRFConsumer).getPseudoRandom();
   }
 }

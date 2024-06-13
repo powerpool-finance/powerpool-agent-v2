@@ -29,7 +29,7 @@ contract RandaoAgentOwnerTest is TestHelperRandao {
       jobCompensationMultiplierBps: 9999,
       stakeDivisor: 50_000_000,
       keeperActivationTimeoutHours: 8,
-      jobFixedRewardFinney: 3
+      jobFixedRewardFinney: 30
     });
     PPAgentV2Randao rAgent = new PPAgentV2Randao(address(cvp));
 

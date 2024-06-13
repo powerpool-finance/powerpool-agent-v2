@@ -23,7 +23,7 @@ contract StakingTest is TestHelper {
   }
 
   function testErrSlashNotOwner() public {
-    vm.expectRevert(PPAgentV2.OnlyOwner.selector);
+    vm.expectRevert(OwnableOptimized.OnlyOwner.selector);
     agent.ownerSlash(kid, bob, 1, 0);
   }
 

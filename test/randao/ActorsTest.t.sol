@@ -45,7 +45,7 @@ contract RandaoActorsTest is TestHelperRandao {
       jobCompensationMultiplierBps: 10_000,
       stakeDivisor: 50_000_000,
       keeperActivationTimeoutHours: 8,
-      jobFixedRewardFinney: 3
+      jobFixedRewardFinney: 30
     });
     agent = new PPAgentV2Randao(address(cvp));
     agent.initializeRandao(owner, 3_000 ether, 3 days, rdConfig);
@@ -110,7 +110,7 @@ contract RandaoActorsTest is TestHelperRandao {
       jobCompensationMultiplierBps: 12_000,
       stakeDivisor: 50_000_000,
       keeperActivationTimeoutHours: 8,
-      jobFixedRewardFinney: 3
+      jobFixedRewardFinney: 30
     });
     vm.prank(owner, owner);
     agent.setRdConfig(config);

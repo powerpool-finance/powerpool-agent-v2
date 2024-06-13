@@ -42,7 +42,7 @@ contract AgentOwnerTest is TestHelper {
   }
 
   function testErrSetAgentParamsNotOwner() public {
-    vm.expectRevert(PPAgentV2.OnlyOwner.selector);
+    vm.expectRevert(OwnableOptimized.OnlyOwner.selector);
     agent.setAgentParams(type(uint256).max, 30 days, 1.5e4);
   }
 
@@ -88,7 +88,7 @@ contract AgentOwnerTest is TestHelper {
   }
 
   function testErrWithdrawFeesNotOwner() public {
-    vm.expectRevert(PPAgentV2.OnlyOwner.selector);
+    vm.expectRevert(OwnableOptimized.OnlyOwner.selector);
     agent.withdrawFees(bob);
   }
 }

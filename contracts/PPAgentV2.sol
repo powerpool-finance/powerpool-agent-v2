@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "./utils/InitializableOptimized.sol";
+import "./utils/OwnableOptimized.sol";
 import "./PPAgentV2Flags.sol";
 import "./PPAgentV2Interfaces.sol";
 
@@ -17,8 +17,7 @@ library ConfigFlags {
  * @title PowerAgentLite
  * @author PowerPool
  */
-contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, PPAgentV2Flags, Initializable, Ownable {
-  error OnlyOwner();
+contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, PPAgentV2Flags, InitializableOptimized, OwnableOptimized {
   error NonEOASender();
   error InsufficientKeeperStake();
   error InsufficientJobScopedKeeperStake();
@@ -49,7 +48,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   error MissingAmount();
   error WithdrawAmountExceedsAvailable(uint256 wanted, uint256 actual);
   error JobShouldHaveInterval();
-  error ResolverJobCantHaveInterval();
+  error JobDoesNotSupposedToHaveInterval();
   error InvalidJobAddress();
   error InvalidKeeperId();
   error MissingResolverAddress();
@@ -75,13 +74,14 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   string public constant VERSION = "2.5.0";
   uint256 internal constant MAX_PENDING_WITHDRAWAL_TIMEOUT_SECONDS = 30 days;
   uint256 internal constant MAX_FEE_PPM = 5e4;
-  uint256 internal constant FIXED_PAYMENT_MULTIPLIER = 1e15;
+  uint256 internal constant FIXED_PAYMENT_MULTIPLIER = 1e12;
   uint256 internal constant EXECUTION_IS_LOCKED_FLAG = 0x1000000000000000000000000000000000000000000000000000000000000000;
 
   enum CalldataSourceType {
     SELECTOR,
     PRE_DEFINED,
-    RESOLVER
+    RESOLVER,
+    OFFCHAIN
   }
 
   address public immutable CVP;
@@ -192,12 +192,6 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
   }
 
-  function _assertOnlyOwner() internal view {
-    if (msg.sender != owner()) {
-      revert OnlyOwner();
-    }
-  }
-
   function _assertOnlyJobOwner(bytes32 jobKey_) internal view {
     if (msg.sender != jobOwners[jobKey_]) {
       revert OnlyJobOwner();
@@ -222,30 +216,6 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
   }
 
-  function _assertWorkerNotAssigned(address worker_) internal view {
-    if (workerKeeperIds[worker_] != 0) {
-      revert WorkerAlreadyAssigned();
-    }
-  }
-
-  function _assertNonZeroAmount(uint256 amount_) internal pure {
-    if (amount_ == 0) {
-      revert MissingAmount();
-    }
-  }
-
-  function _assertNonZeroValue() internal view {
-    if (msg.value == 0) {
-      revert MissingDeposit();
-    }
-  }
-
-  function _assertJobCalldataSource(bytes32 jobKey_, CalldataSourceType source_) internal view {
-    if (CalldataSourceType(jobs[jobKey_].calldataSource) != source_) {
-      revert NotSupportedByJobCalldataSource();
-    }
-  }
-
   function _assertJobParams(uint256 maxBaseFeeGwei_, uint256 fixedReward_, uint256 rewardPct_) internal pure {
     if (maxBaseFeeGwei_ == 0) {
       revert MissingMaxBaseFeeGwei();
@@ -256,13 +226,13 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
   }
 
-  function _assertInterval(uint256 interval_, CalldataSourceType calldataSource_) internal pure {
+  function _assertInterval(uint256 interval_, CalldataSourceType cdSource_) internal pure {
     if (interval_ == 0 &&
-      (calldataSource_ == CalldataSourceType.SELECTOR || calldataSource_ == CalldataSourceType.PRE_DEFINED)) {
+      (cdSource_ == CalldataSourceType.SELECTOR || cdSource_ == CalldataSourceType.PRE_DEFINED)) {
       revert JobShouldHaveInterval();
     }
-    if (interval_ != 0 && calldataSource_ == CalldataSourceType.RESOLVER) {
-      revert ResolverJobCantHaveInterval();
+    if (interval_ != 0 && (cdSource_ == CalldataSourceType.RESOLVER || cdSource_ == CalldataSourceType.OFFCHAIN)) {
+      revert JobDoesNotSupposedToHaveInterval();
     }
   }
 
@@ -407,7 +377,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     } else if (calldataSource == CalldataSourceType.PRE_DEFINED) {
       (ok,) = jobAddress.call{ gas: gasleft() - 50_000 }(bytes.concat(preDefinedCalldatas[jobKey], jobKey));
     // Source: Resolver
-    } else if (calldataSource == CalldataSourceType.RESOLVER) {
+    } else if (calldataSource == CalldataSourceType.RESOLVER || calldataSource == CalldataSourceType.OFFCHAIN) {
       bytes32 cdataHash;
       if (ConfigFlags.check(binJob, CFG_CALL_RESOLVER_BEFORE_EXECUTE)) {
         cdataHash = _checkJobResolverCall(jobKey);
@@ -440,11 +410,13 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
           }
         }
         if and(binJob, 0x10) {
-          let hash := keccak256(ptr, cdSize)
-          if iszero(eq(hash, cdataHash)) {
+          if eq(calldataSource, 2) {
+            let hash := keccak256(ptr, cdSize)
+            if iszero(eq(hash, cdataHash)) {
             // revert JobCheckCalldataError()
-            mstore(ptr, 0x428ac18600000000000000000000000000000000000000000000000000000000)
-            revert(ptr, 4)
+              mstore(ptr, 0x428ac18600000000000000000000000000000000000000000000000000000000)
+              revert(ptr, 4)
+            }
           }
         }
         // The remaining gas could not be less than 50_000
@@ -617,14 +589,14 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
 
   function _afterExecutionReverted(
     bytes32 jobKey_,
-    CalldataSourceType calldataSource_,
+    CalldataSourceType cdSource_,
     uint256 actualKeeperId_,
     bytes memory executionResponse_,
     uint256
   ) internal virtual {
     jobKey_;
     actualKeeperId_;
-    calldataSource_;
+    cdSource_;
 
     if (executionResponse_.length == 0) {
       revert JobCallRevertedWithoutDetails();
@@ -701,7 +673,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       revert MissingJobAddress();
     }
 
-    if (params_.calldataSource > 2) {
+    if (params_.calldataSource > 3) {
       revert InvalidCalldataSource();
     }
 
@@ -723,7 +695,10 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
 
     if (CalldataSourceType(params_.calldataSource) == CalldataSourceType.PRE_DEFINED) {
       _setJobPreDefinedCalldata(jobKey, preDefinedCalldata_);
-    } else if (CalldataSourceType(params_.calldataSource) == CalldataSourceType.RESOLVER) {
+    } else if (
+      CalldataSourceType(params_.calldataSource) == CalldataSourceType.RESOLVER ||
+      CalldataSourceType(params_.calldataSource) == CalldataSourceType.OFFCHAIN
+    ) {
       _setJobResolver(jobKey, resolver_);
     }
 
@@ -832,7 +807,13 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   function setJobResolver(bytes32 jobKey_, Resolver calldata resolver_) external {
     _assertOnlyJobOwner(jobKey_);
     _assertExecutionNotLocked();
-    _assertJobCalldataSource(jobKey_, CalldataSourceType.RESOLVER);
+
+    if (
+      CalldataSourceType(jobs[jobKey_].calldataSource) != CalldataSourceType.RESOLVER &&
+      CalldataSourceType(jobs[jobKey_].calldataSource) != CalldataSourceType.OFFCHAIN
+    ) {
+      revert NotSupportedByJobCalldataSource();
+    }
 
     _setJobResolver(jobKey_, resolver_);
   }
@@ -854,7 +835,10 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   function setJobPreDefinedCalldata(bytes32 jobKey_, bytes calldata preDefinedCalldata_) external {
     _assertOnlyJobOwner(jobKey_);
     _assertExecutionNotLocked();
-    _assertJobCalldataSource(jobKey_, CalldataSourceType.PRE_DEFINED);
+
+    if (CalldataSourceType(jobs[jobKey_].calldataSource) != CalldataSourceType.PRE_DEFINED) {
+      revert NotSupportedByJobCalldataSource();
+    }
 
     _setJobPreDefinedCalldata(jobKey_, preDefinedCalldata_);
   }
@@ -949,7 +933,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    * @param jobKey_ The jobKey to deposit for
    */
   function depositJobCredits(bytes32 jobKey_) external virtual payable {
-    _assertNonZeroValue();
+    if (msg.value == 0) {
+      revert MissingDeposit();
+    }
 
     if (jobOwners[jobKey_] == address(0)) {
       revert JobWithoutOwner();
@@ -999,7 +985,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
 
     _assertOnlyJobOwner(jobKey_);
     _assertExecutionNotLocked();
-    _assertNonZeroAmount(amount_);
+    if (amount_ == 0) {
+      revert MissingAmount();
+    }
 
     if (creditsBefore < amount_) {
       revert CreditsWithdrawalUnderflow();
@@ -1022,7 +1010,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    * @param for_ The job owner address to deposit for
    */
   function depositJobOwnerCredits(address for_) external payable {
-    _assertNonZeroValue();
+    if (msg.value == 0) {
+      revert MissingDeposit();
+    }
 
     _processJobOwnerCreditsDeposit(for_);
   }
@@ -1051,7 +1041,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
 
     _assertExecutionNotLocked();
-    _assertNonZeroAmount(amount_);
+    if (amount_ == 0) {
+      revert MissingAmount();
+    }
 
     if (creditsBefore < amount_) {
       revert CreditsWithdrawalUnderflow();
@@ -1081,8 +1073,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    * @return keeperId The registered keeper ID
    */
   function registerAsKeeper(address worker_, uint256 initialDepositAmount_) public virtual returns (uint256 keeperId) {
-    _assertWorkerNotAssigned(worker_);
-
+    if (workerKeeperIds[worker_] != 0) {
+      revert WorkerAlreadyAssigned();
+    }
     if (initialDepositAmount_ < minKeeperCvp) {
       revert InsufficientAmount();
     }
@@ -1106,7 +1099,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    */
   function setWorkerAddress(uint256 keeperId_, address worker_) external {
     _assertOnlyKeeperAdmin(keeperId_);
-    _assertWorkerNotAssigned(worker_);
+    if (workerKeeperIds[worker_] != 0) {
+      revert WorkerAlreadyAssigned();
+    }
 
     address prev = keepers[keeperId_].worker;
     delete workerKeeperIds[prev];
@@ -1129,7 +1124,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       amount_ = available;
     }
 
-    _assertNonZeroAmount(amount_);
+    if (amount_ == 0) {
+      revert MissingAmount();
+    }
     _assertOnlyKeeperAdminOrWorker(keeperId_);
 
     if (amount_ > available) {
@@ -1153,7 +1150,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    * @param amount_ The amount to stake
    */
   function stake(uint256 keeperId_, uint256 amount_) external {
-    _assertNonZeroAmount(amount_);
+    if (amount_ == 0) {
+      revert MissingAmount();
+    }
     _assertKeeperIdExists(keeperId_);
     _stake(keeperId_, amount_);
   }
@@ -1185,7 +1184,9 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    */
   function initiateRedeem(uint256 keeperId_, uint256 amount_) external returns (uint256 pendingWithdrawalAfter) {
     _assertOnlyKeeperAdmin(keeperId_);
-    _assertNonZeroAmount(amount_);
+    if (amount_ == 0) {
+      revert MissingAmount();
+    }
     _beforeInitiateRedeem(keeperId_);
 
     uint256 stakeOfBefore = keepers[keeperId_].cvpStake;
@@ -1253,9 +1254,11 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    * @param pendingAmount_ The amount to slash from the pendingWithdrawals balance
    */
   function ownerSlash(uint256 keeperId_, address to_, uint256 currentAmount_, uint256 pendingAmount_) public {
-    _assertOnlyOwner();
+    _checkOwner();
     uint256 totalAmount = currentAmount_ + pendingAmount_;
-    _assertNonZeroAmount(totalAmount);
+    if (totalAmount == 0) {
+      revert MissingAmount();
+    }
 
     if (currentAmount_ > 0) {
       keepers[keeperId_].cvpStake -= uint88(currentAmount_);
@@ -1277,7 +1280,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
    * @param to_ The address to send rewards to
    */
   function withdrawFees(address payable to_) external {
-    _assertOnlyOwner();
+    _checkOwner();
 
     uint256 amount = feeTotal;
     feeTotal = 0;
@@ -1297,7 +1300,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     uint256 timeoutSeconds_,
     uint256 feePpm_
   ) external {
-    _assertOnlyOwner();
+    _checkOwner();
     _assertExecutionNotLocked();
     _setAgentParams(minKeeperCvp_, timeoutSeconds_, feePpm_);
   }

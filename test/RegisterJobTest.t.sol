@@ -280,7 +280,7 @@ contract RegisterJob is TestHelper {
 
   function testErrJobInvalidCalldataSource() public {
     IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
-    params.calldataSource = 3;
+    params.calldataSource = 4;
 
     vm.expectRevert(
       abi.encodeWithSelector(PPAgentV2.InvalidCalldataSource.selector)
@@ -396,7 +396,7 @@ contract RegisterJob is TestHelper {
     params.intervalSeconds = 1_000;
 
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.ResolverJobCantHaveInterval.selector)
+      abi.encodeWithSelector(PPAgentV2.JobDoesNotSupposedToHaveInterval.selector)
     );
     agent.registerJob({
       params_: params,

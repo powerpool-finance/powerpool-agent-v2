@@ -541,7 +541,7 @@ contract JobManagementTest is TestHelper {
     (bytes32 myJobKey,) = agent.registerJob(params, resolver1, new bytes(0));
 
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.ResolverJobCantHaveInterval.selector)
+      abi.encodeWithSelector(PPAgentV2.JobDoesNotSupposedToHaveInterval.selector)
     );
     vm.prank(alice);
     agent.updateJob(myJobKey, 200, 55, 20, 0, 1);

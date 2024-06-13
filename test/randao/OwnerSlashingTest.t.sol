@@ -24,7 +24,7 @@ contract RandaoOwnerStakingTest is TestHelperRandao {
       jobCompensationMultiplierBps: 10_000,
       stakeDivisor: 50_000_000,
       keeperActivationTimeoutHours: 8,
-      jobFixedRewardFinney: 3
+      jobFixedRewardFinney: 30
     });
     agent = new PPAgentV2Randao(address(cvp));
     agent.initializeRandao(owner, MIN_DEPOSIT_3000_CVP, 3 days, rdConfig);
@@ -40,7 +40,7 @@ contract RandaoOwnerStakingTest is TestHelperRandao {
   }
 
   function testRdCanDisableKeeperOnOwnerSlashOnlyOwner() public {
-    vm.expectRevert(PPAgentV2.OnlyOwner.selector);
+    vm.expectRevert(OwnableOptimized.OnlyOwner.selector);
     agent.ownerSlashDisable(kid, bob, 1, 0, true);
   }
 
