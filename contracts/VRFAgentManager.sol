@@ -161,7 +161,7 @@ contract VRFAgentManager is Ownable {
     agent.withdrawFees(to_);
   }
 
-  function withdrawExcessBalance(address payable to_, uint256 amount_) external onlyOwner {
+  function withdrawExcessBalance(address payable to_, uint256 amount_) public onlyOwner {
     to_.transfer(amount_);
   }
 
@@ -172,6 +172,9 @@ contract VRFAgentManager is Ownable {
     }
     if (getJobOwner(autoDepositJobKey) == address(this)) {
       initiateJobTransfer(autoDepositJobKey, newVrfAgentManager_);
+    }
+    if (address(this).balance > 0) {
+      withdrawExcessBalance(payable(newVrfAgentManager_), address(this).balance);
     }
   }
 
