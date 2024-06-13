@@ -147,6 +147,15 @@ contract VRFAgentManager is Ownable {
     _assignKeeperToJob(_jobKey);
   }
 
+  function assignKeeperToAllJobs() external onlyOwner {
+    if (getAssignedKeeperToJob(vrfJobKey) == 0) {
+      _assignKeeperToJob(vrfJobKey);
+    }
+    if (getAssignedKeeperToJob(autoDepositJobKey) == 0) {
+      _assignKeeperToJob(autoDepositJobKey);
+    }
+  }
+
   function ownerSlash(uint256 keeperId_, address to_, uint256 currentAmount_, uint256 pendingAmount_) external onlyOwner {
     agent.ownerSlash(keeperId_, to_, currentAmount_, pendingAmount_);
   }
@@ -209,6 +218,10 @@ contract VRFAgentManager is Ownable {
 
   function isAutoDepositJobDepositRequired() public view returns(bool) {
     return getAutoDepositJobBalance() <= vrfJobMinBalance;
+  }
+
+  function getAssignedKeeperToJob(bytes32 jobKey_) public view returns(uint256) {
+    return agent.jobNextKeeperId(jobKey_);
   }
 
   function getAgentFeeTotal() public view returns(uint256) {
