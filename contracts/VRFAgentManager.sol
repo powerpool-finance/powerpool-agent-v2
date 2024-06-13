@@ -102,7 +102,11 @@ contract VRFAgentManager is Ownable {
   }
 
   function setJobResolver(bytes32 jobKey_, PPAgentV2VRF.Resolver calldata resolver_) external onlyOwner {
-    agent.setJobResolver(jobKey_, getAutoDepositResolverStruct());
+    agent.setJobResolver(jobKey_, resolver_);
+  }
+
+  function setAutoDepositJobResolver() public onlyOwner {
+    agent.setJobResolver(autoDepositJobKey, getAutoDepositResolverStruct());
   }
 
   function acceptJobTransfer(bytes32 jobKey_) external onlyOwner {
@@ -197,6 +201,7 @@ contract VRFAgentManager is Ownable {
     }
     if (getJobPendingOwner(autoDepositJobKey) == address(this)) {
       agent.acceptJobTransfer(autoDepositJobKey);
+      setAutoDepositJobResolver();
     }
   }
 
@@ -277,7 +282,7 @@ contract VRFAgentManager is Ownable {
     );
   }
 
-  function getAutoDepositResolverStruct() public returns(PPAgentV2VRF.Resolver memory) {
+  function getAutoDepositResolverStruct() public view returns(PPAgentV2VRF.Resolver memory) {
     return IPPAgentV2Viewer.Resolver({
       resolverAddress: address(this),
       resolverCalldata: abi.encodeWithSelector(VRFAgentManager.vrfAutoDepositJobsResolver.selector)
