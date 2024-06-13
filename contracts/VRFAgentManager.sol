@@ -97,7 +97,7 @@ contract VRFAgentManager is Ownable {
     autoDepositJobKey = jobKey;
     if (activateJob) {
       agent.setJobConfig(autoDepositJobKey, true, false, true, false);
-      _assignKeeperToAutoDepositJob();
+      _assignKeeperToJob(autoDepositJobKey);
     }
   }
 
@@ -123,6 +123,10 @@ contract VRFAgentManager is Ownable {
     agent.setJobConfig(jobKey_, isActive_, useJobOwnerCredits_, assertResolverSelector_, callResolverBeforeExecute_);
   }
 
+  function withdrawJobCredits(bytes32 jobKey_, address payable to_, uint256 amount_) external onlyOwner {
+    agent.withdrawJobCredits(jobKey_, to_, amount_);
+  }
+
   function setRdConfig(PPAgentV2VRF.RandaoConfig calldata rdConfig_) external onlyOwner {
     agent.setRdConfig(rdConfig_);
   }
@@ -139,8 +143,8 @@ contract VRFAgentManager is Ownable {
     agent.setVRFConsumer(VRFConsumer_);
   }
 
-  function assignKeeperToAutoDepositJob() external onlyOwner {
-    _assignKeeperToAutoDepositJob();
+  function assignKeeperToJob(bytes32 _jobKey) external onlyOwner {
+    _assignKeeperToJob(_jobKey);
   }
 
   function ownerSlash(uint256 keeperId_, address to_, uint256 currentAmount_, uint256 pendingAmount_) external onlyOwner {
@@ -269,9 +273,9 @@ contract VRFAgentManager is Ownable {
 
   /*** INTERNAL METHODS ***/
 
-  function _assignKeeperToAutoDepositJob() internal {
+  function _assignKeeperToJob(bytes32 jobKey_) internal {
     bytes32[] memory assignJobKeys = new bytes32[](1);
-    assignJobKeys[0] = autoDepositJobKey;
+    assignJobKeys[0] = jobKey_;
     agent.assignKeeper(assignJobKeys);
   }
 }
