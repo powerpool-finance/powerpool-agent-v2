@@ -33,6 +33,29 @@ contract VRFAgentManager is Ownable {
 
   receive() external payable { }
 
+  function processVrfJobDeposit() external payable {
+    (uint256 requiredBalance, uint256 vrfAmountIn, uint256 autoDepositAmountIn) = getBalanceRequiredToDeposit();
+    if (requiredBalance == 0) {
+      revert JobDepositNotRequired();
+    }
+
+    agent.withdrawFees(payable(address(this)));
+    uint256 availableBalance = address(this).balance;
+
+    if (availableBalance < requiredBalance) {
+      revert DepositBalanceIsNotEnough();
+    }
+
+    if (vrfAmountIn != 0) {
+      agent.depositJobCredits{value: vrfAmountIn}(vrfJobKey);
+    }
+    if (autoDepositAmountIn != 0) {
+      agent.depositJobCredits{value: autoDepositAmountIn}(autoDepositJobKey);
+    }
+  }
+
+  /*** AGENT OWNER METHODS ***/
+
   function setVrfConfig(bytes32 vrfJobKey_, uint256 minBalance_, uint256 maxDeposit_) external onlyOwner {
     vrfJobKey = vrfJobKey_;
     vrfJobMinBalance = minBalance_;
@@ -74,30 +97,115 @@ contract VRFAgentManager is Ownable {
     autoDepositJobKey = jobKey;
     if (activateJob) {
       agent.setJobConfig(autoDepositJobKey, true, false, true, false);
-      _assignKeeperToAutoDepositJob();
+      _assignKeeperToJob(autoDepositJobKey);
     }
   }
 
-  function processVrfJobDeposit() external {
-    (uint256 requiredBalance, uint256 vrfAmountIn, uint256 autoDepositAmountIn) = getBalanceRequiredToDeposit();
-    if (requiredBalance == 0) {
-      revert JobDepositNotRequired();
-    }
+  function setJobResolver(bytes32 jobKey_, PPAgentV2VRF.Resolver calldata resolver_) external onlyOwner {
+    agent.setJobResolver(jobKey_, resolver_);
+  }
 
-    agent.withdrawFees(payable(address(this)));
-    uint256 availableBalance = address(this).balance;
+  function setAutoDepositJobResolver() public onlyOwner {
+    agent.setJobResolver(autoDepositJobKey, getAutoDepositResolverStruct());
+  }
 
-    if (availableBalance < requiredBalance) {
-      revert DepositBalanceIsNotEnough();
-    }
+  function acceptJobTransfer(bytes32 jobKey_) external onlyOwner {
+    agent.acceptJobTransfer(jobKey_);
+  }
 
-    if (vrfAmountIn != 0) {
-      agent.depositJobCredits{value: vrfAmountIn}(vrfJobKey);
+  function initiateJobTransfer(bytes32 jobKey_, address to_) public onlyOwner {
+    agent.initiateJobTransfer(jobKey_, to_);
+  }
+
+  function setJobConfig(
+    bytes32 jobKey_,
+    bool isActive_,
+    bool useJobOwnerCredits_,
+    bool assertResolverSelector_,
+    bool callResolverBeforeExecute_
+  ) external onlyOwner {
+    agent.setJobConfig(jobKey_, isActive_, useJobOwnerCredits_, assertResolverSelector_, callResolverBeforeExecute_);
+  }
+
+  function withdrawJobCredits(bytes32 jobKey_, address payable to_, uint256 amount_) external onlyOwner {
+    agent.withdrawJobCredits(jobKey_, to_, amount_);
+  }
+
+  function setRdConfig(PPAgentV2VRF.RandaoConfig calldata rdConfig_) external onlyOwner {
+    agent.setRdConfig(rdConfig_);
+  }
+
+  function setAgentParams(
+    uint256 minKeeperCvp_,
+    uint256 timeoutSeconds_,
+    uint256 feePpm_
+  ) external onlyOwner {
+    agent.setAgentParams(minKeeperCvp_, timeoutSeconds_, feePpm_);
+  }
+
+  function setVRFConsumer(address VRFConsumer_) external onlyOwner {
+    agent.setVRFConsumer(VRFConsumer_);
+  }
+
+  function assignKeeperToJob(bytes32 _jobKey) external onlyOwner {
+    _assignKeeperToJob(_jobKey);
+  }
+
+  function assignKeeperToAllJobs() external onlyOwner {
+    if (getAssignedKeeperToJob(vrfJobKey) == 0) {
+      _assignKeeperToJob(vrfJobKey);
     }
-    if (autoDepositAmountIn != 0) {
-      agent.depositJobCredits{value: autoDepositAmountIn}(autoDepositJobKey);
+    if (getAssignedKeeperToJob(autoDepositJobKey) == 0) {
+      _assignKeeperToJob(autoDepositJobKey);
     }
   }
+
+  function ownerSlash(uint256 keeperId_, address to_, uint256 currentAmount_, uint256 pendingAmount_) external onlyOwner {
+    agent.ownerSlash(keeperId_, to_, currentAmount_, pendingAmount_);
+  }
+
+  function ownerSlashDisable(
+    uint256 keeperId_,
+    address to_,
+    uint256 currentAmount_,
+    uint256 pendingAmount_,
+    bool disable_
+  ) external onlyOwner {
+    agent.ownerSlashDisable(keeperId_, to_, currentAmount_, pendingAmount_, disable_);
+  }
+
+  function withdrawFeesFromAgent(address payable to_) external onlyOwner {
+    agent.withdrawFees(to_);
+  }
+
+  function withdrawExcessBalance(address payable to_, uint256 amount_) public onlyOwner {
+    to_.transfer(amount_);
+  }
+
+  function migrateToNewManager(address newVrfAgentManager_) external onlyOwner {
+    agent.transferOwnership(newVrfAgentManager_);
+    if (getJobOwner(vrfJobKey) == address(this)) {
+      initiateJobTransfer(vrfJobKey, newVrfAgentManager_);
+    }
+    if (getJobOwner(autoDepositJobKey) == address(this)) {
+      initiateJobTransfer(autoDepositJobKey, newVrfAgentManager_);
+    }
+    if (address(this).balance > 0) {
+      withdrawExcessBalance(payable(newVrfAgentManager_), address(this).balance);
+    }
+  }
+
+  function acceptAllJobsTransfer() external onlyOwner {
+    if (getJobPendingOwner(vrfJobKey) == address(this)) {
+      agent.acceptJobTransfer(vrfJobKey);
+    }
+    if (getJobPendingOwner(autoDepositJobKey) == address(this)) {
+      agent.acceptJobTransfer(autoDepositJobKey);
+      setAutoDepositJobResolver();
+    }
+  }
+
+  /*** GETTER ***/
 
   function getVrfFullfillJobBalance() public view returns(uint256) {
     (, , , PPAgentV2VRF.Job memory details, , ) = agent.getJob(vrfJobKey);
@@ -117,9 +225,23 @@ contract VRFAgentManager is Ownable {
     return getAutoDepositJobBalance() <= vrfJobMinBalance;
   }
 
+  function getAssignedKeeperToJob(bytes32 jobKey_) public view returns(uint256) {
+    return agent.jobNextKeeperId(jobKey_);
+  }
+
   function getAgentFeeTotal() public view returns(uint256) {
     (, , uint256 feeTotal, , ) = agent.getConfig();
     return feeTotal;
+  }
+
+  function getJobOwner(bytes32 jobKey_) public view returns(address) {
+    (address owner, , , , , ) = agent.getJob(jobKey_);
+    return owner;
+  }
+
+  function getJobPendingOwner(bytes32 jobKey_) public view returns(address) {
+    (, address pendingOwner, , , , ) = agent.getJob(jobKey_);
+    return pendingOwner;
   }
 
   function getAvailableBalance() public view returns(uint256) {
@@ -160,85 +282,18 @@ contract VRFAgentManager is Ownable {
     );
   }
 
-  function getAutoDepositResolverStruct() public returns(PPAgentV2VRF.Resolver memory){
+  function getAutoDepositResolverStruct() public view returns(PPAgentV2VRF.Resolver memory) {
     return IPPAgentV2Viewer.Resolver({
       resolverAddress: address(this),
       resolverCalldata: abi.encodeWithSelector(VRFAgentManager.vrfAutoDepositJobsResolver.selector)
     });
   }
 
-  function setAutoDepositJobResolver(bytes32 jobKey_, PPAgentV2VRF.Resolver calldata resolver_) external {
-    agent.setJobResolver(autoDepositJobKey, getAutoDepositResolverStruct());
-  }
+  /*** INTERNAL METHODS ***/
 
-  function acceptAutoDepositJobTransfer() external {
-    agent.acceptJobTransfer(autoDepositJobKey);
-  }
-  
-  function initiateAutoDepositJobTransfer(address to_) external {
-    agent.initiateJobTransfer(autoDepositJobKey, to_);
-  }
-
-  function setAutoDepositJobConfig(
-    bool isActive_,
-    bool useJobOwnerCredits_,
-    bool assertResolverSelector_,
-    bool callResolverBeforeExecute_
-  ) external {
-    agent.setJobConfig(autoDepositJobKey, isActive_, useJobOwnerCredits_, assertResolverSelector_, callResolverBeforeExecute_);
-  }
-
-  /*** AGENT OWNER METHODS ***/
-
-  function setRdConfig(PPAgentV2VRF.RandaoConfig calldata rdConfig_) external onlyOwner {
-    agent.setRdConfig(rdConfig_);
-  }
-
-  function setAgentParams(
-    uint256 minKeeperCvp_,
-    uint256 timeoutSeconds_,
-    uint256 feePpm_
-  ) external onlyOwner {
-    agent.setAgentParams(minKeeperCvp_, timeoutSeconds_, feePpm_);
-  }
-
-  function setVRFConsumer(address VRFConsumer_) external onlyOwner {
-    agent.setVRFConsumer(VRFConsumer_);
-  }
-
-  function _assignKeeperToAutoDepositJob() internal {
+  function _assignKeeperToJob(bytes32 jobKey_) internal {
     bytes32[] memory assignJobKeys = new bytes32[](1);
-    assignJobKeys[0] = autoDepositJobKey;
+    assignJobKeys[0] = jobKey_;
     agent.assignKeeper(assignJobKeys);
-  }
-
-  function assignKeeperToAutoDepositJob() external onlyOwner {
-    _assignKeeperToAutoDepositJob();
-  }
-
-  function ownerSlash(uint256 keeperId_, address to_, uint256 currentAmount_, uint256 pendingAmount_) external onlyOwner {
-    agent.ownerSlash(keeperId_, to_, currentAmount_, pendingAmount_);
-  }
-
-  function ownerSlashDisable(
-    uint256 keeperId_,
-    address to_,
-    uint256 currentAmount_,
-    uint256 pendingAmount_,
-    bool disable_
-  ) external onlyOwner {
-    agent.ownerSlashDisable(keeperId_, to_, currentAmount_, pendingAmount_, disable_);
-  }
-
-  function withdrawFeesFromAgent(address payable to_) external onlyOwner {
-    agent.withdrawFees(to_);
-  }
-
-  function withdrawExcessBalance(address payable to_, uint256 amount_) external onlyOwner {
-    to_.transfer(amount_);
-  }
-
-  function migrateToNewManager(address newVrfAgentManager_) external onlyOwner {
-    agent.transferOwnership(newVrfAgentManager_);
   }
 }
