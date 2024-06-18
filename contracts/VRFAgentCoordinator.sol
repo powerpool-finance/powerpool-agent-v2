@@ -8,7 +8,6 @@ import "./interfaces/VRFAgentConsumerFactoryInterface.sol";
 import {VRF} from "./VRF.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./VRFAgentConsumer.sol";
-import "./utils/ChainSpecificUtil.sol";
 
 contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   // solhint-disable-next-line chainlink-solidity/prefix-immutable-variables-with-i
@@ -268,7 +267,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     (uint256 requestId, uint256 preSeed) = _computeRequestId(agent, msg.sender, subId, nonce);
 
     s_requestCommitments[requestId] = keccak256(
-      abi.encode(requestId, ChainSpecificUtil._getBlockNumber(), subId, callbackGasLimit, numWords, msg.sender)
+      abi.encode(requestId, block.number, subId, callbackGasLimit, numWords, msg.sender)
     );
     emit RandomWordsRequested(
       agent,
@@ -363,7 +362,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
       revert IncorrectCommitment();
     }
 
-    bytes32 blockHash = ChainSpecificUtil._getBlockhash(rc.blockNum);
+    bytes32 blockHash = blockhash(rc.blockNum);
     if (blockHash == bytes32(0)) {
       revert BlockhashNotInStore(rc.blockNum);
     }
