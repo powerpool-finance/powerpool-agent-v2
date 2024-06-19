@@ -35,15 +35,30 @@ contract VRFAgentManager is Ownable {
 
   function processVrfJobDeposit() external payable {
     (uint256 requiredBalance, uint256 vrfAmountIn, uint256 autoDepositAmountIn) = getBalanceRequiredToDeposit();
+
+    bool jobAssignSuccess = false;
+    if (getAssignedKeeperToJob(vrfJobKey) == 0 && vrfAmountIn == 0) {
+      _assignKeeperToJob(vrfJobKey);
+      jobAssignSuccess = true;
+    }
+
     if (requiredBalance == 0) {
-      revert JobDepositNotRequired();
+      if (jobAssignSuccess) {
+        return;
+      } else {
+        revert JobDepositNotRequired();
+      }
     }
 
     agent.withdrawFees(payable(address(this)));
     uint256 availableBalance = address(this).balance;
 
     if (availableBalance < requiredBalance) {
-      revert DepositBalanceIsNotEnough();
+      if (jobAssignSuccess) {
+        return;
+      } else {
+        revert DepositBalanceIsNotEnough();
+      }
     }
 
     if (vrfAmountIn != 0) {
@@ -145,6 +160,10 @@ contract VRFAgentManager is Ownable {
 
   function setVRFConsumer(address VRFConsumer_) external onlyOwner {
     agent.setVRFConsumer(VRFConsumer_);
+
+    IPPAgentV2Viewer.Resolver memory vrfJobResolver = getVrfFullfillJobResolver();
+    vrfJobResolver.resolverAddress = VRFConsumer_;
+    agent.setJobResolver(vrfJobKey, vrfJobResolver);
   }
 
   function assignKeeperToJob(bytes32 _jobKey) external onlyOwner {
@@ -212,6 +231,11 @@ contract VRFAgentManager is Ownable {
     return details.credits;
   }
 
+  function getVrfFullfillJobResolver() public view returns(IPPAgentV2Viewer.Resolver memory) {
+    (, , , , , IPPAgentV2Viewer.Resolver memory resolver) = agent.getJob(vrfJobKey);
+    return resolver;
+  }
+
   function getAutoDepositJobBalance() public view returns(uint256) {
     (, , , PPAgentV2VRF.Job memory details, , ) = agent.getJob(autoDepositJobKey);
     return details.credits;
@@ -277,7 +301,7 @@ contract VRFAgentManager is Ownable {
     (uint256 amountToDeposit, ,) = getBalanceRequiredToDeposit();
 
     return (
-      amountToDeposit > 0,
+      amountToDeposit > 0 || getAssignedKeeperToJob(vrfJobKey) == 0,
       abi.encodeWithSelector(VRFAgentManager.processVrfJobDeposit.selector)
     );
   }

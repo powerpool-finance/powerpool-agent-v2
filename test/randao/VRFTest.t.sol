@@ -211,6 +211,9 @@ contract VRFTest is AbstractTestHelper {
     VRFAgentManager agentManager = new VRFAgentManager(agent);
     agentManager.setVrfConfig(jobKey, 1.5e16, 1e17);
     agentManager.setAutoDepositConfig(bytes32(0), 1 ether, 2 ether);
+    vm.prank(alice);
+    agent.initiateJobTransfer(jobKey, address(agentManager));
+    agentManager.acceptAllJobsTransfer();
     vm.prank(owner);
     agent.transferOwnership(address(agentManager));
 
@@ -285,10 +288,8 @@ contract VRFTest is AbstractTestHelper {
     assertEq(isCallAutoDeposit, false);
 
     (address jobOwner, , , , ,) = agent.getJob(jobKey);
-    assertEq(jobOwner, alice);
-    vm.startPrank(alice);
-    agent.withdrawJobCredits(jobKey, payable(alice), agentManager.getVrfFullfillJobBalance());
-    vm.stopPrank();
+    assertEq(jobOwner, address(agentManager));
+    agentManager.withdrawJobCredits(jobKey, payable(alice), agentManager.getVrfFullfillJobBalance());
     assertEq(agentManager.getVrfFullfillJobBalance(), 0);
 
     agent.depositJobCredits{value: 100 ether}(autoDepositJobKey);
@@ -306,15 +307,15 @@ contract VRFTest is AbstractTestHelper {
     assertEq(autoDepositAmountIn, 0);
 
     uint256 vrfJobBalanceBefore = agentManager.getVrfFullfillJobBalance();
-    assertEq(agent.jobNextKeeperId(autoDepositJobKey), 3);
-    vm.prank(bob, bob);
+    assertEq(agent.jobNextKeeperId(autoDepositJobKey), 2);
+    vm.prank(keeperWorker, keeperWorker);
     vm.roll(20);
     _callExecuteHelper(
       agent,
       address(agentManager),
       autoDepositJobId,
       defaultFlags,
-      kid3,
+      kid2,
       autoDepositCalldata
     );
     uint256 vrfJobBalanceAfter = agentManager.getVrfFullfillJobBalance();
