@@ -209,8 +209,9 @@ contract VRFTest is AbstractTestHelper {
     assertEq(feeTotal, 1e16);
 
     VRFAgentManager agentManager = new VRFAgentManager(agent, coordinator);
-    agentManager.setVrfConfig(jobKey, 1.5e16, 1e17);
-    agentManager.setAutoDepositConfig(bytes32(0), 1 ether, 2 ether);
+    agentManager.setVrfJobKey(jobKey);
+    agentManager.setVrfConfig(1.5e16, 1e17);
+    agentManager.setAutoDepositConfig(1 ether, 2 ether);
     vm.prank(alice);
     agent.initiateJobTransfer(jobKey, address(agentManager));
     agentManager.acceptAllJobsTransfer();
@@ -253,7 +254,8 @@ contract VRFTest is AbstractTestHelper {
     (bool isCallAutoDeposit, bytes memory autoDepositCalldata) = agentManager.vrfAutoDepositJobsResolver();
     assertEq(isCallAutoDeposit, false);
 
-    agentManager.setAutoDepositConfig(autoDepositJobKey, 1e16, 1e17);
+    agentManager.setAutoDepositJobKey(autoDepositJobKey);
+    agentManager.setAutoDepositConfig(1e16, 1e17);
 
     (amountToDeposit, vrfAmountIn, autoDepositAmountIn) = agentManager.getBalanceRequiredToDeposit();
     assertApproxEqAbs(amountToDeposit, 1.01e16, 1);
@@ -299,7 +301,8 @@ contract VRFTest is AbstractTestHelper {
     assertApproxEqAbs(vrfAmountIn, 8.5e16, 1);
     assertEq(autoDepositAmountIn, 0);
 
-    agentManager.setVrfConfig(jobKey, 1 ether, 2 ether);
+    agentManager.setVrfJobKey(jobKey);
+    agentManager.setVrfConfig(1 ether, 2 ether);
 
     (amountToDeposit, vrfAmountIn, autoDepositAmountIn) = agentManager.getBalanceRequiredToDeposit();
     assertApproxEqAbs(amountToDeposit, 1 ether, 1);
