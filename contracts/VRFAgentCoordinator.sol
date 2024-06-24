@@ -71,13 +71,6 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   error BlockhashNotInStore(uint256 blockNum);
   error PaymentTooLarge();
   error Reentrant();
-  struct RequestCommitment {
-    uint64 blockNum;
-    uint64 subId;
-    uint32 callbackGasLimit;
-    uint32 numWords;
-    address sender;
-  }
   mapping(address => bool) /* keyHash */ /* oracle */ private s_agentProviders;
   address[] private s_agentProvidersList;
   mapping(uint256 => bytes32) /* requestID */ /* commitment */ private s_requestCommitments;

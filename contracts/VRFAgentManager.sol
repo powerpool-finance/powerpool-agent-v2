@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { PPAgentV2VRF } from "./PPAgentV2VRF.sol";
 import { IPPAgentV2JobOwner, IPPAgentV2Viewer } from "./PPAgentV2Interfaces.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./interfaces/VRFAgentCoordinatorInterface.sol";
+import "./interfaces/VRFAgentConsumerInterface.sol";
 
 /**
  * @title PPAgentV2Randao
@@ -14,6 +16,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract VRFAgentManager is Ownable {
 
   PPAgentV2VRF public agent;
+  VRFAgentCoordinatorInterface public coordinator;
+  VRFAgentConsumerInterface public consumer;
+  uint256 public subId;
 
   bytes32 public vrfJobKey;
   uint256 public vrfJobMinBalance; // balance for 3 executes
@@ -27,8 +32,9 @@ contract VRFAgentManager is Ownable {
   error JobDepositNotRequired();
   error DepositBalanceIsNotEnough();
 
-  constructor(PPAgentV2VRF agent_) {
+  constructor(PPAgentV2VRF agent_, VRFAgentCoordinatorInterface coordinator_) {
     agent = agent_;
+    coordinator = coordinator_;
   }
 
   receive() external payable { }
@@ -86,6 +92,38 @@ contract VRFAgentManager is Ownable {
     autoDepositJobMaxDeposit = maxDeposit_;
     if (minBalance_ > maxDeposit_) {
       revert MinMoreThanMax();
+    }
+  }
+
+  function registerVrfJob(
+    uint16 maxBaseFeeGwei_,
+    uint16 rewardPct_,
+    uint32 fixedReward_,
+    uint256 jobMinCvp_,
+    bool activateJob
+  ) external payable onlyOwner returns(bytes32 jobKey, uint256 jobId) {
+    (uint64 subId_, address consumer_) = coordinator.createSubscriptionWithConsumer();
+    subId = subId_;
+    consumer = VRFAgentConsumerInterface(consumer_);
+    agent.setVRFConsumer(address(consumer));
+
+    IPPAgentV2JobOwner.RegisterJobParams memory params = IPPAgentV2JobOwner.RegisterJobParams({
+      jobAddress: address(coordinator),
+      jobSelector: VRFAgentCoordinatorInterface.fulfillRandomWords.selector,
+      useJobOwnerCredits: false,
+      assertResolverSelector: true,
+      maxBaseFeeGwei: maxBaseFeeGwei_,
+      rewardPct: rewardPct_,
+      fixedReward: fixedReward_,
+      jobMinCvp: jobMinCvp_,
+      calldataSource: 3,
+      intervalSeconds: 0
+    });
+    (jobKey, jobId) = agent.registerJob{value: msg.value}(params, getVrfResolverStruct(), new bytes(0));
+    vrfJobKey = jobKey;
+    if (activateJob) {
+      agent.setJobConfig(vrfJobKey, true, false, true, false);
+      _assignKeeperToJob(vrfJobKey);
     }
   }
 
@@ -159,11 +197,38 @@ contract VRFAgentManager is Ownable {
   }
 
   function setVRFConsumer(address VRFConsumer_) external onlyOwner {
+    consumer = VRFAgentConsumerInterface(VRFConsumer_);
     agent.setVRFConsumer(VRFConsumer_);
 
     IPPAgentV2Viewer.Resolver memory vrfJobResolver = getVrfFullfillJobResolver();
     vrfJobResolver.resolverAddress = VRFConsumer_;
     agent.setJobResolver(vrfJobKey, vrfJobResolver);
+  }
+
+  function setConsumerVrfConfig(
+    address vrfCoordinator_,
+    bytes32 vrfKeyHash_,
+    uint64 vrfSubscriptionId_,
+    uint16 vrfRequestConfirmations_,
+    uint32 vrfCallbackGasLimit_,
+    uint256 vrfRequestPeriod_
+  ) external onlyOwner {
+    consumer.setVrfConfig(
+      vrfCoordinator_,
+      vrfKeyHash_,
+      vrfSubscriptionId_,
+      vrfRequestConfirmations_,
+      vrfCallbackGasLimit_,
+      vrfRequestPeriod_
+    );
+  }
+
+  function setConsumerOffChainIpfsHash(string calldata _ipfsHash) external onlyOwner {
+    consumer.setOffChainIpfsHash(_ipfsHash);
+  }
+
+  function consumerTransferOwnership(address _newOwner) external onlyOwner {
+    Ownable(address(consumer)).transferOwnership(_newOwner);
   }
 
   function assignKeeperToJob(bytes32 _jobKey) external onlyOwner {
@@ -304,6 +369,13 @@ contract VRFAgentManager is Ownable {
       amountToDeposit > 0 || getAssignedKeeperToJob(vrfJobKey) == 0,
       abi.encodeWithSelector(VRFAgentManager.processVrfJobDeposit.selector)
     );
+  }
+
+  function getVrfResolverStruct() public view returns(PPAgentV2VRF.Resolver memory) {
+    return IPPAgentV2Viewer.Resolver({
+      resolverAddress: address(consumer),
+      resolverCalldata: abi.encodeWithSelector(VRFAgentConsumerInterface.fulfillRandomnessResolver.selector)
+    });
   }
 
   function getAutoDepositResolverStruct() public view returns(PPAgentV2VRF.Resolver memory) {
