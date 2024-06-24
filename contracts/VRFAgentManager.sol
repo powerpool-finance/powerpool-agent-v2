@@ -77,17 +77,21 @@ contract VRFAgentManager is Ownable {
 
   /*** AGENT OWNER METHODS ***/
 
-  function setVrfConfig(bytes32 vrfJobKey_, uint256 minBalance_, uint256 maxDeposit_) external onlyOwner {
+  function setVrfJobKey(bytes32 vrfJobKey_) external onlyOwner {
     vrfJobKey = vrfJobKey_;
+  }
+  function setAutoDepositJobKey(bytes32 autoDepositJobKey_) external onlyOwner {
+    autoDepositJobKey = autoDepositJobKey_;
+  }
+
+  function setVrfConfig(uint256 minBalance_, uint256 maxDeposit_) external onlyOwner {
     vrfJobMinBalance = minBalance_;
     vrfJobMaxDeposit = maxDeposit_;
     if (minBalance_ > maxDeposit_) {
       revert MinMoreThanMax();
     }
   }
-
-  function setAutoDepositConfig(bytes32 autoDepositJobKey_, uint256 minBalance_, uint256 maxDeposit_) external onlyOwner {
-    autoDepositJobKey = autoDepositJobKey_;
+  function setAutoDepositConfig(uint256 minBalance_, uint256 maxDeposit_) external onlyOwner {
     autoDepositJobMinBalance = minBalance_;
     autoDepositJobMaxDeposit = maxDeposit_;
     if (minBalance_ > maxDeposit_) {
