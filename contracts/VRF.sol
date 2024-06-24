@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "./interfaces/VRFAgentCoordinatorInterface.sol";
+
 /** ****************************************************************************
   * @notice Verification of verifiable-random-function (VRF) proofs, following
   * @notice https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-vrf-05#section-5.3
@@ -548,18 +550,6 @@ contract VRF {
   // Corresponds to vrfRandomOutputHashPrefix in vrf.go
   uint256 internal constant VRF_RANDOM_OUTPUT_HASH_PREFIX = 3;
 
-  struct Proof {
-    uint256[2] pk;
-    uint256[2] gamma;
-    uint256 c;
-    uint256 s;
-    uint256 seed;
-    address uWitness;
-    uint256[2] cGammaWitness;
-    uint256[2] sHashWitness;
-    uint256 zInv;
-  }
-
   /* ***************************************************************************
      * @notice Returns proof's output, if proof is valid. Otherwise reverts
 
@@ -570,7 +560,7 @@ contract VRF {
      * @return output i.e., the random output implied by the proof
      * ***************************************************************************
      */
-  function _randomValueFromVRFProof(Proof memory proof, uint256 seed) internal view returns (uint256 output) {
+  function _randomValueFromVRFProof(VRFAgentCoordinatorInterface.Proof memory proof, uint256 seed) internal view returns (uint256 output) {
     _verifyVRFProof(
       proof.pk,
       proof.gamma,

@@ -2,6 +2,26 @@
 pragma solidity ^0.8.0;
 
 interface VRFAgentCoordinatorInterface {
+    struct Proof {
+        uint256[2] pk;
+        uint256[2] gamma;
+        uint256 c;
+        uint256 s;
+        uint256 seed;
+        address uWitness;
+        uint256[2] cGammaWitness;
+        uint256[2] sHashWitness;
+        uint256 zInv;
+    }
+
+    struct RequestCommitment {
+        uint64 blockNum;
+        uint64 subId;
+        uint32 callbackGasLimit;
+        uint32 numWords;
+        address sender;
+    }
+
     /**
      * @notice Get configuration relevant for making requests
      * @return minimumRequestConfirmations global min for request confirmations
@@ -38,6 +58,8 @@ interface VRFAgentCoordinatorInterface {
         uint32 callbackGasLimit,
         uint32 numWords
     ) external returns (uint256 requestId);
+
+    function fulfillRandomWords(Proof memory proof, RequestCommitment memory rc) external;
 
     /**
      * @notice Create a VRF subscription.

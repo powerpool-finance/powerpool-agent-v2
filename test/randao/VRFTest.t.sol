@@ -208,7 +208,7 @@ contract VRFTest is AbstractTestHelper {
     (, , uint256 feeTotal, , ) = agent.getConfig();
     assertEq(feeTotal, 1e16);
 
-    VRFAgentManager agentManager = new VRFAgentManager(agent);
+    VRFAgentManager agentManager = new VRFAgentManager(agent, coordinator);
     agentManager.setVrfConfig(jobKey, 1.5e16, 1e17);
     agentManager.setAutoDepositConfig(bytes32(0), 1 ether, 2 ether);
     vm.prank(alice);
