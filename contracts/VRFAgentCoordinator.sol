@@ -73,7 +73,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   error Reentrant();
   mapping(address => bool) /* keyHash */ /* oracle */ private s_agentProviders;
   address[] private s_agentProvidersList;
-  mapping(uint256 => bytes32) /* requestID */ /* commitment */ private s_requestCommitments;
+  mapping(uint256 => bytes32) /* requestID */ /* commitment */ internal s_requestCommitments;
 
   VRFAgentConsumerFactoryInterface consumerFactory;
   string private offChainIpfsHash;
@@ -224,7 +224,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     uint16 requestConfirmations,
     uint32 callbackGasLimit,
     uint32 numWords
-  ) external override nonReentrant returns (uint256) {
+  ) external virtual override nonReentrant returns (uint256) {
     // Input validation using the subscription storage.
     if (s_subscriptionConfigs[subId].owner == address(0)) {
       revert InvalidSubscription();
@@ -291,7 +291,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     address sender,
     uint64 subId,
     uint64 nonce
-  ) private pure returns (uint256, uint256) {
+  ) internal virtual view returns (uint256, uint256) {
     uint256 preSeed = uint256(keccak256(abi.encode(agent, sender, subId, nonce)));
     return (uint256(keccak256(abi.encode(agent, preSeed))), preSeed);
   }
@@ -601,7 +601,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     return s_consumers[consumer][subId];
   }
 
-  function fulfillRandomnessResolver(uint64 _subId) external view returns (bool, bytes memory) {
+  function fulfillRandomnessResolver(uint64 _subId) external virtual view returns (bool, bytes memory) {
     return (pendingRequestExists(_subId), bytes(offChainIpfsHash));
   }
 
