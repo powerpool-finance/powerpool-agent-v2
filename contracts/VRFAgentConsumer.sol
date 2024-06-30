@@ -136,13 +136,13 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
             return (false, bytes(""));
         }
         if (useLocalIpfsHash) {
-            return (VRFAgentCoordinatorInterface(vrfCoordinator).pendingRequestExists(vrfSubscriptionId), bytes(offChainIpfsHash));
+            return (lastPendingRequestId() != 0, bytes(offChainIpfsHash));
         } else {
             return VRFAgentCoordinatorInterface(vrfCoordinator).fulfillRandomnessResolver(vrfSubscriptionId);
         }
     }
 
-    function lastPendingRequestId() external view returns (uint256) {
+    function lastPendingRequestId() public view returns (uint256) {
         return VRFAgentCoordinatorInterface(vrfCoordinator).lastPendingRequestId(address(this), vrfSubscriptionId);
     }
 
