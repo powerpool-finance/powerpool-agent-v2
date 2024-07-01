@@ -601,8 +601,8 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     return s_consumers[consumer][subId];
   }
 
-  function fulfillRandomnessResolver(uint64 _subId) external virtual view returns (bool, bytes memory) {
-    return (pendingRequestExists(_subId), bytes(offChainIpfsHash));
+  function fulfillRandomnessResolver(address consumer, uint64 _subId) external virtual view returns (bool, bytes memory) {
+    return (lastPendingRequestId(consumer, _subId) != 0, bytes(offChainIpfsHash));
   }
 
 

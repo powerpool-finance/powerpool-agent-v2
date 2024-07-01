@@ -10,14 +10,11 @@ contract MockVRFCoordinator is VRFAgentCoordinator {
   address public requestedByConsumer;
   uint256 public requestedNumWords;
 
+  uint256 public lastRequestId;
   mapping(address => uint256) public lastRequestIdByConsumer;
 
   constructor(VRFAgentConsumerFactoryInterface _consumerFactory) VRFAgentCoordinator(_consumerFactory) {
 
-  }
-
-  function fulfillRandomnessResolver(uint64 _subId) external override view returns (bool, bytes memory) {
-    return (false, bytes(""));
   }
 
   function requestRandomWords(
@@ -28,7 +25,8 @@ contract MockVRFCoordinator is VRFAgentCoordinator {
     uint32 numWords
   ) external override returns (uint256 requestId) {
     requestedByConsumer = msg.sender;
-    lastRequestIdByConsumer[requestedByConsumer]++;
+    requestId = ++lastRequestId;
+    lastRequestIdByConsumer[requestedByConsumer] = requestId;
     requestedNumWords = numWords;
     s_requestCommitments[requestId] = bytes32(uint256(1));
     return lastRequestIdByConsumer[requestedByConsumer];
@@ -36,12 +34,12 @@ contract MockVRFCoordinator is VRFAgentCoordinator {
 
   function callFulfill() external {
     uint256[] memory words = new uint256[](requestedNumWords);
-    uint256 lastRequestId = lastRequestIdByConsumer[requestedByConsumer];
+    uint256 requestId = lastRequestIdByConsumer[requestedByConsumer];
     for (uint256 i = 0; i < words.length; i++) {
-      words[i] = i + lastRequestId + 54;
+      words[i] = i + requestId + 54;
     }
-    VRFAgentConsumer(requestedByConsumer).rawFulfillRandomWords(lastRequestId, words);
-    delete s_requestCommitments[lastRequestId];
+    VRFAgentConsumer(requestedByConsumer).rawFulfillRandomWords(requestId, words);
+    delete s_requestCommitments[requestId];
   }
 
   function _computeRequestId(
