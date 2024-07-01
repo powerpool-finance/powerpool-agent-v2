@@ -162,6 +162,12 @@ contract VRFTest is AbstractTestHelper {
     (needFulfill, ) = coordinator.fulfillRandomnessResolver(address(consumer), 1);
     assertEq(needFulfill, true);
 
+    (needFulfill, ) = consumer.fulfillRandomnessResolver();
+    assertEq(needFulfill, true);
+
+//    consumer = new VRFAgentConsumer(address(agent));
+//    coordinator.addConsumer(coordinator.createSubscription(), address(consumer));
+
     vm.roll(25);
     uint256 fulfillTimestamp = block.timestamp + 15;
     vm.warp(fulfillTimestamp);
