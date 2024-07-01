@@ -125,7 +125,7 @@ contract VRFAgentManager is Ownable {
     });
     (jobKey, jobId) = agent.registerJob{value: msg.value}(params, getVrfResolverStruct(), new bytes(0));
     vrfJobKey = jobKey;
-    if (activateJob) {
+    if (activateJob && getAssignedKeeperToJob(jobKey) == 0) {
       agent.setJobConfig(vrfJobKey, true, false, true, false);
       _assignKeeperToJob(vrfJobKey);
     }
@@ -152,7 +152,7 @@ contract VRFAgentManager is Ownable {
     });
     (jobKey, jobId) = agent.registerJob{value: msg.value}(params, getAutoDepositResolverStruct(), new bytes(0));
     autoDepositJobKey = jobKey;
-    if (activateJob) {
+    if (activateJob && getAssignedKeeperToJob(jobKey) == 0) {
       agent.setJobConfig(autoDepositJobKey, true, false, true, false);
       _assignKeeperToJob(autoDepositJobKey);
     }

@@ -60,12 +60,14 @@ contract VRFTest is AbstractTestHelper {
       jobFixedRewardFinney: 30
     });
 
-    coordinator = new MockVRFCoordinator();
+    coordinator = new MockVRFCoordinator(VRFAgentConsumerFactoryInterface(address(0)));
     agent = new PPAgentV2VRF(address(cvp));
     consumer = new VRFAgentConsumer(address(agent));
     counter = new OnlySelectorTestJob(address(agent));
     agent.initializeRandao(owner, 3_000 ether, 3 days, rdConfig);
     consumer.setVrfConfig(address(coordinator), bytes32(0), uint64(0), uint16(0), uint32(0), 0);
+    coordinator.registerAgent(address(agent));
+    coordinator.addConsumer(coordinator.createSubscription(), address(consumer));
 
     vm.prank(owner);
     agent.setAgentParams(1, 10, 1e4);
@@ -125,16 +127,19 @@ contract VRFTest is AbstractTestHelper {
     job = new OnlySelectorTestJob(address(agent));
     assertEq(job.current(), 0);
     _setupJob(address(job), OnlySelectorTestJob.increment.selector, true);
-    assertEq(coordinator.lastRequestId(), 1);
-    assertEq(consumer.pendingRequestId(), coordinator.lastRequestId());
+    assertEq(coordinator.lastRequestIdByConsumer(address(consumer)), 1);
+    assertEq(consumer.pendingRequestId(), coordinator.lastRequestIdByConsumer(address(consumer)));
     assertEq(agent.jobNextKeeperId(jobKey), 2);
 
     assertEq(consumer.getPseudoRandom(), uint256(blockhash(block.number - 1)));
     coordinator.callFulfill();
     assertNotEq(consumer.getPseudoRandom(), uint256(blockhash(block.number - 1)));
     assertEq(consumer.pendingRequestId(), 0);
-    assertEq(coordinator.lastRequestId(), 1);
+    assertEq(coordinator.lastRequestIdByConsumer(address(consumer)), 1);
     assertEq(consumer.lastVrfFulfillAt(), 0);
+
+    (bool needFulfill, ) = coordinator.fulfillRandomnessResolver(address(consumer), 1);
+    assertEq(needFulfill, false);
 
     vm.prank(keeperWorker, keeperWorker);
     vm.roll(20);
@@ -146,10 +151,16 @@ contract VRFTest is AbstractTestHelper {
       kid2,
       new bytes(0)
     );
-    assertEq(coordinator.lastRequestId(), 2);
-    assertEq(consumer.pendingRequestId(), coordinator.lastRequestId());
+    assertEq(coordinator.lastRequestIdByConsumer(address(consumer)), 2);
+    assertEq(consumer.pendingRequestId(), coordinator.lastRequestIdByConsumer(address(consumer)));
 
-    consumer.setVrfConfig(address(coordinator), bytes32(0), uint64(0), uint16(0), uint32(0), 30);
+    consumer.setVrfConfig(address(coordinator), bytes32(0), uint64(1), uint16(0), uint32(0), 30);
+
+    assertEq(coordinator.getCommitment(consumer.pendingRequestId()), bytes32(uint256(1)));
+    assertEq(coordinator.lastPendingRequestId(address(consumer), 1), consumer.pendingRequestId());
+    assertEq(consumer.pendingRequestId(), consumer.coordinatorPendingRequestId());
+    (needFulfill, ) = coordinator.fulfillRandomnessResolver(address(consumer), 1);
+    assertEq(needFulfill, true);
 
     vm.roll(25);
     uint256 fulfillTimestamp = block.timestamp + 15;
@@ -157,6 +168,14 @@ contract VRFTest is AbstractTestHelper {
     coordinator.callFulfill();
     assertEq(consumer.pendingRequestId(), 0);
     assertEq(consumer.lastVrfFulfillAt(), fulfillTimestamp);
+
+    (needFulfill, ) = coordinator.fulfillRandomnessResolver(address(consumer), 1);
+    assertEq(needFulfill, false);
+
+    coordinator.requestRandomWords(address(0), 1, 1, 1, 10);
+
+    (needFulfill, ) = coordinator.fulfillRandomnessResolver(address(consumer), 1);
+    assertEq(needFulfill, false);
 
     vm.roll(30);
     vm.warp(fulfillTimestamp + 15);
@@ -173,7 +192,7 @@ contract VRFTest is AbstractTestHelper {
     );
 
     assertEq(consumer.pendingRequestId(), 0);
-    assertEq(coordinator.lastRequestId(), 2);
+    assertEq(coordinator.lastRequestIdByConsumer(address(consumer)), 2);
 
     vm.roll(40);
     vm.warp(fulfillTimestamp + 31);
@@ -189,8 +208,8 @@ contract VRFTest is AbstractTestHelper {
       new bytes(0)
     );
 
-    assertEq(consumer.pendingRequestId(), 3);
-    assertEq(coordinator.lastRequestId(), 3);
+    assertEq(consumer.pendingRequestId(), 4);
+    assertEq(coordinator.lastRequestIdByConsumer(address(consumer)), 4);
 
     uint256 timestampBefore = block.timestamp;
     assertEq(consumer.isReadyForRequest(), false);
