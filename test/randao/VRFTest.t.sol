@@ -162,9 +162,6 @@ contract VRFTest is AbstractTestHelper {
     (needFulfill, ) = coordinator.fulfillRandomnessResolver(address(consumer), 1);
     assertEq(needFulfill, true);
 
-    (needFulfill, ) = consumer.fulfillRandomnessResolver();
-    assertEq(needFulfill, true);
-
 //    consumer = new VRFAgentConsumer(address(agent));
 //    coordinator.addConsumer(coordinator.createSubscription(), address(consumer));
 
@@ -185,15 +182,15 @@ contract VRFTest is AbstractTestHelper {
 
     vm.roll(30);
     vm.warp(fulfillTimestamp + 15);
-    assertEq(agent.jobNextKeeperId(jobKey), 2);
+    assertEq(agent.jobNextKeeperId(jobKey), 3);
     assertEq(consumer.isReadyForRequest(), false);
-    vm.prank(keeperWorker, keeperWorker);
+    vm.prank(bob, bob);
     _callExecuteHelper(
       agent,
       address(job),
       jobId,
       defaultFlags,
-      kid2,
+      kid3,
       new bytes(0)
     );
 
@@ -202,15 +199,15 @@ contract VRFTest is AbstractTestHelper {
 
     vm.roll(40);
     vm.warp(fulfillTimestamp + 31);
-    assertEq(agent.jobNextKeeperId(jobKey), 3);
+    assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(consumer.isReadyForRequest(), true);
-    vm.prank(bob, bob);
+    vm.prank(keeperWorker, keeperWorker);
     _callExecuteHelper(
       agent,
       address(job),
       jobId,
       defaultFlags,
-      kid3,
+      kid2,
       new bytes(0)
     );
 

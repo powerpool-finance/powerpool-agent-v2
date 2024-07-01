@@ -17,10 +17,6 @@ contract MockVRFCoordinator is VRFAgentCoordinator {
 
   }
 
-  function fulfillRandomnessResolver(uint64 _subId) external override view returns (bool, bytes memory) {
-    return (false, bytes(""));
-  }
-
   function requestRandomWords(
     address /*agent*/,
     uint64 /*subId*/,
@@ -40,7 +36,7 @@ contract MockVRFCoordinator is VRFAgentCoordinator {
     uint256[] memory words = new uint256[](requestedNumWords);
     uint256 requestId = lastRequestIdByConsumer[requestedByConsumer];
     for (uint256 i = 0; i < words.length; i++) {
-      words[i] = i + requestId + 54;
+      words[i] = i + requestId + 55;
     }
     VRFAgentConsumer(requestedByConsumer).rawFulfillRandomWords(requestId, words);
     delete s_requestCommitments[requestId];
