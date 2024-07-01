@@ -184,6 +184,17 @@ contract VRFAgentManager is Ownable {
     agent.setJobConfig(jobKey_, isActive_, useJobOwnerCredits_, assertResolverSelector_, callResolverBeforeExecute_);
   }
 
+  function updateJob(
+    bytes32 jobKey_,
+    uint16 maxBaseFeeGwei_,
+    uint16 rewardPct_,
+    uint32 fixedReward_,
+    uint256 jobMinCvp_,
+    uint24 intervalSeconds_
+  ) external onlyOwner {
+    agent.updateJob(jobKey_, maxBaseFeeGwei_, rewardPct_, fixedReward_, jobMinCvp_, intervalSeconds_);
+  }
+
   function withdrawJobCredits(bytes32 jobKey_, address payable to_, uint256 amount_) external onlyOwner {
     agent.withdrawJobCredits(jobKey_, to_, amount_);
   }
