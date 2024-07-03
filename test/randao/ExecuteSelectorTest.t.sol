@@ -411,7 +411,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
       kid2,
       new bytes(0)
     );
-    assertApproxEqAbs(keeperWorker.balance - workerBalanceBefore, 0.003753125 ether, 0.00005 ether);
+    assertApproxEqAbs(keeperWorker.balance - workerBalanceBefore, 0.0036931 ether, 0.00005 ether);
   }
 
   function testRdIntervalJobExecutionRevertedCompensationLessThanBalance() public {

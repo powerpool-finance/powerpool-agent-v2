@@ -407,6 +407,6 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     assertEq(job.current(), 1);
     assertEq(agent.jobReservedSlasherId(jobKey), 0);
     assertEq(agent.jobSlashingPossibleAfter(jobKey), 0);
-    assertApproxEqAbs(keeperWorker.balance - workerBalanceBefore, 0.00355945 ether, 0.00005 ether);
+    assertApproxEqAbs(keeperWorker.balance - workerBalanceBefore, 0.003490075 ether, 0.00005 ether);
   }
 }

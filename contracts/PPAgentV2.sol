@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./utils/InitializableOptimized.sol";
@@ -75,7 +75,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   uint256 internal constant MAX_PENDING_WITHDRAWAL_TIMEOUT_SECONDS = 30 days;
   uint256 internal constant MAX_FEE_PPM = 5e4;
   uint256 internal constant FIXED_PAYMENT_MULTIPLIER = 1e12;
-  uint256 internal constant EXECUTION_IS_LOCKED_FLAG = 0x1000000000000000000000000000000000000000000000000000000000000000;
+  bytes32 internal constant EXECUTION_LOCK_KEY = keccak256("executionLock");
 
   enum CalldataSourceType {
     SELECTOR,
@@ -187,8 +187,20 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   /*** PSEUDO-MODIFIERS ***/
 
   function _assertExecutionNotLocked() internal view {
-    if (ConfigFlags.check(minKeeperCvp, EXECUTION_IS_LOCKED_FLAG)) {
-      revert ExecutionReentrancyLocked();
+    bytes32 lockKey = EXECUTION_LOCK_KEY;
+    assembly ("memory-safe") {
+      let isLocked := tload(lockKey)
+      if isLocked {
+        mstore(0x1c, 0x0815283600000000000000000000000000000000000000000000000000000000)
+        revert(0x1c, 4)
+      }
+    }
+  }
+
+  function _setExecutionLock(uint value_) internal {
+    bytes32 lockKey = EXECUTION_LOCK_KEY;
+    assembly ("memory-safe") {
+      tstore(lockKey, value_)
     }
   }
 
@@ -322,7 +334,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
       }
 
       // Execution LOCK
-      minKeeperCvp = minKeeperCvp_ | EXECUTION_IS_LOCKED_FLAG;
+      _setExecutionLock(1);
     }
 
     // 1. Assert the job is active
@@ -508,7 +520,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     }
 
     // Execution UNLOCK
-    minKeeperCvp = minKeeperCvp ^ EXECUTION_IS_LOCKED_FLAG;
+    _setExecutionLock(0);
 
     if (ok) {
       // Transaction succeeded
@@ -1310,7 +1322,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     uint256 timeoutSeconds_,
     uint256 feePpm_
   ) internal {
-    if (minKeeperCvp_ == 0 || minKeeperCvp_ >= uint256(EXECUTION_IS_LOCKED_FLAG)) {
+    if (minKeeperCvp_ == 0) {
       revert InvalidMinKeeperCvp();
     }
     if (timeoutSeconds_ > MAX_PENDING_WITHDRAWAL_TIMEOUT_SECONDS) {
@@ -1376,7 +1388,7 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
     )
   {
     return (
-      minKeeperCvp & ~EXECUTION_IS_LOCKED_FLAG,
+      minKeeperCvp,
       pendingWithdrawalTimeoutSeconds,
       feeTotal,
       feePpm,
@@ -1458,11 +1470,11 @@ contract PPAgentV2 is IPPAgentV2Executor, IPPAgentV2Viewer, IPPAgentV2JobOwner, 
   // The function that always reverts
   function checkCouldBeExecuted(address jobAddress_, bytes memory jobCalldata_) external {
     // 1. LOCK
-    minKeeperCvp = minKeeperCvp | EXECUTION_IS_LOCKED_FLAG;
+    _setExecutionLock(1);
     // 2. EXECUTE
     (bool ok, bytes memory result) = jobAddress_.call(jobCalldata_);
     // 3. UNLOCK
-    minKeeperCvp = minKeeperCvp ^ EXECUTION_IS_LOCKED_FLAG;
+    _setExecutionLock(0);
 
     if (ok) {
       revert JobCheckCanBeExecuted(result);
