@@ -199,7 +199,6 @@ contract PPAgentV2Randao is IPPAgentV2RandaoViewer, PPAgentV2 {
   }
 
   function _assignKeeper(bytes32[] calldata jobKeys_) internal {
-    _assertExecutionNotLocked();
     for (uint256 i = 0; i < jobKeys_.length; i++) {
       bytes32 jobKey = jobKeys_[i];
       uint256 assignedKeeperId = jobNextKeeperId[jobKey];

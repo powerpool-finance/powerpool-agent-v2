@@ -29,10 +29,10 @@ jobs:
       - name: Run Forge build
         run: |
           forge --version
-          forge build
+          forge build --evm-version cancun
         id: build
 
       - name: Run Forge tests
         run: |
-          forge test -vvv
+          forge test -vvv --evm-version cancun
         id: test

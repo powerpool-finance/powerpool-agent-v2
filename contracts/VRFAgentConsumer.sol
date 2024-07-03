@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/VRFAgentCoordinatorInterface.sol";
 import "./interfaces/VRFAgentConsumerInterface.sol";
 import "./interfaces/VRFChainlinkCoordinatorInterface.sol";
-import "./utils/ChainSpecificUtil.sol";
 
 /**
  * @title VRFAgentConsumer
@@ -82,7 +81,7 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     }
 
     function isPendingRequestOverdue() public view returns (bool) {
-        return pendingRequestId != 0 && ChainSpecificUtil._getBlockNumber() - lastVrfRequestAtBlock >= 256;
+        return pendingRequestId != 0 && block.number - lastVrfRequestAtBlock >= 256;
     }
 
     function isReadyForRequest() public view returns (bool) {
@@ -91,13 +90,13 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     }
 
     function getLastBlockHash() public virtual view returns (uint256) {
-        return uint256(ChainSpecificUtil._getBlockhash(uint64(ChainSpecificUtil._getBlockNumber()) - 1));
+        return uint256(blockhash(block.number - 1));
     }
 
     function getPseudoRandom() external returns (uint256) {
         if (msg.sender == agent && isReadyForRequest()) {
             pendingRequestId = _requestRandomWords();
-            lastVrfRequestAtBlock = ChainSpecificUtil._getBlockNumber();
+            lastVrfRequestAtBlock = block.number;
         }
         uint256 blockHashNumber = getLastBlockHash();
         if (lastVrfNumbers.length > 0) {
@@ -132,17 +131,20 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     }
 
     function fulfillRandomnessResolver() external view returns (bool, bytes memory) {
-        if (isPendingRequestOverdue() || (lastVrfFulfillAt != 0 && pendingRequestId == 0)) {
+        if (isPendingRequestOverdue() || (lastVrfFulfillAt != 0 && pendingRequestId == 0) || block.number == lastVrfRequestAtBlock) {
             return (false, bytes(""));
         }
         if (useLocalIpfsHash) {
-            return (VRFAgentCoordinatorInterface(vrfCoordinator).pendingRequestExists(vrfSubscriptionId), bytes(offChainIpfsHash));
+            return (coordinatorPendingRequestId() != 0, bytes(offChainIpfsHash));
         } else {
-            return VRFAgentCoordinatorInterface(vrfCoordinator).fulfillRandomnessResolver(vrfSubscriptionId);
+            return VRFAgentCoordinatorInterface(vrfCoordinator).fulfillRandomnessResolver(
+                address(this),
+                vrfSubscriptionId
+            );
         }
     }
 
-    function lastPendingRequestId() external view returns (uint256) {
+    function coordinatorPendingRequestId() public view returns (uint256) {
         return VRFAgentCoordinatorInterface(vrfCoordinator).lastPendingRequestId(address(this), vrfSubscriptionId);
     }
 
@@ -158,7 +160,7 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
         return (
             vrfSubscriptionId,
             lastVrfRequestAtBlock,
-            ChainSpecificUtil._getBlockhash(uint64(lastVrfRequestAtBlock)),
+            blockhash(lastVrfRequestAtBlock),
             pendingRequestId,
             VRFAgentCoordinatorInterface(vrfCoordinator).getCurrentNonce(address(this), vrfSubscriptionId),
             VRF_NUM_RANDOM_WORDS,

@@ -8,7 +8,6 @@ import "./interfaces/VRFAgentConsumerFactoryInterface.sol";
 import {VRF} from "./VRF.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./VRFAgentConsumer.sol";
-import "./utils/ChainSpecificUtil.sol";
 
 contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   // solhint-disable-next-line chainlink-solidity/prefix-immutable-variables-with-i
@@ -72,16 +71,9 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   error BlockhashNotInStore(uint256 blockNum);
   error PaymentTooLarge();
   error Reentrant();
-  struct RequestCommitment {
-    uint64 blockNum;
-    uint64 subId;
-    uint32 callbackGasLimit;
-    uint32 numWords;
-    address sender;
-  }
   mapping(address => bool) /* keyHash */ /* oracle */ private s_agentProviders;
   address[] private s_agentProvidersList;
-  mapping(uint256 => bytes32) /* requestID */ /* commitment */ private s_requestCommitments;
+  mapping(uint256 => bytes32) /* requestID */ /* commitment */ internal s_requestCommitments;
 
   VRFAgentConsumerFactoryInterface consumerFactory;
   string private offChainIpfsHash;
@@ -232,7 +224,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     uint16 requestConfirmations,
     uint32 callbackGasLimit,
     uint32 numWords
-  ) external override nonReentrant returns (uint256) {
+  ) external virtual override nonReentrant returns (uint256) {
     // Input validation using the subscription storage.
     if (s_subscriptionConfigs[subId].owner == address(0)) {
       revert InvalidSubscription();
@@ -268,7 +260,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     (uint256 requestId, uint256 preSeed) = _computeRequestId(agent, msg.sender, subId, nonce);
 
     s_requestCommitments[requestId] = keccak256(
-      abi.encode(requestId, ChainSpecificUtil._getBlockNumber(), subId, callbackGasLimit, numWords, msg.sender)
+      abi.encode(requestId, block.number, subId, callbackGasLimit, numWords, msg.sender)
     );
     emit RandomWordsRequested(
       agent,
@@ -299,7 +291,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     address sender,
     uint64 subId,
     uint64 nonce
-  ) private pure returns (uint256, uint256) {
+  ) internal virtual view returns (uint256, uint256) {
     uint256 preSeed = uint256(keccak256(abi.encode(agent, sender, subId, nonce)));
     return (uint256(keccak256(abi.encode(agent, preSeed))), preSeed);
   }
@@ -363,7 +355,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
       revert IncorrectCommitment();
     }
 
-    bytes32 blockHash = ChainSpecificUtil._getBlockhash(rc.blockNum);
+    bytes32 blockHash = blockhash(rc.blockNum);
     if (blockHash == bytes32(0)) {
       revert BlockhashNotInStore(rc.blockNum);
     }
@@ -609,8 +601,8 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     return s_consumers[consumer][subId];
   }
 
-  function fulfillRandomnessResolver(uint64 _subId) external view returns (bool, bytes memory) {
-    return (pendingRequestExists(_subId), bytes(offChainIpfsHash));
+  function fulfillRandomnessResolver(address consumer, uint64 _subId) external virtual view returns (bool, bytes memory) {
+    return (lastPendingRequestId(consumer, _subId) != 0, bytes(offChainIpfsHash));
   }
 
 

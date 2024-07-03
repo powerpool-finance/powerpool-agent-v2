@@ -60,12 +60,14 @@ contract VRFTest is AbstractTestHelper {
       jobFixedRewardFinney: 30
     });
 
-    coordinator = new MockVRFCoordinator();
+    coordinator = new MockVRFCoordinator(VRFAgentConsumerFactoryInterface(address(0)));
     agent = new PPAgentV2VRF(address(cvp));
     consumer = new VRFAgentConsumer(address(agent));
     counter = new OnlySelectorTestJob(address(agent));
     agent.initializeRandao(owner, 3_000 ether, 3 days, rdConfig);
     consumer.setVrfConfig(address(coordinator), bytes32(0), uint64(0), uint16(0), uint32(0), 0);
+    coordinator.registerAgent(address(agent));
+    coordinator.addConsumer(coordinator.createSubscription(), address(consumer));
 
     vm.prank(owner);
     agent.setAgentParams(1, 10, 1e4);
@@ -125,16 +127,19 @@ contract VRFTest is AbstractTestHelper {
     job = new OnlySelectorTestJob(address(agent));
     assertEq(job.current(), 0);
     _setupJob(address(job), OnlySelectorTestJob.increment.selector, true);
-    assertEq(coordinator.lastRequestId(), 1);
-    assertEq(consumer.pendingRequestId(), coordinator.lastRequestId());
+    assertEq(coordinator.lastRequestIdByConsumer(address(consumer)), 1);
+    assertEq(consumer.pendingRequestId(), coordinator.lastRequestIdByConsumer(address(consumer)));
     assertEq(agent.jobNextKeeperId(jobKey), 2);
 
     assertEq(consumer.getPseudoRandom(), uint256(blockhash(block.number - 1)));
     coordinator.callFulfill();
     assertNotEq(consumer.getPseudoRandom(), uint256(blockhash(block.number - 1)));
     assertEq(consumer.pendingRequestId(), 0);
-    assertEq(coordinator.lastRequestId(), 1);
+    assertEq(coordinator.lastRequestIdByConsumer(address(consumer)), 1);
     assertEq(consumer.lastVrfFulfillAt(), 0);
+
+    (bool needFulfill, ) = coordinator.fulfillRandomnessResolver(address(consumer), 1);
+    assertEq(needFulfill, false);
 
     vm.prank(keeperWorker, keeperWorker);
     vm.roll(20);
@@ -146,10 +151,19 @@ contract VRFTest is AbstractTestHelper {
       kid2,
       new bytes(0)
     );
-    assertEq(coordinator.lastRequestId(), 2);
-    assertEq(consumer.pendingRequestId(), coordinator.lastRequestId());
+    assertEq(coordinator.lastRequestIdByConsumer(address(consumer)), 2);
+    assertEq(consumer.pendingRequestId(), coordinator.lastRequestIdByConsumer(address(consumer)));
 
-    consumer.setVrfConfig(address(coordinator), bytes32(0), uint64(0), uint16(0), uint32(0), 30);
+    consumer.setVrfConfig(address(coordinator), bytes32(0), uint64(1), uint16(0), uint32(0), 30);
+
+    assertEq(coordinator.getCommitment(consumer.pendingRequestId()), bytes32(uint256(1)));
+    assertEq(coordinator.lastPendingRequestId(address(consumer), 1), consumer.pendingRequestId());
+    assertEq(consumer.pendingRequestId(), consumer.coordinatorPendingRequestId());
+    (needFulfill, ) = coordinator.fulfillRandomnessResolver(address(consumer), 1);
+    assertEq(needFulfill, true);
+
+//    consumer = new VRFAgentConsumer(address(agent));
+//    coordinator.addConsumer(coordinator.createSubscription(), address(consumer));
 
     vm.roll(25);
     uint256 fulfillTimestamp = block.timestamp + 15;
@@ -157,6 +171,14 @@ contract VRFTest is AbstractTestHelper {
     coordinator.callFulfill();
     assertEq(consumer.pendingRequestId(), 0);
     assertEq(consumer.lastVrfFulfillAt(), fulfillTimestamp);
+
+    (needFulfill, ) = coordinator.fulfillRandomnessResolver(address(consumer), 1);
+    assertEq(needFulfill, false);
+
+    coordinator.requestRandomWords(address(0), 1, 1, 1, 10);
+
+    (needFulfill, ) = coordinator.fulfillRandomnessResolver(address(consumer), 1);
+    assertEq(needFulfill, false);
 
     vm.roll(30);
     vm.warp(fulfillTimestamp + 15);
@@ -173,24 +195,24 @@ contract VRFTest is AbstractTestHelper {
     );
 
     assertEq(consumer.pendingRequestId(), 0);
-    assertEq(coordinator.lastRequestId(), 2);
+    assertEq(coordinator.lastRequestIdByConsumer(address(consumer)), 2);
 
     vm.roll(40);
     vm.warp(fulfillTimestamp + 31);
-    assertEq(agent.jobNextKeeperId(jobKey), 3);
+    assertEq(agent.jobNextKeeperId(jobKey), 1);
     assertEq(consumer.isReadyForRequest(), true);
-    vm.prank(bob, bob);
+    vm.prank(alice, alice);
     _callExecuteHelper(
       agent,
       address(job),
       jobId,
       defaultFlags,
-      kid3,
+      kid1,
       new bytes(0)
     );
 
-    assertEq(consumer.pendingRequestId(), 3);
-    assertEq(coordinator.lastRequestId(), 3);
+    assertEq(consumer.pendingRequestId(), 4);
+    assertEq(coordinator.lastRequestIdByConsumer(address(consumer)), 4);
 
     uint256 timestampBefore = block.timestamp;
     assertEq(consumer.isReadyForRequest(), false);
@@ -208,9 +230,13 @@ contract VRFTest is AbstractTestHelper {
     (, , uint256 feeTotal, , ) = agent.getConfig();
     assertEq(feeTotal, 1e16);
 
-    VRFAgentManager agentManager = new VRFAgentManager(agent);
-    agentManager.setVrfConfig(jobKey, 1.5e16, 1e17);
-    agentManager.setAutoDepositConfig(bytes32(0), 1 ether, 2 ether);
+    VRFAgentManager agentManager = new VRFAgentManager(agent, coordinator);
+    agentManager.setVrfJobKey(jobKey);
+    agentManager.setVrfConfig(1.5e16, 1e17);
+    agentManager.setAutoDepositConfig(1 ether, 2 ether);
+    vm.prank(alice);
+    agent.initiateJobTransfer(jobKey, address(agentManager));
+    agentManager.acceptAllJobsTransfer();
     vm.prank(owner);
     agent.transferOwnership(address(agentManager));
 
@@ -250,7 +276,8 @@ contract VRFTest is AbstractTestHelper {
     (bool isCallAutoDeposit, bytes memory autoDepositCalldata) = agentManager.vrfAutoDepositJobsResolver();
     assertEq(isCallAutoDeposit, false);
 
-    agentManager.setAutoDepositConfig(autoDepositJobKey, 1e16, 1e17);
+    agentManager.setAutoDepositJobKey(autoDepositJobKey);
+    agentManager.setAutoDepositConfig(1e16, 1e17);
 
     (amountToDeposit, vrfAmountIn, autoDepositAmountIn) = agentManager.getBalanceRequiredToDeposit();
     assertApproxEqAbs(amountToDeposit, 1.01e16, 1);
@@ -285,10 +312,8 @@ contract VRFTest is AbstractTestHelper {
     assertEq(isCallAutoDeposit, false);
 
     (address jobOwner, , , , ,) = agent.getJob(jobKey);
-    assertEq(jobOwner, alice);
-    vm.startPrank(alice);
-    agent.withdrawJobCredits(jobKey, payable(alice), agentManager.getVrfFullfillJobBalance());
-    vm.stopPrank();
+    assertEq(jobOwner, address(agentManager));
+    agentManager.withdrawJobCredits(jobKey, payable(alice), agentManager.getVrfFullfillJobBalance());
     assertEq(agentManager.getVrfFullfillJobBalance(), 0);
 
     agent.depositJobCredits{value: 100 ether}(autoDepositJobKey);
@@ -298,7 +323,8 @@ contract VRFTest is AbstractTestHelper {
     assertApproxEqAbs(vrfAmountIn, 8.5e16, 1);
     assertEq(autoDepositAmountIn, 0);
 
-    agentManager.setVrfConfig(jobKey, 1 ether, 2 ether);
+    agentManager.setVrfJobKey(jobKey);
+    agentManager.setVrfConfig(1 ether, 2 ether);
 
     (amountToDeposit, vrfAmountIn, autoDepositAmountIn) = agentManager.getBalanceRequiredToDeposit();
     assertApproxEqAbs(amountToDeposit, 1 ether, 1);
@@ -306,15 +332,15 @@ contract VRFTest is AbstractTestHelper {
     assertEq(autoDepositAmountIn, 0);
 
     uint256 vrfJobBalanceBefore = agentManager.getVrfFullfillJobBalance();
-    assertEq(agent.jobNextKeeperId(autoDepositJobKey), 3);
-    vm.prank(bob, bob);
+    assertEq(agent.jobNextKeeperId(autoDepositJobKey), 1);
+    vm.prank(alice, alice);
     vm.roll(20);
     _callExecuteHelper(
       agent,
       address(agentManager),
       autoDepositJobId,
       defaultFlags,
-      kid3,
+      kid1,
       autoDepositCalldata
     );
     uint256 vrfJobBalanceAfter = agentManager.getVrfFullfillJobBalance();
