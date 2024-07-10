@@ -319,28 +319,28 @@ contract VRFTest is AbstractTestHelper {
     agent.depositJobCredits{value: 100 ether}(autoDepositJobKey);
 
     (amountToDeposit, vrfAmountIn, autoDepositAmountIn) = agentManager.getBalanceRequiredToDeposit();
-    assertApproxEqAbs(amountToDeposit, 8.5e16, 1);
-    assertApproxEqAbs(vrfAmountIn, 8.5e16, 1);
+    assertApproxEqAbs(amountToDeposit, 1e17, 1);
+    assertApproxEqAbs(vrfAmountIn, 1e17, 1);
     assertEq(autoDepositAmountIn, 0);
 
     agentManager.setVrfJobKey(jobKey);
     agentManager.setVrfConfig(1 ether, 2 ether);
 
     (amountToDeposit, vrfAmountIn, autoDepositAmountIn) = agentManager.getBalanceRequiredToDeposit();
-    assertApproxEqAbs(amountToDeposit, 1 ether, 1);
-    assertApproxEqAbs(vrfAmountIn, 1 ether, 1);
+    assertApproxEqAbs(amountToDeposit, 1.000101e18, 1);
+    assertApproxEqAbs(vrfAmountIn, 1.000101e18, 1);
     assertEq(autoDepositAmountIn, 0);
 
     uint256 vrfJobBalanceBefore = agentManager.getVrfFullfillJobBalance();
-    assertEq(agent.jobNextKeeperId(autoDepositJobKey), 1);
-    vm.prank(alice, alice);
+    assertEq(agent.jobNextKeeperId(autoDepositJobKey), 2);
+    vm.prank(keeperWorker, keeperWorker);
     vm.roll(20);
     _callExecuteHelper(
       agent,
       address(agentManager),
       autoDepositJobId,
       defaultFlags,
-      kid1,
+      kid2,
       autoDepositCalldata
     );
     uint256 vrfJobBalanceAfter = agentManager.getVrfFullfillJobBalance();
