@@ -77,21 +77,21 @@ contract VRFAgentManager is Ownable {
 
   /*** AGENT OWNER METHODS ***/
 
-  function setVrfJobKey(bytes32 vrfJobKey_) external onlyOwner {
+  function setVrfJobKey(bytes32 vrfJobKey_) public onlyOwner {
     vrfJobKey = vrfJobKey_;
   }
-  function setAutoDepositJobKey(bytes32 autoDepositJobKey_) external onlyOwner {
+  function setAutoDepositJobKey(bytes32 autoDepositJobKey_) public onlyOwner {
     autoDepositJobKey = autoDepositJobKey_;
   }
 
-  function setVrfConfig(uint256 minBalance_, uint256 maxDeposit_) external onlyOwner {
+  function setVrfConfig(uint256 minBalance_, uint256 maxDeposit_) public onlyOwner {
     vrfJobMinBalance = minBalance_;
     vrfJobMaxDeposit = maxDeposit_;
     if (minBalance_ > maxDeposit_) {
       revert MinMoreThanMax();
     }
   }
-  function setAutoDepositConfig(uint256 minBalance_, uint256 maxDeposit_) external onlyOwner {
+  function setAutoDepositConfig(uint256 minBalance_, uint256 maxDeposit_) public onlyOwner {
     autoDepositJobMinBalance = minBalance_;
     autoDepositJobMaxDeposit = maxDeposit_;
     if (minBalance_ > maxDeposit_) {
@@ -137,7 +137,7 @@ contract VRFAgentManager is Ownable {
     uint32 fixedReward_,
     uint256 jobMinCvp_,
     bool activateJob
-  ) external payable onlyOwner returns(bytes32 jobKey, uint256 jobId) {
+  ) public payable onlyOwner returns(bytes32 jobKey, uint256 jobId) {
     IPPAgentV2JobOwner.RegisterJobParams memory params = IPPAgentV2JobOwner.RegisterJobParams({
       jobAddress: address(this),
       jobSelector: VRFAgentManager.processVrfJobDeposit.selector,
@@ -153,7 +153,7 @@ contract VRFAgentManager is Ownable {
     (jobKey, jobId) = agent.registerJob{value: msg.value}(params, getAutoDepositResolverStruct(), new bytes(0));
     autoDepositJobKey = jobKey;
     if (activateJob && getAssignedKeeperToJob(jobKey) == 0) {
-      agent.setJobConfig(autoDepositJobKey, true, false, true, false);
+      agent.setJobConfig(autoDepositJobKey, true, false, true, true);
       _assignKeeperToJob(autoDepositJobKey);
     }
   }
@@ -180,7 +180,7 @@ contract VRFAgentManager is Ownable {
     bool useJobOwnerCredits_,
     bool assertResolverSelector_,
     bool callResolverBeforeExecute_
-  ) external onlyOwner {
+  ) public onlyOwner {
     agent.setJobConfig(jobKey_, isActive_, useJobOwnerCredits_, assertResolverSelector_, callResolverBeforeExecute_);
   }
 
@@ -294,13 +294,27 @@ contract VRFAgentManager is Ownable {
     }
   }
 
-  function acceptAllJobsTransfer() external onlyOwner {
+  function migrateFromOldManager(VRFAgentManager oldVrfAgentManager_) external onlyOwner {
+    consumer = oldVrfAgentManager_.consumer();
+    setVrfJobKey(oldVrfAgentManager_.vrfJobKey());
+    setAutoDepositJobKey(oldVrfAgentManager_.autoDepositJobKey());
+
+    acceptAllJobsTransfer();
+
+    setJobConfig(autoDepositJobKey, false, false, false, false);
+    (, , uint256 jobMinKeeperCvp, PPAgentV2VRF.Job memory details, , ) = agent.getJob(autoDepositJobKey);
+    registerAutoDepositJob(details.maxBaseFeeGwei, details.rewardPct, details.fixedReward, jobMinKeeperCvp, true);
+
+    setVrfConfig(oldVrfAgentManager_.vrfJobMinBalance(), oldVrfAgentManager_.vrfJobMaxDeposit());
+    setAutoDepositConfig(oldVrfAgentManager_.autoDepositJobMinBalance(), oldVrfAgentManager_.autoDepositJobMaxDeposit());
+  }
+
+  function acceptAllJobsTransfer() public onlyOwner {
     if (getJobPendingOwner(vrfJobKey) == address(this)) {
       agent.acceptJobTransfer(vrfJobKey);
     }
     if (getJobPendingOwner(autoDepositJobKey) == address(this)) {
       agent.acceptJobTransfer(autoDepositJobKey);
-      setAutoDepositJobResolver();
     }
   }
 
