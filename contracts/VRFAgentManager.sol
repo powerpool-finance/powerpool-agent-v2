@@ -136,8 +136,19 @@ contract VRFAgentManager is Ownable {
     uint16 rewardPct_,
     uint32 fixedReward_,
     uint256 jobMinCvp_,
-    bool activateJob
-  ) public payable onlyOwner returns(bytes32 jobKey, uint256 jobId) {
+    bool activateJob_
+  ) external payable onlyOwner returns(bytes32 jobKey, uint256 jobId) {
+    return _registerAutoDepositJob(maxBaseFeeGwei_, rewardPct_, fixedReward_, jobMinCvp_, activateJob_, msg.value);
+  }
+
+  function _registerAutoDepositJob(
+    uint16 maxBaseFeeGwei_,
+    uint16 rewardPct_,
+    uint32 fixedReward_,
+    uint256 jobMinCvp_,
+    bool activateJob_,
+    uint256 depositBalance_
+  ) internal returns(bytes32 jobKey, uint256 jobId) {
     IPPAgentV2JobOwner.RegisterJobParams memory params = IPPAgentV2JobOwner.RegisterJobParams({
       jobAddress: address(this),
       jobSelector: VRFAgentManager.processVrfJobDeposit.selector,
@@ -150,9 +161,9 @@ contract VRFAgentManager is Ownable {
       calldataSource: 2,
       intervalSeconds: 0
     });
-    (jobKey, jobId) = agent.registerJob{value: msg.value}(params, getAutoDepositResolverStruct(), new bytes(0));
+    (jobKey, jobId) = agent.registerJob{value: depositBalance_}(params, getAutoDepositResolverStruct(), new bytes(0));
     autoDepositJobKey = jobKey;
-    if (activateJob && getAssignedKeeperToJob(jobKey) == 0) {
+    if (activateJob_ && getAssignedKeeperToJob(jobKey) == 0) {
       agent.setJobConfig(autoDepositJobKey, true, false, true, true);
       _assignKeeperToJob(autoDepositJobKey);
     }
@@ -301,9 +312,12 @@ contract VRFAgentManager is Ownable {
 
     acceptAllJobsTransfer();
 
+    uint256 autoDepositJobBalance = getAutoDepositJobBalance();
     setJobConfig(autoDepositJobKey, false, false, false, false);
+    agent.withdrawJobCredits(autoDepositJobKey, payable(address(this)), autoDepositJobBalance);
     (, , uint256 jobMinKeeperCvp, PPAgentV2VRF.Job memory details, , ) = agent.getJob(autoDepositJobKey);
-    registerAutoDepositJob(details.maxBaseFeeGwei, details.rewardPct, details.fixedReward, jobMinKeeperCvp, true);
+
+    _registerAutoDepositJob(details.maxBaseFeeGwei, details.rewardPct, details.fixedReward, jobMinKeeperCvp, true, autoDepositJobBalance);
 
     setVrfConfig(oldVrfAgentManager_.vrfJobMinBalance(), oldVrfAgentManager_.vrfJobMaxDeposit());
     setAutoDepositConfig(oldVrfAgentManager_.autoDepositJobMinBalance(), oldVrfAgentManager_.autoDepositJobMaxDeposit());
