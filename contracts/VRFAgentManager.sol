@@ -125,8 +125,8 @@ contract VRFAgentManager is Ownable {
     });
     (jobKey, jobId) = agent.registerJob{value: msg.value}(params, getVrfResolverStruct(), new bytes(0));
     vrfJobKey = jobKey;
+    agent.setJobConfig(vrfJobKey, activateJob, false, true, true);
     if (activateJob && getAssignedKeeperToJob(jobKey) == 0) {
-      agent.setJobConfig(vrfJobKey, true, false, true, false);
       _assignKeeperToJob(vrfJobKey);
     }
   }
@@ -326,7 +326,7 @@ contract VRFAgentManager is Ownable {
   }
 
   function isAutoDepositJobDepositRequired() public view returns(bool) {
-    return getAutoDepositJobBalance() <= vrfJobMinBalance;
+    return getAutoDepositJobBalance() <= autoDepositJobMinBalance;
   }
 
   function getAssignedKeeperToJob(bytes32 jobKey_) public view returns(uint256) {
@@ -353,24 +353,34 @@ contract VRFAgentManager is Ownable {
   }
 
   function getBalanceRequiredToDeposit() public view returns(uint256 amountToDeposit, uint256 vrfAmountIn, uint256 autoDepositAmountIn) {
-    uint256 availableBalance = getAvailableBalance();
-    if (isVrfJobDepositRequired()) {
-      vrfAmountIn = vrfJobMaxDeposit - vrfJobMinBalance;
+    uint256 vrfFullfillJobBalance = getVrfFullfillJobBalance();
+    if (vrfFullfillJobBalance <= vrfJobMinBalance) {
+      vrfAmountIn = vrfJobMaxDeposit - vrfFullfillJobBalance;
       amountToDeposit += vrfAmountIn;
     }
-    if (isAutoDepositJobDepositRequired()) {
-      autoDepositAmountIn = autoDepositJobMaxDeposit - autoDepositJobMinBalance;
+
+    uint256 autoDepositJobBalance = getAutoDepositJobBalance();
+    if (autoDepositJobBalance <= autoDepositJobMinBalance) {
+      autoDepositAmountIn = autoDepositJobMaxDeposit - autoDepositJobBalance;
       amountToDeposit += autoDepositAmountIn;
     }
+
+    uint256 availableBalance = getAvailableBalance();
     if (amountToDeposit > availableBalance) {
       uint256 balanceRatio = availableBalance * 1 ether / amountToDeposit;
       vrfAmountIn = vrfAmountIn * balanceRatio / 1 ether;
       autoDepositAmountIn = autoDepositAmountIn * balanceRatio / 1 ether;
     }
-    if (vrfAmountIn < vrfJobMinBalance / 3) {
+    if (
+      (vrfAmountIn < (vrfJobMaxDeposit - vrfJobMinBalance) / 3) &&
+      vrfAmountIn < vrfJobMinBalance / 3
+    ) {
       vrfAmountIn = 0;
     }
-    if (autoDepositAmountIn < autoDepositJobMinBalance / 3) {
+    if (
+      (autoDepositAmountIn < (autoDepositJobMaxDeposit - autoDepositJobMinBalance) / 3) &&
+      autoDepositAmountIn < autoDepositJobMinBalance / 3
+    ) {
       autoDepositAmountIn = 0;
     }
     amountToDeposit = vrfAmountIn + autoDepositAmountIn;
