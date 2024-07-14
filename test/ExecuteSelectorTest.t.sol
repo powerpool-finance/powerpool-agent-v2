@@ -98,7 +98,7 @@ contract ExecuteSelectorTest is TestHelper {
     assertEq(minKeeperCvp, 5_001 ether);
     assertEq(_stakeOf(kid), 5_000 ether);
 
-    vm.expectRevert(PPAgentV2.InsufficientKeeperStake.selector);
+    vm.expectRevert(PPAgentV2Based.InsufficientKeeperStake.selector);
 
     vm.prank(keeperWorker, keeperWorker);
     _callExecuteHelper(
@@ -120,7 +120,7 @@ contract ExecuteSelectorTest is TestHelper {
     assertEq(_stakeOf(kid), 5_000 ether);
     assertEq(_jobMinKeeperCvp(jobKey), 5001 ether);
 
-    vm.expectRevert(PPAgentV2.InsufficientJobScopedKeeperStake.selector);
+    vm.expectRevert(PPAgentV2Based.InsufficientJobScopedKeeperStake.selector);
 
     vm.prank(keeperWorker, keeperWorker);
     _callExecuteHelper(
@@ -138,7 +138,7 @@ contract ExecuteSelectorTest is TestHelper {
     agent.setJobConfig(jobKey, false, false, false, false);
 
     vm.expectRevert(abi.encodeWithSelector(
-        PPAgentV2.InactiveJob.selector,
+        PPAgentV2Based.InactiveJob.selector,
         jobKey
       ));
 
@@ -169,7 +169,7 @@ contract ExecuteSelectorTest is TestHelper {
 
     vm.warp(block.timestamp + 3);
     vm.expectRevert(abi.encodeWithSelector(
-        PPAgentV2.IntervalNotReached.selector,
+        PPAgentV2Based.IntervalNotReached.selector,
         1600000000,
         10,
         1600000003
@@ -207,7 +207,7 @@ contract ExecuteSelectorTest is TestHelper {
       accrueReward: true
     });
     vm.expectRevert(abi.encodeWithSelector(
-        PPAgentV2.BaseFeeGtGasPrice.selector,
+        PPAgentV2Based.BaseFeeGtGasPrice.selector,
         101 gwei,
         100 gwei
       ));
@@ -281,7 +281,7 @@ contract ExecuteSelectorTest is TestHelper {
   }
 
   function testErrNotEOA() public {
-    vm.expectRevert(PPAgentV2.NonEOASender.selector);
+    vm.expectRevert(PPAgentV2Based.NonEOASender.selector);
     vm.prank(keeperWorker, bob);
     _callExecuteHelper(
       agent,
@@ -415,7 +415,7 @@ contract ExecuteSelectorTest is TestHelper {
     (bool ok, bytes memory cdata) = topupJob.myResolver(topupJobKey);
     assertEq(ok, true);
 
-    vm.expectRevert(PPAgentV2.ExecutionReentrancyLocked.selector);
+    vm.expectRevert(PPAgentV2Based.ExecutionReentrancyLocked.selector);
     vm.prank(keeperWorker, keeperWorker);
     _callExecuteHelper(
       agent,

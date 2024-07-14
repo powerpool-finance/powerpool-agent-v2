@@ -149,7 +149,7 @@ contract JobManagementTest is TestHelper {
 
   function testErrAddJobCreditsZeroDeposit() public {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.MissingDeposit.selector)
+      abi.encodeWithSelector(PPAgentV2Based.MissingDeposit.selector)
     );
 
     vm.prank(alice);
@@ -159,7 +159,7 @@ contract JobManagementTest is TestHelper {
   function testErrAddJobCreditsNoOwner() public {
     bytes32 fakeJobKey = bytes32(uint256(123));
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.JobWithoutOwner.selector)
+      abi.encodeWithSelector(PPAgentV2Based.JobWithoutOwner.selector)
     );
 
     vm.prank(alice);
@@ -168,7 +168,7 @@ contract JobManagementTest is TestHelper {
 
   function testErrAddJobCreditsCreditsOverflowOneStep() public {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.CreditsDepositOverflow.selector)
+      abi.encodeWithSelector(PPAgentV2Based.CreditsDepositOverflow.selector)
     );
 
     uint256 value = uint256(type(uint88).max) + 5;
@@ -190,7 +190,7 @@ contract JobManagementTest is TestHelper {
     vm.prank(alice);
 
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.CreditsDepositOverflow.selector)
+      abi.encodeWithSelector(PPAgentV2Based.CreditsDepositOverflow.selector)
     );
     agent.depositJobCredits{ value: second }(jobKey);
   }
@@ -245,7 +245,7 @@ contract JobManagementTest is TestHelper {
     agent.depositJobCredits{ value: 1.2 ether}(jobKey);
 
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.MissingAmount.selector)
+      abi.encodeWithSelector(PPAgentV2Based.MissingAmount.selector)
     );
 
     vm.prank(alice);
@@ -257,7 +257,7 @@ contract JobManagementTest is TestHelper {
     agent.depositJobCredits{ value: 1.2 ether}(jobKey);
 
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.OnlyJobOwner.selector)
+      abi.encodeWithSelector(PPAgentV2Based.OnlyJobOwner.selector)
     );
 
     vm.prank(bob);
@@ -269,7 +269,7 @@ contract JobManagementTest is TestHelper {
     agent.depositJobCredits{ value: 1.2 ether}(jobKey);
 
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.CreditsWithdrawalUnderflow.selector)
+      abi.encodeWithSelector(PPAgentV2Based.CreditsWithdrawalUnderflow.selector)
     );
 
     vm.prank(alice);
@@ -337,7 +337,7 @@ contract JobManagementTest is TestHelper {
     vm.prank(alice);
     agent.initiateJobTransfer(jobKey, bob);
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.OnlyPendingOwner.selector)
+      abi.encodeWithSelector(PPAgentV2Based.OnlyPendingOwner.selector)
     );
     vm.prank(alice);
     agent.acceptJobTransfer(jobKey);
@@ -345,7 +345,7 @@ contract JobManagementTest is TestHelper {
 
   function testErrJobTransferNotTheOwner() public {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.OnlyJobOwner.selector)
+      abi.encodeWithSelector(PPAgentV2Based.OnlyJobOwner.selector)
     );
 
     vm.prank(bob);
@@ -397,7 +397,7 @@ contract JobManagementTest is TestHelper {
 
   function testErrSetJobActiveNotOwner() public {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.OnlyJobOwner.selector)
+      abi.encodeWithSelector(PPAgentV2Based.OnlyJobOwner.selector)
     );
 
     vm.prank(bob);
@@ -481,7 +481,7 @@ contract JobManagementTest is TestHelper {
 
   function testErrUpdateJobNotOwner() public {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.OnlyJobOwner.selector)
+      abi.encodeWithSelector(PPAgentV2Based.OnlyJobOwner.selector)
     );
 
     vm.prank(bob);
@@ -490,7 +490,7 @@ contract JobManagementTest is TestHelper {
 
   function testErrUpdateJobMissingMaxBaseFeeGwei() public {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.MissingMaxBaseFeeGwei.selector)
+      abi.encodeWithSelector(PPAgentV2Based.MissingMaxBaseFeeGwei.selector)
     );
 
     vm.prank(alice);
@@ -504,7 +504,7 @@ contract JobManagementTest is TestHelper {
     agent.updateJob(jobKey, 200, 0, 5, 0, 60);
 
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.NoFixedNorPremiumPctReward.selector)
+      abi.encodeWithSelector(PPAgentV2Based.NoFixedNorPremiumPctReward.selector)
     );
 
     vm.prank(alice);
@@ -513,7 +513,7 @@ contract JobManagementTest is TestHelper {
 
   function testErrUpdateJobWithSelectorShouldHaveInterval() public {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.JobShouldHaveInterval.selector)
+      abi.encodeWithSelector(PPAgentV2Based.JobShouldHaveInterval.selector)
     );
 
     vm.prank(alice);
@@ -526,7 +526,7 @@ contract JobManagementTest is TestHelper {
     vm.prank(alice);
     (bytes32 myJobKey,) = agent.registerJob(params, resolver1, new bytes(0));
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.JobShouldHaveInterval.selector)
+      abi.encodeWithSelector(PPAgentV2Based.JobShouldHaveInterval.selector)
     );
 
     vm.prank(alice);
@@ -541,7 +541,7 @@ contract JobManagementTest is TestHelper {
     (bytes32 myJobKey,) = agent.registerJob(params, resolver1, new bytes(0));
 
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.JobDoesNotSupposedToHaveInterval.selector)
+      abi.encodeWithSelector(PPAgentV2Based.JobDoesNotSupposedToHaveInterval.selector)
     );
     vm.prank(alice);
     agent.updateJob(myJobKey, 200, 55, 20, 0, 1);
@@ -568,7 +568,7 @@ contract JobManagementTest is TestHelper {
 
   function testErrSetResolverNotOwner() public {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.OnlyJobOwner.selector)
+      abi.encodeWithSelector(PPAgentV2Based.OnlyJobOwner.selector)
     );
 
     PPAgentV2.Resolver memory newResolver = IPPAgentV2Viewer.Resolver(address(2), hex"313373");
@@ -577,7 +577,7 @@ contract JobManagementTest is TestHelper {
 
   function testErrSetResolverOnlyResolverCalldataSource() public {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.NotSupportedByJobCalldataSource.selector)
+      abi.encodeWithSelector(PPAgentV2Based.NotSupportedByJobCalldataSource.selector)
     );
 
     PPAgentV2.Resolver memory newResolver = IPPAgentV2Viewer.Resolver(address(2), hex"313373");
@@ -587,7 +587,7 @@ contract JobManagementTest is TestHelper {
 
   function testErrSetResolverMissingResolverAddress() public jobWithResolverCalldataSource {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.MissingResolverAddress.selector)
+      abi.encodeWithSelector(PPAgentV2Based.MissingResolverAddress.selector)
     );
 
     PPAgentV2.Resolver memory newResolver = IPPAgentV2Viewer.Resolver(address(0), hex"313373");
@@ -610,7 +610,7 @@ contract JobManagementTest is TestHelper {
 
   function testErrSetPreDefinedCalldataNotOwner() public {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.OnlyJobOwner.selector)
+      abi.encodeWithSelector(PPAgentV2Based.OnlyJobOwner.selector)
     );
 
     agent.setJobPreDefinedCalldata(jobKey, hex"313373");
@@ -618,7 +618,7 @@ contract JobManagementTest is TestHelper {
 
   function testErrSetPreDefinedCalldataForSelectorJob() public {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.NotSupportedByJobCalldataSource.selector)
+      abi.encodeWithSelector(PPAgentV2Based.NotSupportedByJobCalldataSource.selector)
     );
 
     vm.prank(alice);

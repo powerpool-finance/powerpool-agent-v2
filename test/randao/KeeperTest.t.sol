@@ -122,9 +122,9 @@ contract RandaoKeeperTest is TestHelperRandao {
     assertEq(_stakeOf(kid1), 5_000 ether);
     vm.startPrank(keeperAdmin, keeperAdmin);
 
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.KeeperShouldBeDisabledForStakeLTMinKeeperCvp.selector));
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2RandaoBased.KeeperShouldBeDisabledForStakeLTMinKeeperCvp.selector));
     agent.initiateRedeem(kid1, 2_001 ether);
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.KeeperShouldBeDisabledForStakeLTMinKeeperCvp.selector));
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2RandaoBased.KeeperShouldBeDisabledForStakeLTMinKeeperCvp.selector));
     agent.initiateRedeem(kid1, 5_000 ether);
 
     agent.initiateRedeem(kid1, 2_000 ether);

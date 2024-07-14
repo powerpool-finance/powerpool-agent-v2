@@ -3,8 +3,8 @@ pragma solidity ^0.8.19;
 
 import "./PPAgentV2.sol";
 
-contract PPAgentV2Lens is PPAgentV2  {
-  constructor(address cvp_) PPAgentV2(cvp_) {
+contract PPAgentV2Lens is PPAgentV2Based {
+  constructor(address cvp_) PPAgentV2Based(cvp_) {
   }
 
   function isJobActive(bytes32 jobKey_) external view returns (bool) {

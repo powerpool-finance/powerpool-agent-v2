@@ -161,7 +161,7 @@ contract RegisterJob is TestHelper {
     });
 
     (bool ok, bytes memory result) = address(agent).staticcall(
-      abi.encodeWithSelector(PPAgentV2.getJob.selector, jobKey)
+      abi.encodeWithSelector(PPAgentV2Based.getJob.selector, jobKey)
     );
     assertEq(ok, true);
     assertEq(result.length, 576);
@@ -197,7 +197,7 @@ contract RegisterJob is TestHelper {
     params.jobAddress = address(cvp);
 
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.InvalidJobAddress.selector)
+      abi.encodeWithSelector(PPAgentV2Based.InvalidJobAddress.selector)
     );
     agent.registerJob({
       params_: params,
@@ -211,7 +211,7 @@ contract RegisterJob is TestHelper {
     params.intervalSeconds = 0;
 
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.JobShouldHaveInterval.selector)
+      abi.encodeWithSelector(PPAgentV2Based.JobShouldHaveInterval.selector)
     );
     agent.registerJob({
       params_: params,
@@ -225,7 +225,7 @@ contract RegisterJob is TestHelper {
     params.jobAddress = address(0);
 
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.MissingJobAddress.selector)
+      abi.encodeWithSelector(PPAgentV2Based.MissingJobAddress.selector)
     );
     agent.registerJob({
       params_: params,
@@ -239,7 +239,7 @@ contract RegisterJob is TestHelper {
     params.maxBaseFeeGwei = 0;
 
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.MissingMaxBaseFeeGwei.selector)
+      abi.encodeWithSelector(PPAgentV2Based.MissingMaxBaseFeeGwei.selector)
     );
     agent.registerJob({
       params_: params,
@@ -269,7 +269,7 @@ contract RegisterJob is TestHelper {
     params.rewardPct = 0;
 
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.NoFixedNorPremiumPctReward.selector)
+      abi.encodeWithSelector(PPAgentV2Based.NoFixedNorPremiumPctReward.selector)
     );
     agent.registerJob({
       params_: params,
@@ -283,7 +283,7 @@ contract RegisterJob is TestHelper {
     params.calldataSource = 4;
 
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.InvalidCalldataSource.selector)
+      abi.encodeWithSelector(PPAgentV2Based.InvalidCalldataSource.selector)
     );
     agent.registerJob({
       params_: params,
@@ -342,7 +342,7 @@ contract RegisterJob is TestHelper {
     params.intervalSeconds = 0;
 
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.JobShouldHaveInterval.selector)
+      abi.encodeWithSelector(PPAgentV2Based.JobShouldHaveInterval.selector)
     );
     agent.registerJob({
       params_: params,
@@ -396,7 +396,7 @@ contract RegisterJob is TestHelper {
     params.intervalSeconds = 1_000;
 
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.JobDoesNotSupposedToHaveInterval.selector)
+      abi.encodeWithSelector(PPAgentV2Based.JobDoesNotSupposedToHaveInterval.selector)
     );
     agent.registerJob({
       params_: params,
@@ -411,7 +411,7 @@ contract RegisterJob is TestHelper {
     resolver.resolverAddress = address(0);
 
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.MissingResolverAddress.selector)
+      abi.encodeWithSelector(PPAgentV2Based.MissingResolverAddress.selector)
     );
     agent.registerJob({
       params_: params,
@@ -499,7 +499,7 @@ contract RegisterJob is TestHelper {
     IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
     params.useJobOwnerCredits = false;
 
-    vm.expectRevert(PPAgentV2.CreditsDepositOverflow.selector);
+    vm.expectRevert(PPAgentV2Based.CreditsDepositOverflow.selector);
     vm.deal(alice, type(uint256).max);
     vm.prank(alice);
     agent.registerJob{ value: uint256(type(uint96).max) + 1 }({
@@ -513,7 +513,7 @@ contract RegisterJob is TestHelper {
     IPPAgentV2JobOwner.RegisterJobParams memory params = params1;
     params.useJobOwnerCredits = true;
 
-    vm.expectRevert(PPAgentV2.CreditsDepositOverflow.selector);
+    vm.expectRevert(PPAgentV2Based.CreditsDepositOverflow.selector);
     vm.deal(alice, type(uint256).max);
     vm.prank(alice);
     agent.registerJob{ value: uint256(type(uint96).max) + 1 }({

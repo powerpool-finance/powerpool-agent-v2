@@ -1,35 +1,33 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { PPAgentV2Randao } from "./PPAgentV2Randao.sol";
-
-import "./interfaces/VRFAgentConsumerInterface.sol";
+import {PPAgentV2VRFBased} from "./PPAgentV2VRFBased.sol";
 
 /**
  * @title PPAgentV2VRF
  * @author PowerPool
  */
-contract PPAgentV2VRF is PPAgentV2Randao {
+contract PPAgentV2VRF is PPAgentV2VRFBased {
 
-  address public VRFConsumer;
-
-  event SetVRFConsumer(address consumer);
-
-  error PseudoRandomError();
-
-  constructor(address cvp_) PPAgentV2Randao(cvp_) {
+  constructor(address cvp_) PPAgentV2VRFBased(cvp_) {
 
   }
 
-  function setVRFConsumer(address VRFConsumer_) external onlyOwner {
-    VRFConsumer = VRFConsumer_;
-    emit SetVRFConsumer(VRFConsumer_);
-  }
-
-  function _getPseudoRandom() internal override returns (uint256) {
-    if (address(VRFConsumer) == address(0)) {
-      return super._getPseudoRandom();
+  function _assertExecutionNotLocked() internal override view {
+    bytes32 lockKey = EXECUTION_LOCK_KEY;
+    assembly ("memory-safe") {
+      let isLocked := tload(lockKey)
+      if isLocked {
+        mstore(0x1c, 0x0815283600000000000000000000000000000000000000000000000000000000)
+        revert(0x1c, 4)
+      }
     }
-    return VRFAgentConsumerInterface(VRFConsumer).getPseudoRandom();
+  }
+
+  function _setExecutionLock(uint value_) internal override {
+    bytes32 lockKey = EXECUTION_LOCK_KEY;
+    assembly ("memory-safe") {
+      tstore(lockKey, value_)
+    }
   }
 }

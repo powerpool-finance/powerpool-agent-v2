@@ -151,7 +151,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     vm.prevrandao(bytes32(uint256(40)));
     vm.expectRevert(
       abi.encodeWithSelector(
-        PPAgentV2Randao.OnlyNextKeeper.selector, 2, 0, 10, 15, 1600000000 + 8 hours
+        PPAgentV2RandaoBased.OnlyNextKeeper.selector, 2, 0, 10, 15, 1600000000 + 8 hours
       )
     );
     vm.prank(alice, alice);
@@ -173,7 +173,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     assertEq(lockedJobs[0], jobKey);
 
     // the first attempt should fail
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.KeeperIsAssignedToJobs.selector, 1));
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2RandaoBased.KeeperIsAssignedToJobs.selector, 1));
     vm.prank(keeperAdmin, keeperAdmin);
     agent.initiateRedeem(kid2, 5_000 ether);
 
@@ -227,7 +227,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     vm.prevrandao(bytes32(uint256(42)));
     vm.expectRevert(
       abi.encodeWithSelector(
-        PPAgentV2Randao.OnlyNextKeeper.selector, 2, 1600000000 + 8 hours, 10, 15, 1600000011 + 8 hours
+        PPAgentV2RandaoBased.OnlyNextKeeper.selector, 2, 1600000000 + 8 hours, 10, 15, 1600000011 + 8 hours
       )
     );
     _callExecuteHelper(
@@ -248,7 +248,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     assertEq(agent.jobNextKeeperId(jobKey), 2);
 
     // kid3 attempt should fail
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.OnlyCurrentSlasher.selector, 3));
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2RandaoBased.OnlyCurrentSlasher.selector, 3));
     vm.prank(alice, alice);
     _callExecuteHelper(
       agent,
@@ -302,7 +302,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
     vm.prevrandao(bytes32(uint256(42)));
     vm.expectRevert(
       abi.encodeWithSelector(
-        PPAgentV2Randao.OnlyNextKeeper.selector, 2, 1600000000 + 8 hours, 10, 15, 1600000011 + 8 hours
+        PPAgentV2RandaoBased.OnlyNextKeeper.selector, 2, 1600000000 + 8 hours, 10, 15, 1600000011 + 8 hours
       )
     );
     _callExecuteHelper(
@@ -332,7 +332,7 @@ contract RandaoExecuteSelectorTest is TestHelperRandao {
 
     vm.expectRevert(
       abi.encodeWithSelector(
-        PPAgentV2Randao.JobHasNoKeeperAssigned.selector
+        PPAgentV2RandaoBased.JobHasNoKeeperAssigned.selector
       )
     );
     vm.prank(bob, bob);

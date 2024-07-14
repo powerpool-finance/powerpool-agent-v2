@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
+import "../../contracts/PPAgentV2Based.sol";
 import "../../contracts/PPAgentV2.sol";
 import "../mocks/MockCVP.sol";
 import "../TestHelperRandao.sol";
@@ -49,7 +50,7 @@ contract RandaoOwnerStakingTest is TestHelperRandao {
     agent.disableKeeper(kid);
 
     vm.prank(owner);
-    vm.expectRevert(PPAgentV2Randao.KeeperIsAlreadyInactive.selector);
+    vm.expectRevert(PPAgentV2RandaoBased.KeeperIsAlreadyInactive.selector);
     agent.ownerSlashDisable(kid, bob, 1, 0, true);
   }
 

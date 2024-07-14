@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { PPAgentV2VRF } from "./PPAgentV2VRF.sol";
+import {PPAgentV2VRFBased} from "./PPAgentV2VRFBased.sol";
 import { IPPAgentV2JobOwner, IPPAgentV2Viewer } from "./PPAgentV2Interfaces.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/VRFAgentCoordinatorInterface.sol";
@@ -15,7 +15,7 @@ import "./interfaces/VRFAgentConsumerInterface.sol";
  */
 contract VRFAgentManager is Ownable {
 
-  PPAgentV2VRF public agent;
+  PPAgentV2VRFBased public agent;
   VRFAgentCoordinatorInterface public coordinator;
   VRFAgentConsumerInterface public consumer;
   uint256 public subId;
@@ -32,7 +32,7 @@ contract VRFAgentManager is Ownable {
   error JobDepositNotRequired();
   error DepositBalanceIsNotEnough();
 
-  constructor(PPAgentV2VRF agent_, VRFAgentCoordinatorInterface coordinator_) {
+  constructor(PPAgentV2VRFBased agent_, VRFAgentCoordinatorInterface coordinator_) {
     agent = agent_;
     coordinator = coordinator_;
   }
@@ -169,7 +169,7 @@ contract VRFAgentManager is Ownable {
     }
   }
 
-  function setJobResolver(bytes32 jobKey_, PPAgentV2VRF.Resolver calldata resolver_) external onlyOwner {
+  function setJobResolver(bytes32 jobKey_, PPAgentV2VRFBased.Resolver calldata resolver_) external onlyOwner {
     agent.setJobResolver(jobKey_, resolver_);
   }
 
@@ -210,7 +210,7 @@ contract VRFAgentManager is Ownable {
     agent.withdrawJobCredits(jobKey_, to_, amount_);
   }
 
-  function setRdConfig(PPAgentV2VRF.RandaoConfig calldata rdConfig_) external onlyOwner {
+  function setRdConfig(PPAgentV2VRFBased.RandaoConfig calldata rdConfig_) external onlyOwner {
     agent.setRdConfig(rdConfig_);
   }
 
@@ -315,7 +315,7 @@ contract VRFAgentManager is Ownable {
     uint256 autoDepositJobBalance = getAutoDepositJobBalance();
     setJobConfig(autoDepositJobKey, false, false, false, false);
     agent.withdrawJobCredits(autoDepositJobKey, payable(address(this)), autoDepositJobBalance);
-    (, , uint256 jobMinKeeperCvp, PPAgentV2VRF.Job memory details, , ) = agent.getJob(autoDepositJobKey);
+    (, , uint256 jobMinKeeperCvp, PPAgentV2VRFBased.Job memory details, , ) = agent.getJob(autoDepositJobKey);
 
     _registerAutoDepositJob(details.maxBaseFeeGwei, details.rewardPct, details.fixedReward, jobMinKeeperCvp, true, autoDepositJobBalance);
 
@@ -335,7 +335,7 @@ contract VRFAgentManager is Ownable {
   /*** GETTER ***/
 
   function getVrfFullfillJobBalance() public view returns(uint256) {
-    (, , , PPAgentV2VRF.Job memory details, , ) = agent.getJob(vrfJobKey);
+    (, , , PPAgentV2VRFBased.Job memory details, , ) = agent.getJob(vrfJobKey);
     return details.credits;
   }
 
@@ -345,7 +345,7 @@ contract VRFAgentManager is Ownable {
   }
 
   function getAutoDepositJobBalance() public view returns(uint256) {
-    (, , , PPAgentV2VRF.Job memory details, , ) = agent.getJob(autoDepositJobKey);
+    (, , , PPAgentV2VRFBased.Job memory details, , ) = agent.getJob(autoDepositJobKey);
     return details.credits;
   }
 
@@ -424,14 +424,14 @@ contract VRFAgentManager is Ownable {
     );
   }
 
-  function getVrfResolverStruct() public view returns(PPAgentV2VRF.Resolver memory) {
+  function getVrfResolverStruct() public view returns(PPAgentV2VRFBased.Resolver memory) {
     return IPPAgentV2Viewer.Resolver({
       resolverAddress: address(consumer),
       resolverCalldata: abi.encodeWithSelector(VRFAgentConsumerInterface.fulfillRandomnessResolver.selector)
     });
   }
 
-  function getAutoDepositResolverStruct() public view returns(PPAgentV2VRF.Resolver memory) {
+  function getAutoDepositResolverStruct() public view returns(PPAgentV2VRFBased.Resolver memory) {
     return IPPAgentV2Viewer.Resolver({
       resolverAddress: address(this),
       resolverCalldata: abi.encodeWithSelector(VRFAgentManager.vrfAutoDepositJobsResolver.selector)

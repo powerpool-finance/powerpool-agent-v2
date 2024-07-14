@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "../../contracts/PPAgentV2Randao.sol";
+import "../../contracts/PPAgentV2RandaoBased.sol";
 
-contract MockExposedAgent is PPAgentV2Randao {
-  constructor(address cvp_) PPAgentV2Randao(cvp_) {
+contract MockExposedAgent is PPAgentV2RandaoBased {
+  constructor(address cvp_) PPAgentV2RandaoBased(cvp_) {
   }
 
   function assignNextKeeper(bytes32 jobKey_) external {

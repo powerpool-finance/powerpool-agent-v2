@@ -14,11 +14,11 @@ contract JobWithdrawTestJob is AgentJob {
   }
 
   function execute(bytes32 jobKey_) external onlyAgent {
-    PPAgentV2(agent).withdrawJobCredits(jobKey_, payable(this), type(uint256).max);
+    PPAgentV2Based(agent).withdrawJobCredits(jobKey_, payable(this), type(uint256).max);
   }
 
   function acceptJobTransfer(bytes32 jobKey_) external {
-    PPAgentV2(agent).acceptJobTransfer(jobKey_);
+    PPAgentV2Based(agent).acceptJobTransfer(jobKey_);
   }
 
   receive() external payable {

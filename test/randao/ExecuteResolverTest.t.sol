@@ -160,7 +160,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     vm.prevrandao(bytes32(uint256(42)));
     (ok, cd) = job.myResolver("myPass");
 
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.SlashingNotInitiated.selector));
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2RandaoBased.SlashingNotInitiated.selector));
     _executeJob(1, cd);
 
     // time: 11, block: 43. Initiate slashing
@@ -174,7 +174,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
 
     // time: 26, block: 63. Too early for slashing
     vm.expectRevert(abi.encodeWithSelector(
-      PPAgentV2Randao.TooEarlyForSlashing.selector, 1600000011 + 8 hours, 1600000026 + 8 hours
+      PPAgentV2RandaoBased.TooEarlyForSlashing.selector, 1600000011 + 8 hours, 1600000026 + 8 hours
     ));
     _executeJob(kid3, cd);
 
@@ -187,7 +187,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
 
     // kid1 attempt should fail
     vm.expectRevert(abi.encodeWithSelector(
-        PPAgentV2Randao.OnlyReservedSlasher.selector, 3
+        PPAgentV2RandaoBased.OnlyReservedSlasher.selector, 3
       ));
     _executeJob(kid1, cd);
 
@@ -256,7 +256,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
 
     vm.roll(42);
     vm.prank(alice);
-    vm.expectRevert(PPAgentV2.SelectorCheckFailed.selector);
+    vm.expectRevert(PPAgentV2Based.SelectorCheckFailed.selector);
     agent.initiateKeeperSlashing(address(job), jobId, kid1, false, cd);
   }
 
@@ -274,8 +274,8 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     vm.roll(42);
     vm.prank(alice);
     vm.expectRevert(abi.encodeWithSelector(
-      PPAgentV2.JobCheckCanNotBeExecuted.selector,
-      abi.encodePacked(PPAgentV2.ExecutionReentrancyLocked.selector)
+      PPAgentV2Based.JobCheckCanNotBeExecuted.selector,
+      abi.encodePacked(PPAgentV2Based.ExecutionReentrancyLocked.selector)
     ));
     agent.initiateKeeperSlashing(address(topupJob), jobId, kid1, false, cd);
   }
@@ -304,7 +304,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     SimpleCustomizableCalldataTestJob(address(job)).setResolverReturnFalse(true);
 
     // resolver false
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2.JobCheckResolverReturnedFalse.selector));
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Based.JobCheckResolverReturnedFalse.selector));
     vm.prank(bob, bob);
     agent.initiateKeeperSlashing(address(job), jobId, kid3, true, cd);
 
@@ -312,7 +312,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     SimpleCustomizableCalldataTestJob(address(job)).setRevertResolver(true);
 
     // resolver revert
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2.JobCheckCanNotBeExecuted.selector,
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Based.JobCheckCanNotBeExecuted.selector,
       abi.encodeWithSelector(0x08c379a0, "forced resolver revert")
     ));
     vm.prank(bob, bob);
@@ -336,12 +336,12 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     agent.setJobConfig(jobKey, true, false, true, true);
     SimpleCustomizableCalldataTestJob(address(job)).setResolverReturnFalse(true);
 
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2.JobCheckResolverReturnedFalse.selector));
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Based.JobCheckResolverReturnedFalse.selector));
     _executeJob(2, cd);
     SimpleCustomizableCalldataTestJob(address(job)).setResolverReturnFalse(false);
 
     (, bytes memory incorrectCd) = SimpleCustomizableCalldataTestJob(address(job)).myIncorrectResolver();
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2.JobCheckCalldataError.selector));
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Based.JobCheckCalldataError.selector));
     _executeJob(2, incorrectCd);
 
     _executeJob(2, cd);
@@ -370,7 +370,7 @@ contract RandaoExecuteResolverTest is TestHelperRandao {
     assertEq(SimpleCustomizableCalldataTestJob(address(job)).revertResolver(), false);
     assertEq(SimpleCustomizableCalldataTestJob(address(job)).revertExecution(), true);
 
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.SlashingNotInitiatedExecutionReverted.selector));
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2RandaoBased.SlashingNotInitiatedExecutionReverted.selector));
     _executeJob(2, cd);
   }
 

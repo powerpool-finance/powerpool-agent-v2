@@ -90,7 +90,7 @@ contract JobOwnerTest is TestHelper {
 
   function testErrAddJobOwnerCreditsZeroDeposit() public {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.MissingDeposit.selector)
+      abi.encodeWithSelector(PPAgentV2Based.MissingDeposit.selector)
     );
 
     vm.prank(alice);
@@ -144,7 +144,7 @@ contract JobOwnerTest is TestHelper {
 
   function testErrRemoveJobOwnerCreditsMissingAmount() public {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.MissingAmount.selector)
+      abi.encodeWithSelector(PPAgentV2Based.MissingAmount.selector)
     );
 
     vm.prank(alice);
@@ -156,7 +156,7 @@ contract JobOwnerTest is TestHelper {
     agent.depositJobOwnerCredits{ value: 10 ether}(alice);
 
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.CreditsWithdrawalUnderflow.selector)
+      abi.encodeWithSelector(PPAgentV2Based.CreditsWithdrawalUnderflow.selector)
     );
 
     vm.prank(alice);

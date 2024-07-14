@@ -69,10 +69,10 @@ contract StakingTest is TestHelper {
 
     vm.startPrank(keeperAdmin);
     agent.initiateRedeem(kid1, 500 ether);
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2.WithdrawalTimoutNotReached.selector));
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Based.WithdrawalTimoutNotReached.selector));
     agent.finalizeRedeem(kid1, keeperAdmin);
     vm.warp(block.timestamp + 2 days);
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2.WithdrawalTimoutNotReached.selector));
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Based.WithdrawalTimoutNotReached.selector));
     agent.finalizeRedeem(kid1, keeperAdmin);
 
     assertEq(_stakeOf(kid1), amount + 3_000 ether - 500 ether);
@@ -108,7 +108,7 @@ contract StakingTest is TestHelper {
     // Redeem #1
     vm.startPrank(keeperAdmin);
     agent.initiateRedeem(kid1, 500 ether);
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2.WithdrawalTimoutNotReached.selector));
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Based.WithdrawalTimoutNotReached.selector));
     agent.finalizeRedeem(kid1, keeperAdmin);
 
     assertEq(_stakeOf(kid1), 2_500 ether);
@@ -141,7 +141,7 @@ contract StakingTest is TestHelper {
     assertEq(_pendingWithdrawalAmountOf(kid1), 0);
     assertEq(_pendingWithdrawalEndsAt(kid1), block.timestamp - 1);
 
-    vm.expectRevert(PPAgentV2.NoPendingWithdrawal.selector);
+    vm.expectRevert(PPAgentV2Based.NoPendingWithdrawal.selector);
     agent.finalizeRedeem(kid1, keeperAdmin);
     vm.stopPrank();
   }
@@ -166,7 +166,7 @@ contract StakingTest is TestHelper {
 
   function testRedeemWithNotEnoughStake() public {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.AmountGtStake.selector, 3_001 ether, 3_000 ether, 0)
+      abi.encodeWithSelector(PPAgentV2Based.AmountGtStake.selector, 3_001 ether, 3_000 ether, 0)
     );
     vm.prank(keeperAdmin);
     agent.initiateRedeem(kid1, 3_001 ether);
@@ -175,21 +175,21 @@ contract StakingTest is TestHelper {
   function testErrInvalidKeeperId() public {
     assertEq(_keeperCount(), 2);
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.InvalidKeeperId.selector)
+      abi.encodeWithSelector(PPAgentV2Based.InvalidKeeperId.selector)
     );
     agent.stake(3, 1 ether);
   }
 
   function testErrStakeZero() public {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.MissingAmount.selector)
+      abi.encodeWithSelector(PPAgentV2Based.MissingAmount.selector)
     );
     agent.stake(kid1, 0);
   }
 
   function testErrRedeemZero() public {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.MissingAmount.selector)
+      abi.encodeWithSelector(PPAgentV2Based.MissingAmount.selector)
     );
     vm.prank(keeperAdmin);
     agent.initiateRedeem(kid1, 0);

@@ -5,7 +5,7 @@ import "./abstract/AbstractTestHelper.sol";
 import "../contracts/PPAgentV2.sol";
 
 contract TestHelper is AbstractTestHelper {
-  PPAgentV2 internal agent;
+  PPAgentV2Based internal agent;
 
   function _agentViewer() internal override view returns(IPPAgentV2Viewer) {
     return IPPAgentV2Viewer(address(agent));

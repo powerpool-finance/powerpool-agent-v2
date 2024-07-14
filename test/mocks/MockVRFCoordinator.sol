@@ -36,7 +36,7 @@ contract MockVRFCoordinator is VRFAgentCoordinator {
     uint256[] memory words = new uint256[](requestedNumWords);
     uint256 requestId = lastRequestIdByConsumer[requestedByConsumer];
     for (uint256 i = 0; i < words.length; i++) {
-      words[i] = i + requestId + 55;
+      words[i] = i + requestId + 66;
     }
     VRFAgentConsumer(requestedByConsumer).rawFulfillRandomWords(requestId, words);
     delete s_requestCommitments[requestId];

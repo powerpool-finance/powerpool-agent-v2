@@ -10,8 +10,18 @@ import "../jobs/SimpleCalldataTestJob.sol";
 import "../jobs/SimpleCustomizableCalldataTestJob.sol";
 import "../jobs/JobWithdrawTestJob.sol";
 
-contract RandaoJobOwnerTest is TestHelperRandao {
+contract ExecuteShanghaiTest is TestHelperRandao {
   ICounter internal job;
+
+  event Execute(bytes32 indexed jobKey, address indexed job, bool indexed success, uint256 gasUsed, uint256 baseFee, uint256 gasPrice, uint256 compensation);
+  event JobKeeperChanged(bytes32 indexed jobKey, uint256 indexed keeperFrom, uint256 indexed keeperTo);
+  event ExecutionReverted(
+    bytes32 indexed jobKey,
+    uint256 indexed assignedKeeperId,
+    uint256 indexed actualKeeperId,
+    bytes executionReturndata,
+    uint256 compensation
+  );
 
   OnlySelectorTestJob internal counter;
 
@@ -82,7 +92,7 @@ contract RandaoJobOwnerTest is TestHelperRandao {
       maxBaseFeeGwei: 100,
       rewardPct: 35,
       fixedReward: 10,
-      useJobOwnerCredits: true,
+      useJobOwnerCredits: false,
       assertResolverSelector: assertSelector_,
       jobMinCvp: 0,
 
@@ -92,45 +102,51 @@ contract RandaoJobOwnerTest is TestHelperRandao {
     });
     vm.prank(alice);
     vm.deal(alice, 1 ether);
-    (jobKey,jobId) = agent.registerJob{ value: 0 ether }({
+    (jobKey,jobId) = agent.registerJob{ value: 1 ether }({
       params_: params,
       resolver_: resolver,
       preDefinedCalldata_: new bytes(0)
     });
   }
 
-  function testJobOwnerDepositAndAssignKeepersOk() public {
-    job = new SimpleCalldataTestJob(address(agent));
-    assertEq(job.current(), 0);
-    _setupJob(address(job), SimpleCalldataTestJob.increment.selector, true);
-    assertEq(agent.jobNextKeeperId(jobKey), 0);
-    assertEq(_jobOwner(jobKey), alice);
+  function _executeJob(uint256 kid, bytes memory cd) internal {
 
-    bytes32[] memory jobKeys = new bytes32[](1);
-    jobKeys[0] = jobKey;
-
-    vm.prank(alice);
-    agent.depositJobOwnerCreditsAndAssignKeepers{ value: 1 ether }(alice, jobKeys);
-    assertEq(agent.jobNextKeeperId(jobKey), 3);
+    if (kid == 1) {
+      vm.prank(alice, alice);
+    } else if (kid == 2) {
+      vm.prank(keeperWorker, keeperWorker);
+    } else if (kid == 3) {
+      vm.prank(bob, bob);
+    } else {
+      revert("invalid id");
+    }
+    _callExecuteHelper(
+      agent,
+      address(job),
+      jobId,
+      defaultFlags,
+      kid,
+      cd
+    );
   }
 
-  function testJobOwnerDepositAndAssignKeepersNonJobOwner() public {
+  function testRdResolverSelectorSlashingReentrancyLockInShanghai() public {
+    JobWithdrawTestJob topupJob = new JobWithdrawTestJob(address(agent));
     job = new SimpleCalldataTestJob(address(agent));
-    assertEq(job.current(), 0);
-    _setupJob(address(job), SimpleCalldataTestJob.increment.selector, true);
-    assertEq(agent.jobNextKeeperId(jobKey), 0);
-    assertEq(_jobOwner(jobKey), alice);
+    _setupJob(address(topupJob), JobWithdrawTestJob.execute.selector, true);
 
-    bytes32[] memory jobKeys = new bytes32[](1);
-    jobKeys[0] = jobKey;
+    (, bytes memory cd) = topupJob.myResolver(jobKey);
 
-    vm.deal(bob, 2 ether);
-    vm.prank(bob);
-    vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2Based.OnlyJobOwner.selector)
-    );
-    agent.depositJobOwnerCreditsAndAssignKeepers{ value: 1 ether }(alice, jobKeys);
+    vm.prank(alice);
+    agent.initiateJobTransfer(jobKey, address(topupJob));
+    topupJob.acceptJobTransfer(jobKey);
 
-    assertEq(agent.jobNextKeeperId(jobKey), 0);
+    vm.roll(42);
+    vm.prank(alice);
+    vm.expectRevert(abi.encodeWithSelector(
+      PPAgentV2Based.JobCheckCanNotBeExecuted.selector,
+      abi.encodePacked(PPAgentV2Based.ExecutionReentrancyLocked.selector)
+    ));
+    agent.initiateKeeperSlashing(address(topupJob), jobId, kid1, false, cd);
   }
 }
