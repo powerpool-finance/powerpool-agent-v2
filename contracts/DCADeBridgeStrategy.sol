@@ -10,7 +10,7 @@ import "./utils/CustomizedEnumerableSet.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/DCAClientFactoryInterface.sol";
 
-contract DCASidechainAgent is Ownable {
+contract DCADeBridgeStrategy is Ownable {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.UintSet;
 

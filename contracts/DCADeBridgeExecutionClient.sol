@@ -2,39 +2,39 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./DCASidechainAgent.sol";
+import "./DCADeBridgeStrategy.sol";
 
 /**
  * @title DCAExecutionClient
  * @author PowerPool
  */
-contract DCAExecutionClient is Ownable {
+contract DCADeBridgeExecutionClient is Ownable {
 
     address public agent;
-    DCASidechainAgent public dcaAgent;
+    DCADeBridgeStrategy public dcaStrategy;
 
     constructor(address agent_, address dcaAgent_) {
         agent = agent_;
-        dcaAgent = DCASidechainAgent(dcaAgent_);
+        dcaStrategy = DCADeBridgeStrategy(dcaAgent_);
     }
 
     function makeOrderToBuy(
         address _owner,
         address _destination,
-        DCASidechainAgent.OrderTokenData memory _tokenData,
+        DCADeBridgeStrategy.OrderTokenData memory _tokenData,
         uint256 _buyPeriod,
         uint256 _marketChainId,
         uint256 _deactivateOn
     ) external onlyOwner {
-        dcaAgent.makeOrderToBuy(owner(), _destination, _tokenData, _buyPeriod, _marketChainId, _deactivateOn);
+        dcaStrategy.makeOrderToBuy(owner(), _destination, _tokenData, _buyPeriod, _marketChainId, _deactivateOn);
     }
 
     function executeOrderResolver() external view returns (bool, bytes memory) {
-        return dcaAgent.clientResolver(address(this));
+        return dcaStrategy.clientResolver(address(this));
     }
 
-    function getOrdersToExecute(uint256 _offset, uint256 _limit) external view returns(uint256[] memory orderIds, DCASidechainAgent.Order[] memory resultOrders) {
-        return dcaAgent.getOrdersToExecute(address(this), _offset, _limit);
+    function getOrdersToExecute(uint256 _offset, uint256 _limit) external view returns(uint256[] memory orderIds, DCADeBridgeStrategy.Order[] memory resultOrders) {
+        return dcaStrategy.getOrdersToExecute(address(this), _offset, _limit);
     }
 
     function initiateOrderExecution(
@@ -45,6 +45,6 @@ contract DCAExecutionClient is Ownable {
         bytes calldata _dlnSourceData
     ) external {
         //TODO: check jobKey as first argument
-        dcaAgent.initiateOrderExecution(_orderId, _swapRouterAddress, _dataToCall, _dlnSource, _dlnSourceData);
+        dcaStrategy.initiateOrderExecution(_orderId, _swapRouterAddress, _dataToCall, _dlnSource, _dlnSourceData);
     }
 }
