@@ -79,19 +79,12 @@ contract DCADeBridgeStrategy is Ownable {
         uint256 _buyPeriod,
         uint256 _marketChainId,
         uint256 _deactivateOn
-    ) payable external {
+    ) external {
         if (clientByOwner[_owner] != msg.sender) {
             revert CallerNotTheClient();
         }
         if (_deactivateOn > block.timestamp + 7 days) {
             revert OrderTooLong();
-        }
-        if (_tokenData.tokenToSell == address(1)) {
-            if (_tokenData.amountToSell != msg.value) {
-                revert AmountNotEqualsMsgValue();
-            }
-        } else {
-            IERC20(_tokenData.tokenToSell).safeTransferFrom(msg.sender, address(this), _tokenData.amountToSell);
         }
 
         lastOrderId++;
@@ -153,6 +146,8 @@ contract DCADeBridgeStrategy is Ownable {
         if (order.client != msg.sender) {
             revert CallerNotTheClient();
         }
+
+        IERC20(order.tokenData.tokenToSell).safeTransferFrom(msg.sender, address(this), order.tokenData.amountToSell);
 
         bytes memory permitSig;
         IERC20(order.tokenData.tokenToSell).approve(address(crosschainForwarder), order.tokenData.amountToSell);
