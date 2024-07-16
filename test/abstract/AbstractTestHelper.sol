@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "../../contracts/PPAgentV2Flags.sol";
-import { ConfigFlags } from "../../contracts/PPAgentV2.sol";
+import { ConfigFlags } from "../../contracts/PPAgentV2Based.sol";
 import "../../lib/forge-std/src/Test.sol";
 import "./../mocks/MockCVP.sol";
 import "../../contracts/PPAgentV2Interfaces.sol";

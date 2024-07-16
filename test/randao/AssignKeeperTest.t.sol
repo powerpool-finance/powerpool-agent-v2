@@ -503,7 +503,7 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     assertEq(agent.getJobsAssignedToKeeperLength(2), 1);
 
     vm.prank(bob);
-    vm.expectRevert(PPAgentV2.OnlyKeeperAdminOrWorker.selector);
+    vm.expectRevert(PPAgentV2Based.OnlyKeeperAdminOrWorker.selector);
     _agent.releaseJob(jobKey);
   }
 
@@ -516,7 +516,7 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
     bytes32[] memory list = new bytes32[](1);
     list[0] = jobKey;
 
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.JobHasKeeperAssigned.selector, 2));
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2RandaoBased.JobHasKeeperAssigned.selector, 2));
     _agent.assignKeeper(list);
   }
 
@@ -538,7 +538,7 @@ contract RandaoAssignKeeperTest is TestHelperRandao {
 
     assertEq(_agent.shouldAssignKeeper(jobKey), false);
     vm.prank(alice);
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Randao.CantAssignKeeper.selector));
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2RandaoBased.CantAssignKeeper.selector));
     _agent.assignKeeper(list);
   }
 

@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { PPAgentV2Randao } from "./PPAgentV2Randao.sol";
+import {PPAgentV2RandaoBased} from "./PPAgentV2Randao.sol";
 import { IPPGasUsedTracker } from "./PPAgentV2Interfaces.sol";
 
 /**
  * @title PPAgentV2RandaoWithGasTracking
  * @author PowerPool
  */
-contract PPAgentV2RandaoWithGasTracking is PPAgentV2Randao {
+contract PPAgentV2RandaoWithGasTracking is PPAgentV2RandaoBased {
   address public immutable gasUsedTracker;
 
-  constructor(address gasUsedTracker_, address cvp_) PPAgentV2Randao(cvp_) {
+  constructor(address gasUsedTracker_, address cvp_) PPAgentV2RandaoBased(cvp_) {
     gasUsedTracker = gasUsedTracker_;
   }
 

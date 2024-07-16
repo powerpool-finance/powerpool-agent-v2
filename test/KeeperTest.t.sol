@@ -75,7 +75,7 @@ contract KeeperTest is TestHelper {
     vm.prank(keeperAdmin);
     cvp.approve(address(agent), MIN_DEPOSIT_3000_CVP);
 
-    vm.expectRevert(PPAgentV2.WorkerAlreadyAssigned.selector);
+    vm.expectRevert(PPAgentV2Based.WorkerAlreadyAssigned.selector);
     kid = agent.registerAsKeeper(keeperWorker, MIN_DEPOSIT_3000_CVP - 1);
   }
 
@@ -85,7 +85,7 @@ contract KeeperTest is TestHelper {
     vm.prank(keeperAdmin);
     cvp.approve(address(agent), MIN_DEPOSIT_3000_CVP);
 
-    vm.expectRevert(PPAgentV2.InsufficientAmount.selector);
+    vm.expectRevert(PPAgentV2Based.InsufficientAmount.selector);
     address keeperWorker2 = address(1);
     kid = agent.registerAsKeeper(keeperWorker2, MIN_DEPOSIT_3000_CVP - 1);
   }
@@ -147,7 +147,7 @@ contract KeeperTest is TestHelper {
 
   function testErrWithdrawExtraCompensation() public {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.WithdrawAmountExceedsAvailable.selector, 22 ether, 20 ether)
+      abi.encodeWithSelector(PPAgentV2Based.WithdrawAmountExceedsAvailable.selector, 22 ether, 20 ether)
     );
 
     vm.prank(keeperAdmin);
@@ -156,7 +156,7 @@ contract KeeperTest is TestHelper {
 
   function testErrWithdrawAnotherExtraCompensation() public {
     vm.expectRevert(abi.encodeWithSelector(
-      PPAgentV2.WithdrawAmountExceedsAvailable.selector,
+      PPAgentV2Based.WithdrawAmountExceedsAvailable.selector,
       21 ether,
       20 ether
     ));
@@ -167,7 +167,7 @@ contract KeeperTest is TestHelper {
 
   function testErrWithdrawZeroCompensation() public {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.MissingAmount.selector)
+      abi.encodeWithSelector(PPAgentV2Based.MissingAmount.selector)
     );
 
     vm.prank(keeperAdmin);
@@ -227,7 +227,7 @@ contract KeeperTest is TestHelper {
     address keeperWorker2 = address(2);
     uint256 kid2 = agent.registerAsKeeper(keeperWorker2, MIN_DEPOSIT_3000_CVP);
 
-    vm.expectRevert(PPAgentV2.WorkerAlreadyAssigned.selector);
+    vm.expectRevert(PPAgentV2Based.WorkerAlreadyAssigned.selector);
     agent.setWorkerAddress(kid2, keeperWorker);
     agent.setWorkerAddress(kid, address(0));
     agent.setWorkerAddress(kid2, keeperWorker);
@@ -241,7 +241,7 @@ contract KeeperTest is TestHelper {
     vm.prank(keeperAdmin);
     cvp.approve(address(agent), MIN_DEPOSIT_3000_CVP);
 
-    vm.expectRevert(PPAgentV2.OnlyKeeperAdmin.selector);
+    vm.expectRevert(PPAgentV2Based.OnlyKeeperAdmin.selector);
     agent.setWorkerAddress(kid, address(1));
   }
 }

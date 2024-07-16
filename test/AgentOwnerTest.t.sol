@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
+import "../contracts/PPAgentV2Based.sol";
 import "../contracts/PPAgentV2.sol";
 import "./mocks/MockCVP.sol";
 import "./TestHelper.sol";
@@ -54,13 +55,13 @@ contract AgentOwnerTest is TestHelper {
   }
 
   function testErrSetPendingWithdrawalTimeoutTooBig() public {
-    vm.expectRevert(PPAgentV2.TimeoutTooBig.selector);
+    vm.expectRevert(PPAgentV2Based.TimeoutTooBig.selector);
     vm.prank(owner);
     agent.setAgentParams(2, 30 days + 1, 2);
   }
 
   function testErrSetFeeTooBig() public {
-    vm.expectRevert(PPAgentV2.FeeTooBig.selector);
+    vm.expectRevert(PPAgentV2Based.FeeTooBig.selector);
     vm.prank(owner);
     agent.setAgentParams(2, 30 days, 5e4+1);
   }

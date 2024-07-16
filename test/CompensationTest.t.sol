@@ -13,7 +13,7 @@ contract CompensationTest is Test, PPAgentV2Flags {
   uint256 internal constant CVP_LIMIT = 100_000_000 ether;
 
   MockCVP internal cvp;
-  PPAgentV2 internal agent;
+  PPAgentV2Based internal agent;
 
   function setUp() public {
     cvp = new MockCVP();

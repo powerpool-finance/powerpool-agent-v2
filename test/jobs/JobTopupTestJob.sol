@@ -15,7 +15,7 @@ contract JobTopupTestJob is AgentJob {
 
   function execute(bytes32 jobKey_) external onlyAgent {
     require(address(this).balance >= 8.42 ether, "missing 8.42 ether");
-    PPAgentV2(agent).depositJobCredits{value: 8.42 ether}(jobKey_);
+    PPAgentV2Based(agent).depositJobCredits{value: 8.42 ether}(jobKey_);
   }
 
   receive() external payable {

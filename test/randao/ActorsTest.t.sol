@@ -176,7 +176,7 @@ contract RandaoActorsTest is TestHelperRandao {
     vm.prank(keeperAdmin, keeperAdmin);
     vm.expectRevert(
       abi.encodeWithSelector(
-        PPAgentV2Randao.TooEarlyForActivationFinalization.selector,
+        PPAgentV2RandaoBased.TooEarlyForActivationFinalization.selector,
         block.timestamp,
         block.timestamp + 8 hours
       )
@@ -204,7 +204,7 @@ contract RandaoActorsTest is TestHelperRandao {
     vm.warp(block.timestamp + 3 days + 1);
     agent.finalizeRedeem(kid3, keeperAdmin);
 
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2.InsufficientKeeperStake.selector));
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Based.InsufficientKeeperStake.selector));
     agent.initiateKeeperActivation(kid3);
     assertEq(_keeperIsActive(kid3), false);
 
@@ -219,7 +219,7 @@ contract RandaoActorsTest is TestHelperRandao {
     agent.finalizeRedeem(kid3, keeperAdmin);
 
     vm.warp(block.timestamp + 9 hours);
-    vm.expectRevert(abi.encodeWithSelector(PPAgentV2.InsufficientKeeperStake.selector));
+    vm.expectRevert(abi.encodeWithSelector(PPAgentV2Based.InsufficientKeeperStake.selector));
     agent.finalizeKeeperActivation(kid3);
     assertEq(_keeperIsActive(kid3), false);
 
@@ -233,11 +233,11 @@ contract RandaoActorsTest is TestHelperRandao {
   function testRdKeeperCantSetActiveAgain() public {
     assertEq(_keeperIsActive(3), true);
 
-    vm.expectRevert(PPAgentV2Randao.KeeperIsAlreadyActive.selector);
+    vm.expectRevert(PPAgentV2RandaoBased.KeeperIsAlreadyActive.selector);
     vm.prank(keeperAdmin, keeperAdmin);
     agent.initiateKeeperActivation(kid3);
     vm.roll(9 hours);
-    vm.expectRevert(PPAgentV2Randao.ActivationNotInitiated.selector);
+    vm.expectRevert(PPAgentV2RandaoBased.ActivationNotInitiated.selector);
     vm.prank(keeperAdmin, keeperAdmin);
     agent.finalizeKeeperActivation(kid3);
     assertEq(_keeperIsActive(3), true);
@@ -247,7 +247,7 @@ contract RandaoActorsTest is TestHelperRandao {
     vm.prank(keeperAdmin, keeperAdmin);
     agent.disableKeeper(kid3);
 
-    vm.expectRevert(PPAgentV2Randao.KeeperIsAlreadyInactive.selector);
+    vm.expectRevert(PPAgentV2RandaoBased.KeeperIsAlreadyInactive.selector);
     vm.prank(keeperAdmin, keeperAdmin);
     agent.disableKeeper(kid3);
   }

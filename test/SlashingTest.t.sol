@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
+import "../contracts/PPAgentV2Based.sol";
 import "../contracts/PPAgentV2.sol";
 import "./mocks/MockCVP.sol";
 import "./TestHelper.sol";
@@ -29,7 +30,7 @@ contract StakingTest is TestHelper {
 
   function testErrSlashZeroTotalAmount() public {
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.MissingAmount.selector)
+      abi.encodeWithSelector(PPAgentV2Based.MissingAmount.selector)
     );
     vm.prank(owner);
     agent.ownerSlash(kid, bob, 0, 0);
@@ -146,7 +147,7 @@ contract StakingTest is TestHelper {
 
     // Wont burn
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.InsufficientAmountToCoverSlashedStake.selector, 499 ether, 500 ether)
+      abi.encodeWithSelector(PPAgentV2Based.InsufficientAmountToCoverSlashedStake.selector, 499 ether, 500 ether)
     );
     vm.prank(keeperAdmin);
     agent.initiateRedeem(kid, 499 ether);
@@ -166,7 +167,7 @@ contract StakingTest is TestHelper {
 
     vm.warp(block.timestamp + 3 days + 1);
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.NoPendingWithdrawal.selector)
+      abi.encodeWithSelector(PPAgentV2Based.NoPendingWithdrawal.selector)
     );
     vm.prank(keeperAdmin);
     agent.finalizeRedeem(kid, keeperAdmin);
@@ -202,7 +203,7 @@ contract StakingTest is TestHelper {
 
     // Wont burn
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.InsufficientAmountToCoverSlashedStake.selector, 2_999 ether, 3_000 ether)
+      abi.encodeWithSelector(PPAgentV2Based.InsufficientAmountToCoverSlashedStake.selector, 2_999 ether, 3_000 ether)
     );
     vm.prank(keeperAdmin);
     agent.initiateRedeem(kid, 2_999 ether);
@@ -222,7 +223,7 @@ contract StakingTest is TestHelper {
 
     vm.warp(block.timestamp + 3 days + 1);
     vm.expectRevert(
-      abi.encodeWithSelector(PPAgentV2.NoPendingWithdrawal.selector)
+      abi.encodeWithSelector(PPAgentV2Based.NoPendingWithdrawal.selector)
     );
     vm.prank(keeperAdmin);
     agent.finalizeRedeem(kid, keeperAdmin);

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
+import "../../contracts/PPAgentV2Based.sol";
 import "../../contracts/PPAgentV2VRF.sol";
 import "../TestHelperRandao.sol";
 import "../mocks/MockCVP.sol";
@@ -25,7 +26,7 @@ contract VRFTest is AbstractTestHelper {
   uint256 internal kid3;
   uint256 internal latestKeeperStub;
 
-  PPAgentV2VRF internal agent;
+  PPAgentV2VRFBased internal agent;
 
   function _agentViewer() internal override view returns(IPPAgentV2Viewer) {
     return IPPAgentV2Viewer(address(agent));
@@ -95,7 +96,7 @@ contract VRFTest is AbstractTestHelper {
   }
 
   function _setupJob(address job_, bytes4 selector_, bool assertSelector_) internal {
-    PPAgentV2.Resolver memory resolver = IPPAgentV2Viewer.Resolver({
+    PPAgentV2Based.Resolver memory resolver = IPPAgentV2Viewer.Resolver({
       resolverAddress: address(0),
       resolverCalldata: bytes("")
     });

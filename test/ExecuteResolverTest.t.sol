@@ -163,7 +163,7 @@ contract ExecuteResolverTest is TestHelper {
     (bool ok, bytes memory cd) = job.myResolver("myPass");
     assertEq(ok, true);
 
-    vm.expectRevert(PPAgentV2.SelectorCheckFailed.selector);
+    vm.expectRevert(PPAgentV2Based.SelectorCheckFailed.selector);
     vm.prank(keeperWorker, keeperWorker);
     _callExecuteHelper(
       agent,
@@ -218,7 +218,7 @@ contract ExecuteResolverTest is TestHelper {
     (bool ok, bytes memory cd) = job.myResolver("myPass");
     assertEq(ok, true);
 
-    vm.expectRevert(PPAgentV2.SelectorCheckFailed.selector);
+    vm.expectRevert(PPAgentV2Based.SelectorCheckFailed.selector);
     vm.prank(keeperWorker, keeperWorker);
     _callExecuteHelper(
       agent,
@@ -273,7 +273,7 @@ contract ExecuteResolverTest is TestHelper {
     (bool ok, bytes memory cd) = job.myResolver("myPass");
     assertEq(ok, true);
 
-    vm.expectRevert(PPAgentV2.SelectorCheckFailed.selector);
+    vm.expectRevert(PPAgentV2Based.SelectorCheckFailed.selector);
     vm.prank(keeperWorker, keeperWorker);
     _callExecuteHelper(
       agent,
@@ -294,7 +294,7 @@ contract ExecuteResolverTest is TestHelper {
     (bool ok, bytes memory cd) = job.myResolver("myPass");
     assertEq(ok, true);
 
-    vm.expectRevert(PPAgentV2.JobCallRevertedWithoutDetails.selector);
+    vm.expectRevert(PPAgentV2Based.JobCallRevertedWithoutDetails.selector);
     vm.prank(keeperWorker, keeperWorker);
     _callExecuteHelper(
       agent,

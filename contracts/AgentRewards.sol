@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IPPAgentV2Viewer } from "../contracts/PPAgentV2.sol";
+import { IPPAgentV2Viewer } from "../contracts/PPAgentV2Based.sol";
 
 contract AgentRewards is Ownable, Pausable {
   event SetSinglePayoutStakePpm(uint256 singlePayoutStakePpm);

@@ -31,9 +31,9 @@ contract RandaoAgentOwnerTest is TestHelperRandao {
       keeperActivationTimeoutHours: 8,
       jobFixedRewardFinney: 30
     });
-    PPAgentV2Randao rAgent = new PPAgentV2Randao(address(cvp));
+    PPAgentV2RandaoBased rAgent = new PPAgentV2Randao(address(cvp));
 
-    vm.expectRevert(PPAgentV2Randao.JobCompensationMultiplierBpsLT10000.selector);
+    vm.expectRevert(PPAgentV2RandaoBased.JobCompensationMultiplierBpsLT10000.selector);
     rAgent.initializeRandao(owner, 3_000 ether, 3 days, rdConfig);
   }
 }
