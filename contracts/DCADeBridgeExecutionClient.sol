@@ -45,6 +45,12 @@ contract DCADeBridgeExecutionClient is Ownable {
         bytes calldata _dlnSourceData
     ) external {
         //TODO: check jobKey as first argument
+
+        DCADeBridgeStrategy.Order order = dcaStrategy.orders(_orderId);
+
+        IERC20(order.tokenData.tokenToSell).safeTransferFrom(msg.sender, address(this), order.tokenData.amountToSell);
+        IERC20(order.tokenData.tokenToSell).safeApprove(address(dcaStrategy), order.tokenData.amountToSell);
+
         dcaStrategy.initiateOrderExecution(_orderId, _swapRouterAddress, _dataToCall, _dlnSource, _dlnSourceData);
     }
 }
