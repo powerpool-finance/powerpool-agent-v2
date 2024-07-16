@@ -184,11 +184,11 @@ contract DCADeBridgeStrategy is Ownable {
 
         uint256 totalOrders = activeOrdersByClient[msg.sender].length();
         for (uint256 i = 0; i < checkOrdersCountOnExecute; i++) {
-            uint256 orderId = activeOrdersByClient[msg.sender].at(i);
-            Order storage o = orders[orderId];
+            uint256 oId = activeOrdersByClient[msg.sender].at(i);
+            Order storage o = orders[oId];
             if (o.deactivateOn <= block.timestamp) {
                 o.active = false;
-                activeOrdersByClient[o.client].remove(orderId);
+                activeOrdersByClient[o.client].remove(oId);
             }
         }
 
