@@ -25,7 +25,7 @@ contract DCASidechainAgent is Ownable {
         bool active;
         address owner;
         address client;
-        address destination;
+        address recipient;
         OrderTokenData tokenData;
         uint256 buyPeriod;
         uint256 marketChainId;
@@ -41,7 +41,7 @@ contract DCASidechainAgent is Ownable {
     address public agent;
     ICrosschainForwarder public crosschainForwarder;
 
-    mapping(address => EnumerableSet.UintSet) public activeOrdersByClient;
+    mapping(address => EnumerableSet.UintSet) internal activeOrdersByClient;
 
     uint256 public checkOrdersCountOnExecute;
     string public offChainIpfsHash;
@@ -74,7 +74,7 @@ contract DCASidechainAgent is Ownable {
 
     function makeOrderToBuy(
         address _owner,
-        address _destination,
+        address _recipient,
         OrderTokenData memory _tokenData,
         uint256 _buyPeriod,
         uint256 _marketChainId,
@@ -99,7 +99,7 @@ contract DCASidechainAgent is Ownable {
             active: true,
             owner: _owner,
             client: msg.sender,
-            destination: _destination,
+            recipient: _recipient,
             tokenData: _tokenData,
             buyPeriod:  _buyPeriod,
             marketChainId: _marketChainId,
@@ -112,17 +112,19 @@ contract DCASidechainAgent is Ownable {
         activeOrdersByClient[msg.sender].add(lastOrderId);
     }
 
-    function getOrdersToExecute(address _client, uint256 _offset, uint256 _limit) external view returns(Order[] memory resultOrders) {
+    function getOrdersToExecute(address _client, uint256 _offset, uint256 _limit) external view returns(uint256[] memory orderIds, Order[] memory resultOrders) {
         uint256 totalOrders = activeOrdersByClient[_client].length();
         uint256 untilOrderIndex = _offset + _limit > totalOrders ? totalOrders : _offset + _limit;
         uint256 totalResults = untilOrderIndex - _offset;
+        orderIds = new uint256[](totalResults);
         resultOrders = new Order[](totalResults);
         for (uint256 i = _offset; i < untilOrderIndex; i++) {
-            resultOrders[i] = orders[activeOrdersByClient[_client].at(i)];
+            orderIds[i] = activeOrdersByClient[_client].at(i);
+            resultOrders[i] = orders[orderIds[i]];
         }
     }
 
-    function doesClientHaveOrderReadyToExecute(address _client) public {
+    function doesClientHaveOrderReadyToExecute(address _client) public view returns(bool) {
         uint256 totalOrders = activeOrdersByClient[_client].length();
         for (uint256 i = 0; i < totalOrders; i++) {
             Order storage order = orders[activeOrdersByClient[_client].at(i)];
@@ -136,7 +138,7 @@ contract DCASidechainAgent is Ownable {
         return false;
     }
 
-    function clientResolver(address _client) external returns(bool, bytes memory data) {
+    function clientResolver(address _client) external view returns(bool, bytes memory data) {
         return (doesClientHaveOrderReadyToExecute(_client), bytes(offChainIpfsHash));
     }
 
@@ -162,7 +164,7 @@ contract DCASidechainAgent is Ownable {
             _dataToCall,
             order.tokenData.tokenToBuy,
             order.tokenData.amountToSell * order.tokenData.minPrice / 1 ether,
-            order.destination,
+            order.recipient,
             _dlnSource,
             _dlnSourceData
         );

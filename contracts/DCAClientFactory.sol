@@ -15,8 +15,8 @@ contract DCAClientFactory is Ownable {
 
     function createClient(address agent_, address owner_) external onlyOwner returns (address client) {
         address dcaAgent = msg.sender;
-        client = new DCAExecutionClient(agent_, dcaAgent);
-        Ownable(address(client)).transferOwnership(owner_);
-        return address(client);
+        client = address(new DCAExecutionClient(agent_, dcaAgent));
+        Ownable(client).transferOwnership(owner_);
+        return client;
     }
 }

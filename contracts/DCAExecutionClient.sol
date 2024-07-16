@@ -15,7 +15,7 @@ contract DCAExecutionClient is Ownable {
 
     constructor(address agent_, address dcaAgent_) {
         agent = agent_;
-        dcaAgent = dcaAgent_;
+        dcaAgent = DCASidechainAgent(dcaAgent_);
     }
 
     function makeOrderToBuy(
@@ -33,6 +33,10 @@ contract DCAExecutionClient is Ownable {
         return dcaAgent.clientResolver(address(this));
     }
 
+    function getOrdersToExecute(uint256 _offset, uint256 _limit) external view returns(uint256[] memory orderIds, DCASidechainAgent.Order[] memory resultOrders) {
+        return dcaAgent.getOrdersToExecute(address(this), _offset, _limit);
+    }
+
     function initiateOrderExecution(
         uint256 _orderId,
         address _swapRouterAddress,
@@ -40,6 +44,7 @@ contract DCAExecutionClient is Ownable {
         address _dlnSource,
         bytes calldata _dlnSourceData
     ) external {
+        //TODO: check jobKey as first argument
         dcaAgent.initiateOrderExecution(_orderId, _swapRouterAddress, _dataToCall, _dlnSource, _dlnSourceData);
     }
 }
