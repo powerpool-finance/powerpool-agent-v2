@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.24;
 
 contract PPAgentV2Flags {
   // Keeper pass this flags withing execute() transaction
