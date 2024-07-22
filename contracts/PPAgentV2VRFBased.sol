@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.24;
 
-import {PPAgentV2RandaoBased} from "./PPAgentV2Randao.sol";
+import {PPAgentV2RandaoBased} from "./PPAgentV2RandaoBased.sol";
 
 import "./interfaces/VRFAgentConsumerInterface.sol";
 
