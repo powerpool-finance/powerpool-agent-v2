@@ -149,6 +149,7 @@ contract DCADeBridgeStrategy is Ownable {
 
         IERC20(order.tokenData.tokenToSell).safeTransferFrom(msg.sender, address(this), order.tokenData.amountToSell);
 
+        //TODO: cancel last pending order?
         bytes memory permitSig;
         IERC20(order.tokenData.tokenToSell).approve(address(crosschainForwarder), order.tokenData.amountToSell);
         crosschainForwarder.strictlySwapAndCall(

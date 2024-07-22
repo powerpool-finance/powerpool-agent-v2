@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./DCADeBridgeStrategy.sol";
 
@@ -9,6 +11,7 @@ import "./DCADeBridgeStrategy.sol";
  * @author PowerPool
  */
 contract DCADeBridgeExecutionClient is Ownable {
+    using SafeERC20 for IERC20;
 
     address public agent;
     DCADeBridgeStrategy public dcaStrategy;
@@ -46,11 +49,13 @@ contract DCADeBridgeExecutionClient is Ownable {
     ) external {
         //TODO: check jobKey as first argument
 
-        DCADeBridgeStrategy.Order order = dcaStrategy.orders(_orderId);
+        DCADeBridgeStrategy.Order memory order = dcaStrategy.orders(_orderId);
 
         IERC20(order.tokenData.tokenToSell).safeTransferFrom(msg.sender, address(this), order.tokenData.amountToSell);
         IERC20(order.tokenData.tokenToSell).safeApprove(address(dcaStrategy), order.tokenData.amountToSell);
 
         dcaStrategy.initiateOrderExecution(_orderId, _swapRouterAddress, _dataToCall, _dlnSource, _dlnSourceData);
     }
+
+    //TODO: withdraw stuck tokens
 }
