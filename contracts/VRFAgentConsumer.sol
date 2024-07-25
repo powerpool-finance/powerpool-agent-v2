@@ -152,14 +152,14 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
         return lastVrfNumbers;
     }
 
-    function fulfillRandomnessResolver() external view returns (bool, bytes memory) {
+    function fulfillRandomnessOffchainResolver() external view returns (bool, bytes memory) {
         if (isPendingRequestOverdue() || (lastVrfFulfillAt != 0 && pendingRequestId == 0) || block.number == lastVrfRequestAtBlock) {
             return (false, bytes(""));
         }
         if (useLocalIpfsHash) {
             return (coordinatorPendingRequestId() != 0, bytes(offChainIpfsHash));
         } else {
-            return VRFAgentCoordinatorInterface(vrfCoordinator).fulfillRandomnessResolver(
+            return VRFAgentCoordinatorInterface(vrfCoordinator).fulfillRandomnessOffchainResolver(
                 address(this),
                 vrfSubscriptionId
             );
