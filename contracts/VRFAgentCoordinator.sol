@@ -338,9 +338,9 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     Proof memory proof,
     RequestCommitment memory rc
   ) private view returns (bytes32 keyHash, uint256 requestId, uint256 randomness) {
-    if (!s_agentProviders[msg.sender]) {
-      revert InvalidProvider();
-    }
+//    if (!s_agentProviders[msg.sender]) {
+//      revert InvalidProvider();
+//    }
 //    if (publicKeyToAddress(proof.pk) != tx.origin) {
 //      revert InvalidTxOrigin();
 //    }
@@ -372,29 +372,18 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
    * @param proof contains the proof and randomness
    * @param rc request commitment pre-image, committed to at request time
    */
-  function fulfillRandomWords(Proof memory proof, RequestCommitment memory rc) external nonReentrant {
-    (bytes32 keyHash, uint256 requestId, uint256 randomness) = _getRandomnessFromProof(proof, rc);
+  function fulfillRandomWords(Proof memory proof, RequestCommitment memory rc) external nonReentrant returns (uint256 requestId, uint256[] memory randomWords) {
+    bytes32 keyHash;
+    bytes32 randomness;
+    (keyHash, requestId, randomness) = _getRandomnessFromProof(proof, rc);
     //TODO: compare keyHash and proof.pk?
 
-    uint256[] memory randomWords = new uint256[](rc.numWords);
+    randomWords = new uint256[](rc.numWords);
     for (uint256 i = 0; i < rc.numWords; i++) {
       randomWords[i] = uint256(keccak256(abi.encode(randomness, i)));
     }
-
     delete s_requestCommitments[requestId];
-    VRFAgentConsumer v;
-    bytes memory resp = abi.encodeWithSelector(v.rawFulfillRandomWords.selector, requestId, randomWords);
-    // Call with explicitly the amount of callback gas requested
-    // Important to not let them exhaust the gas budget and avoid oracle payment.
-    // Do not allow any non-view/non-pure coordinator functions to be called
-    // during the consumers callback code via reentrancyLock.
-    // Note that _callWithExactGas will revert if we do not have sufficient gas
-    // to give the callee their requested amount.
-    s_config.reentrancyLock = true;
-    bool success = _callWithExactGas(rc.callbackGasLimit, rc.sender, resp);
-    s_config.reentrancyLock = false;
-
-    emit RandomWordsFulfilled(requestId, randomness, success);
+    emit RandomWordsFulfilled(requestId, randomness, true);
   }
 
   function getCurrentSubId() external view returns (uint64) {
@@ -417,21 +406,6 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   /**
    * @inheritdoc VRFAgentCoordinatorInterface
    */
-  function createSubscription() public override returns (uint64) {
-    s_currentSubId++;
-    uint64 subId = s_currentSubId;
-
-    address[] memory consumers = new address[](1);
-    s_subscriptionConfigs[subId] = SubscriptionConfig({
-      owner: msg.sender,
-      requestedOwner: address(0),
-      consumers: consumers
-    });
-
-    emit SubscriptionCreated(subId, msg.sender);
-    return subId;
-  }
-
   function createSubscriptionWithConsumer() external override nonReentrant returns (uint64, address) {
     uint64 subId = createSubscription();
     address latestAgent = s_agentProvidersList[s_agentProvidersList.length - 1];
@@ -472,38 +446,19 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     emit SubscriptionOwnerTransferred(subId, oldOwner, msg.sender);
   }
 
-  /**
-   * @inheritdoc VRFAgentCoordinatorInterface
-   */
-  function removeConsumer(uint64 subId, address consumer) external override onlySubOwner(subId) nonReentrant {
-    if (pendingRequestExists(subId)) {
-      revert PendingRequestExists();
-    }
-    if (s_consumers[consumer][subId] == 0) {
-      revert InvalidConsumer(subId, consumer);
-    }
-    // Note bounded by MAX_CONSUMERS
-    address[] memory consumers = s_subscriptionConfigs[subId].consumers;
-    uint256 lastConsumerIndex = consumers.length - 1;
-    for (uint256 i = 0; i < consumers.length; i++) {
-      if (consumers[i] == consumer) {
-        address last = consumers[lastConsumerIndex];
-        // Storage write to preserve last element
-        s_subscriptionConfigs[subId].consumers[i] = last;
-        // Storage remove last element
-        s_subscriptionConfigs[subId].consumers.pop();
-        break;
-      }
-    }
-    delete s_consumers[consumer][subId];
-    emit SubscriptionConsumerRemoved(subId, consumer);
-  }
+  function _createSubscription() internal override returns (uint64) {
+    s_currentSubId++;
+    uint64 subId = s_currentSubId;
 
-  /**
-   * @inheritdoc VRFAgentCoordinatorInterface
-   */
-  function addConsumer(uint64 subId, address consumer) external override onlySubOwner(subId) nonReentrant {
-    _addConsumer(subId, consumer);
+    address[] memory consumers = new address[](1);
+    s_subscriptionConfigs[subId] = SubscriptionConfig({
+      owner: msg.sender,
+      requestedOwner: address(0),
+      consumers: consumers
+    });
+
+    emit SubscriptionCreated(subId, msg.sender);
+    return subId;
   }
 
   function _addConsumer(uint64 subId, address consumer) internal {
@@ -521,7 +476,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     s_subscriptionConfigs[subId].consumers.push(consumer);
 
     emit SubscriptionConsumerAdded(subId, consumer);
-}
+  }
 
   /**
    * @inheritdoc VRFAgentCoordinatorInterface
@@ -588,11 +543,9 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   }
 
   function lastPendingRequestId(address consumer, uint64 subId) public view returns (uint256) {
-    for (uint256 i = 0; i < s_agentProvidersList.length; i++) {
-      (uint256 reqId, ) = _computeRequestId(s_agentProvidersList[i], consumer, subId, s_consumers[consumer][subId]);
-      if (s_requestCommitments[reqId] != 0) {
-        return reqId;
-      }
+    (uint256 reqId, ) = _computeRequestId(consumer, consumer, subId, s_consumers[consumer][subId]);
+    if (s_requestCommitments[reqId] != 0) {
+      return reqId;
     }
     return 0;
   }
@@ -604,7 +557,6 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
   function fulfillRandomnessResolver(address consumer, uint64 _subId) external virtual view returns (bool, bytes memory) {
     return (lastPendingRequestId(consumer, _subId) != 0, bytes(offChainIpfsHash));
   }
-
 
   modifier onlySubOwner(uint64 subId) {
     address owner = s_subscriptionConfigs[subId].owner;

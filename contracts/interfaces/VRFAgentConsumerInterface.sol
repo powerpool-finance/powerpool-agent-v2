@@ -3,10 +3,13 @@ pragma solidity ^0.8.0;
 
 interface VRFAgentConsumerInterface {
 
-    function setVrfConfig(
+    function setInitialConfig(
         address vrfCoordinator_,
         bytes32 vrfKeyHash_,
-        uint64 vrfSubscriptionId_,
+        uint64 vrfSubscriptionId_
+    ) external;
+
+    function setVrfConfig(
         uint16 vrfRequestConfirmations_,
         uint32 vrfCallbackGasLimit_,
         uint256 vrfRequestPeriod_

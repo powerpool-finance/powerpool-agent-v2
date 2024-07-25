@@ -59,7 +59,7 @@ interface VRFAgentCoordinatorInterface {
         uint32 numWords
     ) external returns (uint256 requestId);
 
-    function fulfillRandomWords(Proof memory proof, RequestCommitment memory rc) external;
+    function fulfillRandomWords(Proof memory proof, RequestCommitment memory rc) external returns (uint256 requestId, uint256[] calldata randomWords);
 
     /**
      * @notice Create a VRF subscription.
