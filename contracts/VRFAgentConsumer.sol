@@ -124,7 +124,7 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     function _requestRandomWords() internal virtual returns (uint256) {
         if (vrfKeyHash == bytes32(0)) {
             return VRFAgentCoordinatorInterface(vrfCoordinator).requestRandomWords(
-                agent,
+                address(this),
                 vrfSubscriptionId,
                 vrfRequestConfirmations,
                 vrfCallbackGasLimit,
