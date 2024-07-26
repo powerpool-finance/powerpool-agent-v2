@@ -416,6 +416,38 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     return (subId, address(agentConsumer));
   }
 
+  function createSubscription() public returns (uint64) {
+    return _createSubscription();
+  }
+
+  function addConsumer(uint64 subId, address consumer) external onlySubOwner(subId) nonReentrant {
+    _addConsumer(subId, consumer);
+  }
+
+  function removeConsumer(uint64 subId, address consumer) external onlySubOwner(subId) nonReentrant {
+    if (pendingRequestExists(subId)) {
+      revert PendingRequestExists();
+    }
+    if (s_consumers[consumer][subId] == 0) {
+      revert InvalidConsumer(subId, consumer);
+    }
+    // Note bounded by MAX_CONSUMERS
+    address[] memory consumers = s_subscriptionConfigs[subId].consumers;
+    uint256 lastConsumerIndex = consumers.length - 1;
+    for (uint256 i = 0; i < consumers.length; i++) {
+      if (consumers[i] == consumer) {
+        address last = consumers[lastConsumerIndex];
+        // Storage write to preserve last element
+        s_subscriptionConfigs[subId].consumers[i] = last;
+        // Storage remove last element
+        s_subscriptionConfigs[subId].consumers.pop();
+        break;
+      }
+    }
+    delete s_consumers[consumer][subId];
+    emit SubscriptionConsumerRemoved(subId, consumer);
+  }
+
   /**
    * @inheritdoc VRFAgentCoordinatorInterface
    */

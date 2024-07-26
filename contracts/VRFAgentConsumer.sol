@@ -95,20 +95,6 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
         }
     }
 
-    //TODO: deprecated
-    function rawFulfillRandomWords(
-        uint256 _requestId,
-        uint256[] memory _randomWords
-    ) external {
-        require(msg.sender == address(vrfCoordinator), "sender not vrfCoordinator");
-        require(_requestId == pendingRequestId, "request not found");
-        lastVrfNumbers = _randomWords;
-        pendingRequestId = 0;
-        if (vrfRequestPeriod != 0) {
-            lastVrfFulfillAt = block.timestamp;
-        }
-    }
-
     function isPendingRequestOverdue() public view returns (bool) {
         return pendingRequestId != 0 && block.number - lastVrfRequestAtBlock >= 256;
     }
