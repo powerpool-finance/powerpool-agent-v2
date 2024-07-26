@@ -372,9 +372,9 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
    * @param proof contains the proof and randomness
    * @param rc request commitment pre-image, committed to at request time
    */
-  function fulfillRandomWords(Proof memory proof, RequestCommitment memory rc) external nonReentrant returns (uint256 requestId, uint256[] memory randomWords) {
+  function fulfillRandomWords(Proof memory proof, RequestCommitment memory rc) external virtual nonReentrant returns (uint256 requestId, uint256[] memory randomWords) {
     bytes32 keyHash;
-    bytes32 randomness;
+    uint256 randomness;
     (keyHash, requestId, randomness) = _getRandomnessFromProof(proof, rc);
     //TODO: compare keyHash and proof.pk?
 
@@ -407,7 +407,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
    * @inheritdoc VRFAgentCoordinatorInterface
    */
   function createSubscriptionWithConsumer() external override nonReentrant returns (uint64, address) {
-    uint64 subId = createSubscription();
+    uint64 subId = _createSubscription();
     address latestAgent = s_agentProvidersList[s_agentProvidersList.length - 1];
     VRFAgentConsumerInterface agentConsumer = consumerFactory.createConsumer(latestAgent, msg.sender, subId);
 
@@ -446,7 +446,7 @@ contract VRFAgentCoordinator is VRF, Ownable, VRFAgentCoordinatorInterface {
     emit SubscriptionOwnerTransferred(subId, oldOwner, msg.sender);
   }
 
-  function _createSubscription() internal override returns (uint64) {
+  function _createSubscription() internal returns (uint64) {
     s_currentSubId++;
     uint64 subId = s_currentSubId;
 

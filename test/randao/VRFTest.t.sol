@@ -9,6 +9,8 @@ import "../jobs/OnlySelectorTestJob.sol";
 import "../mocks/MockCompensationTracker.sol";
 import "../mocks/MockVRFCoordinator.sol";
 import "../../contracts/VRFAgentManager.sol";
+import "../../contracts/VRFAgentConsumerFactory.sol";
+import "../../lib/forge-std/src/console.sol";
 
 contract VRFTest is AbstractTestHelper {
   ICounter internal job;
@@ -61,19 +63,21 @@ contract VRFTest is AbstractTestHelper {
       jobFixedRewardFinney: 30
     });
 
-    coordinator = new MockVRFCoordinator(VRFAgentConsumerFactoryInterface(address(0)));
+    VRFAgentConsumerFactory consumerFactory = new VRFAgentConsumerFactory();
+    coordinator = new MockVRFCoordinator(consumerFactory);
+    consumerFactory.transferOwnership(address(coordinator));
     agent = new PPAgentV2VRF(address(cvp));
-    consumer = new VRFAgentConsumer(address(agent));
     counter = new OnlySelectorTestJob(address(agent));
     agent.initializeRandao(owner, 3_000 ether, 3 days, rdConfig);
-    consumer.setVrfConfig(address(coordinator), bytes32(0), uint64(0), uint16(0), uint32(0), 0);
     coordinator.registerAgent(address(agent));
-    coordinator.addConsumer(coordinator.createSubscription(), address(consumer));
+    (uint64 subId, address consumerAddress) = coordinator.createSubscriptionWithConsumer();
+    consumer = VRFAgentConsumer(consumerAddress);
+    consumer.setVrfConfig(1, 1e6, 30);
 
     vm.prank(owner);
     agent.setAgentParams(1, 10, 1e4);
     vm.prank(owner);
-    agent.setVRFConsumer(address(consumer));
+    agent.setVRFConsumer(consumerAddress);
 
     {
       cvp.transfer(keeperAdmin, 15_000 ether);
@@ -95,10 +99,10 @@ contract VRFTest is AbstractTestHelper {
     }
   }
 
-  function _setupJob(address job_, bytes4 selector_, bool assertSelector_) internal {
+  function _setupJob(address job_, bytes4 selector_, bool assertSelector_, bool jobConsumerOffchainType_) internal {
     PPAgentV2Based.Resolver memory resolver = IPPAgentV2Viewer.Resolver({
-      resolverAddress: address(0),
-      resolverCalldata: bytes("")
+      resolverAddress: job_,
+      resolverCalldata: jobConsumerOffchainType_ ? bytes("") : abi.encodeWithSelector(VRFAgentConsumer.fulfillRandomWords.selector)
     });
     IPPAgentV2JobOwner.RegisterJobParams memory params = IPPAgentV2JobOwner.RegisterJobParams({
       jobAddress: job_,
@@ -111,8 +115,8 @@ contract VRFTest is AbstractTestHelper {
       jobMinCvp: 0,
 
       // For interval jobs
-      calldataSource: CALLDATA_SOURCE_SELECTOR,
-      intervalSeconds: 15
+      calldataSource: jobConsumerOffchainType_ ? CALLDATA_SOURCE_OFFCHAIN : CALLDATA_SOURCE_SELECTOR,
+      intervalSeconds: jobConsumerOffchainType_ ? 0 : 15
     });
     vm.prank(alice);
     vm.deal(alice, 1 ether);
@@ -124,22 +128,53 @@ contract VRFTest is AbstractTestHelper {
     });
   }
 
+  function _getMockProof() internal view returns(VRFAgentCoordinatorInterface.Proof memory) {
+    uint256[2] memory emptyArr;
+    return VRFAgentCoordinatorInterface.Proof({
+      pk: emptyArr,
+      gamma: emptyArr,
+      c: 0,
+      s: 0,
+      seed: 0,
+      uWitness: address(0),
+      cGammaWitness: emptyArr,
+      sHashWitness: emptyArr,
+      zInv: 0
+    });
+  }
+
+  function _getMockCommitment() internal view returns(VRFAgentCoordinatorInterface.RequestCommitment memory) {
+    return VRFAgentCoordinatorInterface.RequestCommitment({
+      blockNum: uint64(0),
+      subId: uint64(0),
+      callbackGasLimit: uint32(0),
+      numWords: uint32(0),
+      sender: address(0)
+    });
+  }
+
   function testVrfNumbersShouldBeSet() public {
     job = new OnlySelectorTestJob(address(agent));
     assertEq(job.current(), 0);
-    _setupJob(address(job), OnlySelectorTestJob.increment.selector, true);
+    _setupJob(address(job), OnlySelectorTestJob.increment.selector, true, false);
     assertEq(coordinator.lastRequestIdByConsumer(address(consumer)), 1);
     assertEq(consumer.pendingRequestId(), coordinator.lastRequestIdByConsumer(address(consumer)));
     assertEq(agent.jobNextKeeperId(jobKey), 2);
 
     assertEq(consumer.getPseudoRandom(), uint256(blockhash(block.number - 1)));
-    coordinator.callFulfill();
+    uint256 fulfillAt = block.timestamp;
+
+    vm.expectRevert(abi.encodeWithSelector(VRFAgentConsumer.OnlyAgent.selector));
+    consumer.fulfillRandomWords(_getMockProof(), _getMockCommitment());
+    vm.prank(address(agent));
+    consumer.fulfillRandomWords(_getMockProof(), _getMockCommitment());
+
     assertNotEq(consumer.getPseudoRandom(), uint256(blockhash(block.number - 1)));
     assertEq(consumer.pendingRequestId(), 0);
     assertEq(coordinator.lastRequestIdByConsumer(address(consumer)), 1);
-    assertEq(consumer.lastVrfFulfillAt(), 0);
+    assertEq(consumer.lastVrfFulfillAt(), fulfillAt);
 
-    (bool needFulfill, ) = coordinator.fulfillRandomnessResolver(address(consumer), 1);
+    (bool needFulfill, ) = coordinator.fulfillRandomnessOffchainResolver(address(consumer), 1);
     assertEq(needFulfill, false);
 
     vm.prank(keeperWorker, keeperWorker);
@@ -152,16 +187,14 @@ contract VRFTest is AbstractTestHelper {
       kid2,
       new bytes(0)
     );
-    assertEq(coordinator.lastRequestIdByConsumer(address(consumer)), 2);
-    assertEq(consumer.pendingRequestId(), coordinator.lastRequestIdByConsumer(address(consumer)));
+    assertEq(coordinator.lastRequestIdByConsumer(address(consumer)), 1);
+    assertEq(consumer.pendingRequestId(), 0);
 
-    consumer.setVrfConfig(address(coordinator), bytes32(0), uint64(1), uint16(0), uint32(0), 30);
+    consumer.setVrfConfig(uint16(0), uint32(0), 30);
 
-    assertEq(coordinator.getCommitment(consumer.pendingRequestId()), bytes32(uint256(1)));
-    assertEq(coordinator.lastPendingRequestId(address(consumer), 1), consumer.pendingRequestId());
     assertEq(consumer.pendingRequestId(), consumer.coordinatorPendingRequestId());
-    (needFulfill, ) = coordinator.fulfillRandomnessResolver(address(consumer), 1);
-    assertEq(needFulfill, true);
+    (needFulfill, ) = coordinator.fulfillRandomnessOffchainResolver(address(consumer), 1);
+    assertEq(needFulfill, false);
 
 //    consumer = new VRFAgentConsumer(address(agent));
 //    coordinator.addConsumer(coordinator.createSubscription(), address(consumer));
@@ -169,20 +202,23 @@ contract VRFTest is AbstractTestHelper {
     vm.roll(25);
     uint256 fulfillTimestamp = block.timestamp + 15;
     vm.warp(fulfillTimestamp);
-    coordinator.callFulfill();
+    vm.expectRevert(abi.encodeWithSelector(VRFAgentConsumer.RequestNotFound.selector, 1, 0));
+    vm.prank(address(agent));
+    consumer.fulfillRandomWords(_getMockProof(), _getMockCommitment());
     assertEq(consumer.pendingRequestId(), 0);
-    assertEq(consumer.lastVrfFulfillAt(), fulfillTimestamp);
+    assertEq(consumer.lastVrfFulfillAt(), fulfillAt);
 
-    (needFulfill, ) = coordinator.fulfillRandomnessResolver(address(consumer), 1);
+    (needFulfill, ) = coordinator.fulfillRandomnessOffchainResolver(address(consumer), 1);
     assertEq(needFulfill, false);
 
     coordinator.requestRandomWords(address(0), 1, 1, 1, 10);
 
-    (needFulfill, ) = coordinator.fulfillRandomnessResolver(address(consumer), 1);
+    (needFulfill, ) = coordinator.fulfillRandomnessOffchainResolver(address(consumer), 1);
     assertEq(needFulfill, false);
 
     vm.roll(30);
     vm.warp(fulfillTimestamp + 15);
+
     assertEq(agent.jobNextKeeperId(jobKey), 2);
     assertEq(consumer.isReadyForRequest(), false);
     vm.prank(keeperWorker, keeperWorker);
@@ -196,7 +232,7 @@ contract VRFTest is AbstractTestHelper {
     );
 
     assertEq(consumer.pendingRequestId(), 0);
-    assertEq(coordinator.lastRequestIdByConsumer(address(consumer)), 2);
+    assertEq(coordinator.lastRequestIdByConsumer(address(consumer)), 1);
 
     vm.roll(40);
     vm.warp(fulfillTimestamp + 31);
@@ -212,8 +248,8 @@ contract VRFTest is AbstractTestHelper {
       new bytes(0)
     );
 
-    assertEq(consumer.pendingRequestId(), 4);
-    assertEq(coordinator.lastRequestIdByConsumer(address(consumer)), 4);
+    assertEq(consumer.pendingRequestId(), 3);
+    assertEq(coordinator.lastRequestIdByConsumer(address(consumer)), 3);
 
     uint256 timestampBefore = block.timestamp;
     assertEq(consumer.isReadyForRequest(), false);
@@ -224,10 +260,10 @@ contract VRFTest is AbstractTestHelper {
   }
 
   function testAutoDepositJobShouldDoTheThing() public {
-    _setupJob(address(coordinator), coordinator.callFulfill.selector, true);
+    _setupJob(address(consumer), consumer.fulfillRandomWords.selector, true, true);
     assertEq(agent.jobNextKeeperId(jobKey), 2);
 
-    consumer.setVrfConfig(address(coordinator), bytes32(0), uint64(0), uint16(0), uint32(0), 30);
+    consumer.setVrfConfig(uint16(0), uint32(0), 30);
     (, , uint256 feeTotal, , ) = agent.getConfig();
     assertEq(feeTotal, 1e16);
 
@@ -252,16 +288,18 @@ contract VRFTest is AbstractTestHelper {
     assertNotEq(agentManager.autoDepositJobKey(), bytes32(0));
     assertEq(agentManager.autoDepositJobKey(), autoDepositJobKey);
 
+    assertEq(consumer.pendingRequestId(), 1);
+
     vm.prank(keeperWorker, keeperWorker);
     vm.roll(20);
     uint256 fulfillTimestamp = block.timestamp;
     _callExecuteHelper(
       agent,
-      address(coordinator),
+      address(consumer),
       jobId,
       defaultFlags,
       kid2,
-      new bytes(0)
+      abi.encodeWithSelector(VRFAgentConsumer.fulfillRandomWords.selector, _getMockProof(), _getMockCommitment())
     );
     assertEq(consumer.lastVrfFulfillAt(), fulfillTimestamp);
 
@@ -333,15 +371,15 @@ contract VRFTest is AbstractTestHelper {
     assertEq(autoDepositAmountIn, 0);
 
     uint256 vrfJobBalanceBefore = agentManager.getVrfFullfillJobBalance();
-    assertEq(agent.jobNextKeeperId(autoDepositJobKey), 2);
-    vm.prank(keeperWorker, keeperWorker);
+    assertEq(agent.jobNextKeeperId(autoDepositJobKey), 1);
+    vm.prank(alice, alice);
     vm.roll(20);
     _callExecuteHelper(
       agent,
       address(agentManager),
       autoDepositJobId,
       defaultFlags,
-      kid2,
+      kid1,
       autoDepositCalldata
     );
     uint256 vrfJobBalanceAfter = agentManager.getVrfFullfillJobBalance();

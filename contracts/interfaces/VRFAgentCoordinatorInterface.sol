@@ -64,10 +64,8 @@ interface VRFAgentCoordinatorInterface {
     /**
      * @notice Create a VRF subscription.
      * @return subId - A unique subscription id.
-     * @dev You can manage the consumer set dynamically with addConsumer/removeConsumer.
+     * @return consumer - An consumer address.
      */
-    function createSubscription() external returns (uint64 subId);
-
     function createSubscriptionWithConsumer() external returns (uint64 subId, address consumer);
 
     /**
@@ -94,20 +92,6 @@ interface VRFAgentCoordinatorInterface {
     function acceptSubscriptionOwnerTransfer(uint64 subId) external;
 
     /**
-     * @notice Add a consumer to a VRF subscription.
-     * @param subId - ID of the subscription
-     * @param consumer - New consumer which can use the subscription
-     */
-    function addConsumer(uint64 subId, address consumer) external;
-
-    /**
-     * @notice Remove a consumer from a VRF subscription.
-     * @param subId - ID of the subscription
-     * @param consumer - Consumer to remove from the subscription
-     */
-    function removeConsumer(uint64 subId, address consumer) external;
-
-    /**
      * @notice Cancel a subscription
      * @param subId - ID of the subscription
      */
@@ -122,7 +106,7 @@ interface VRFAgentCoordinatorInterface {
      */
     function pendingRequestExists(uint64 subId) external view returns (bool);
 
-    function fulfillRandomnessResolver(address consumer, uint64 _subId) external view returns (bool, bytes calldata);
+    function fulfillRandomnessOffchainResolver(address consumer, uint64 _subId) external view returns (bool, bytes calldata);
 
     /*
      * @notice Get last pending request id

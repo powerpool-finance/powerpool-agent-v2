@@ -232,17 +232,11 @@ contract VRFAgentManager is Ownable {
   }
 
   function setConsumerVrfConfig(
-    address vrfCoordinator_,
-    bytes32 vrfKeyHash_,
-    uint64 vrfSubscriptionId_,
     uint16 vrfRequestConfirmations_,
     uint32 vrfCallbackGasLimit_,
     uint256 vrfRequestPeriod_
   ) external onlyOwner {
     consumer.setVrfConfig(
-      vrfCoordinator_,
-      vrfKeyHash_,
-      vrfSubscriptionId_,
       vrfRequestConfirmations_,
       vrfCallbackGasLimit_,
       vrfRequestPeriod_
@@ -427,7 +421,7 @@ contract VRFAgentManager is Ownable {
   function getVrfResolverStruct() public view returns(PPAgentV2VRFBased.Resolver memory) {
     return IPPAgentV2Viewer.Resolver({
       resolverAddress: address(consumer),
-      resolverCalldata: abi.encodeWithSelector(VRFAgentConsumerInterface.fulfillRandomnessResolver.selector)
+      resolverCalldata: abi.encodeWithSelector(VRFAgentConsumerInterface.fulfillRandomnessOffchainResolver.selector)
     });
   }
 

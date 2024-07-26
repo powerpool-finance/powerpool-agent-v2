@@ -36,6 +36,7 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     event SetOffChainIpfsHash(string ipfsHash);
 
     error InitialConfigAlreadySet();
+    error OnlyAgent();
     error RequestNotFound(uint256 requestId, uint256 pendingRequestId);
 
     constructor(address agent_) {
@@ -80,12 +81,18 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     }
 
     function fulfillRandomWords(VRFAgentCoordinatorInterface.Proof memory proof, VRFAgentCoordinatorInterface.RequestCommitment memory rc) external {
+        if (msg.sender != address(agent)) {
+            revert OnlyAgent();
+        }
         (uint256 requestId, uint256[] memory randomWords) = VRFAgentCoordinatorInterface(vrfCoordinator).fulfillRandomWords(proof, rc);
         if (requestId != pendingRequestId) {
-            revert RequestNotFound();
+            revert RequestNotFound(requestId, pendingRequestId);
         }
         lastVrfNumbers = randomWords;
         pendingRequestId = 0;
+        if (vrfRequestPeriod != 0) {
+            lastVrfFulfillAt = block.timestamp;
+        }
     }
 
     //TODO: deprecated

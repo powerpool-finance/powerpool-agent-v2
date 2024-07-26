@@ -17,7 +17,7 @@ interface VRFAgentConsumerInterface {
 
     function setOffChainIpfsHash(string calldata _ipfsHash) external;
 
-    function fulfillRandomnessResolver() external view returns (bool, bytes memory);
+    function fulfillRandomnessOffchainResolver() external view returns (bool, bytes memory);
 
     function getPseudoRandom() external returns (uint256);
 
