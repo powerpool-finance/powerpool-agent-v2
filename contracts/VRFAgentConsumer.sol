@@ -164,6 +164,7 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     }
 
     function getRequestData() external view returns (
+        address agent,
         uint256 subscriptionId,
         uint256 requestAtBlock,
         bytes32 requestAtBlockHash,
@@ -173,6 +174,7 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
         uint32 callbackGasLimit
     ) {
         return (
+            address(this),
             vrfSubscriptionId,
             lastVrfRequestAtBlock,
             blockhash(lastVrfRequestAtBlock),
