@@ -14,6 +14,8 @@ import "./interfaces/VRFAgentConsumerInterface.sol";
  */
 contract VRFAgentManager is Ownable {
 
+  uint256 internal constant CFG_ACTIVE = 0x01;
+
   PPAgentV2VRFBased public agent;
   VRFAgentCoordinatorInterface public coordinator;
   VRFAgentConsumerInterface public consumer;
@@ -256,9 +258,15 @@ contract VRFAgentManager is Ownable {
 
   function assignKeeperToAllJobs() external onlyOwner {
     if (getAssignedKeeperToJob(vrfJobKey) == 0) {
+      if (!isJobActive(vrfJobKey)) {
+        agent.setJobConfig(vrfJobKey, true, false, true, true);
+      }
       _assignKeeperToJob(vrfJobKey);
     }
     if (getAssignedKeeperToJob(autoDepositJobKey) == 0) {
+      if (!isJobActive(autoDepositJobKey)) {
+        agent.setJobConfig(autoDepositJobKey, true, false, true, true);
+      }
       _assignKeeperToJob(autoDepositJobKey);
     }
   }
@@ -362,6 +370,14 @@ contract VRFAgentManager is Ownable {
   function getJobOwner(bytes32 jobKey_) public view returns(address) {
     (address owner, , , , , ) = agent.getJob(jobKey_);
     return owner;
+  }
+
+  function isJobActive(bytes32 jobKey_) public view returns (bool) {
+    return isJobActivePure(IPPAgentV2Viewer(address(agent)).getJobRaw(jobKey_));
+  }
+
+  function isJobActivePure(uint256 config_) public pure returns (bool) {
+    return (config_ & CFG_ACTIVE) != 0;
   }
 
   function getJobPendingOwner(bytes32 jobKey_) public view returns(address) {
