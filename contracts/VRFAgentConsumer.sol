@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity 0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./interfaces/VRFAgentCoordinatorInterface.sol";
 import "./interfaces/VRFAgentConsumerInterface.sol";
 import "./interfaces/VRFChainlinkCoordinatorInterface.sol";
 
@@ -13,7 +12,7 @@ import "./interfaces/VRFChainlinkCoordinatorInterface.sol";
 contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     uint32 public constant VRF_NUM_RANDOM_WORDS = 10;
 
-    address public agent;
+    address immutable public agent;
     address public vrfCoordinator;
     bytes32 public vrfKeyHash;
     uint64 public vrfSubscriptionId;
@@ -30,30 +29,43 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     string public offChainIpfsHash;
     bool public useLocalIpfsHash;
 
-    event SetVrfConfig(address vrfCoordinator, bytes32 vrfKeyHash, uint64 vrfSubscriptionId, uint16 vrfRequestConfirmations, uint32 vrfCallbackGasLimit, uint256 vrfRequestPeriod);
+    event SetVrfConfig(uint16 vrfRequestConfirmations, uint32 vrfCallbackGasLimit, uint256 vrfRequestPeriod);
+    event SetInitialConfig(address vrfCoordinator, bytes32 vrfKeyHash, uint64 vrfSubscriptionId);
     event ClearPendingRequestId();
     event SetOffChainIpfsHash(string ipfsHash);
+
+    error InitialConfigAlreadySet();
+    error OnlyAgent();
+    error RequestNotFound(uint256 requestId, uint256 pendingRequestId);
 
     constructor(address agent_) {
         agent = agent_;
     }
 
-    /*** AGENT OWNER METHODS ***/
-    function setVrfConfig(
+    function setInitialConfig(
         address vrfCoordinator_,
         bytes32 vrfKeyHash_,
-        uint64 vrfSubscriptionId_,
+        uint64 vrfSubscriptionId_
+    ) external onlyOwner {
+        if (vrfSubscriptionId != 0) {
+            revert InitialConfigAlreadySet();
+        }
+        vrfCoordinator = vrfCoordinator_;
+        vrfKeyHash = vrfKeyHash_;
+        vrfSubscriptionId = vrfSubscriptionId_;
+        emit SetInitialConfig(vrfCoordinator_, vrfKeyHash_, vrfSubscriptionId_);
+    }
+
+    /*** AGENT OWNER METHODS ***/
+    function setVrfConfig(
         uint16 vrfRequestConfirmations_,
         uint32 vrfCallbackGasLimit_,
         uint256 vrfRequestPeriod_
     ) external onlyOwner {
-        vrfCoordinator = vrfCoordinator_;
-        vrfKeyHash = vrfKeyHash_;
-        vrfSubscriptionId = vrfSubscriptionId_;
         vrfRequestConfirmations = vrfRequestConfirmations_;
         vrfCallbackGasLimit = vrfCallbackGasLimit_;
         vrfRequestPeriod = vrfRequestPeriod_;
-        emit SetVrfConfig(vrfCoordinator_, vrfKeyHash_, vrfSubscriptionId_, vrfRequestConfirmations_, vrfCallbackGasLimit_, vrfRequestPeriod_);
+        emit SetVrfConfig(vrfRequestConfirmations_, vrfCallbackGasLimit_, vrfRequestPeriod_);
     }
 
     function clearPendingRequestId() external onlyOwner {
@@ -67,13 +79,15 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
         emit SetOffChainIpfsHash(_ipfsHash);
     }
 
-    function rawFulfillRandomWords(
-        uint256 _requestId,
-        uint256[] memory _randomWords
-    ) external {
-        require(msg.sender == address(vrfCoordinator), "sender not vrfCoordinator");
-        require(_requestId == pendingRequestId, "request not found");
-        lastVrfNumbers = _randomWords;
+    function fulfillRandomWords(VRFAgentCoordinatorInterface.Proof memory proof, VRFAgentCoordinatorInterface.RequestCommitment memory rc) external override {
+        if (msg.sender != address(agent)) {
+            revert OnlyAgent();
+        }
+        (uint256 requestId, uint256[] memory randomWords) = VRFAgentCoordinatorInterface(vrfCoordinator).fulfillRandomWords(proof, rc);
+        if (requestId != pendingRequestId) {
+            revert RequestNotFound(requestId, pendingRequestId);
+        }
+        lastVrfNumbers = randomWords;
         pendingRequestId = 0;
         if (vrfRequestPeriod != 0) {
             lastVrfFulfillAt = block.timestamp;
@@ -109,7 +123,7 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     function _requestRandomWords() internal virtual returns (uint256) {
         if (vrfKeyHash == bytes32(0)) {
             return VRFAgentCoordinatorInterface(vrfCoordinator).requestRandomWords(
-                agent,
+                address(this),
                 vrfSubscriptionId,
                 vrfRequestConfirmations,
                 vrfCallbackGasLimit,
@@ -130,14 +144,14 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
         return lastVrfNumbers;
     }
 
-    function fulfillRandomnessResolver() external view returns (bool, bytes memory) {
+    function fulfillRandomnessOffchainResolver() external view returns (bool, bytes memory) {
         if (isPendingRequestOverdue() || (lastVrfFulfillAt != 0 && pendingRequestId == 0) || block.number == lastVrfRequestAtBlock) {
             return (false, bytes(""));
         }
         if (useLocalIpfsHash) {
             return (coordinatorPendingRequestId() != 0, bytes(offChainIpfsHash));
         } else {
-            return VRFAgentCoordinatorInterface(vrfCoordinator).fulfillRandomnessResolver(
+            return VRFAgentCoordinatorInterface(vrfCoordinator).fulfillRandomnessOffchainResolver(
                 address(this),
                 vrfSubscriptionId
             );
@@ -149,6 +163,7 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
     }
 
     function getRequestData() external view returns (
+        address agent,
         uint256 subscriptionId,
         uint256 requestAtBlock,
         bytes32 requestAtBlockHash,
@@ -158,6 +173,7 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
         uint32 callbackGasLimit
     ) {
         return (
+            address(this),
             vrfSubscriptionId,
             lastVrfRequestAtBlock,
             blockhash(lastVrfRequestAtBlock),

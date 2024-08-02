@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity 0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {PPAgentV2VRFBased} from "./PPAgentV2VRFBased.sol";
 import { IPPAgentV2JobOwner, IPPAgentV2Viewer } from "./PPAgentV2Interfaces.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./interfaces/VRFAgentCoordinatorInterface.sol";
 import "./interfaces/VRFAgentConsumerInterface.sol";
 
 /**
@@ -14,6 +13,8 @@ import "./interfaces/VRFAgentConsumerInterface.sol";
  * @author PowerPool
  */
 contract VRFAgentManager is Ownable {
+
+  uint256 internal constant CFG_ACTIVE = 0x01;
 
   PPAgentV2VRFBased public agent;
   VRFAgentCoordinatorInterface public coordinator;
@@ -112,8 +113,8 @@ contract VRFAgentManager is Ownable {
     agent.setVRFConsumer(address(consumer));
 
     IPPAgentV2JobOwner.RegisterJobParams memory params = IPPAgentV2JobOwner.RegisterJobParams({
-      jobAddress: address(coordinator),
-      jobSelector: VRFAgentCoordinatorInterface.fulfillRandomWords.selector,
+      jobAddress: address(consumer),
+      jobSelector: VRFAgentConsumerInterface.fulfillRandomWords.selector,
       useJobOwnerCredits: false,
       assertResolverSelector: true,
       maxBaseFeeGwei: maxBaseFeeGwei_,
@@ -232,17 +233,11 @@ contract VRFAgentManager is Ownable {
   }
 
   function setConsumerVrfConfig(
-    address vrfCoordinator_,
-    bytes32 vrfKeyHash_,
-    uint64 vrfSubscriptionId_,
     uint16 vrfRequestConfirmations_,
     uint32 vrfCallbackGasLimit_,
     uint256 vrfRequestPeriod_
   ) external onlyOwner {
     consumer.setVrfConfig(
-      vrfCoordinator_,
-      vrfKeyHash_,
-      vrfSubscriptionId_,
       vrfRequestConfirmations_,
       vrfCallbackGasLimit_,
       vrfRequestPeriod_
@@ -262,8 +257,14 @@ contract VRFAgentManager is Ownable {
   }
 
   function assignKeeperToAllJobs() external onlyOwner {
+    if (getAssignedKeeperToJob(vrfJobKey) == 0 && !isJobActive(vrfJobKey)) {
+        agent.setJobConfig(vrfJobKey, true, false, true, true);
+    }
     if (getAssignedKeeperToJob(vrfJobKey) == 0) {
       _assignKeeperToJob(vrfJobKey);
+    }
+    if (getAssignedKeeperToJob(autoDepositJobKey) == 0 && !isJobActive(autoDepositJobKey)) {
+        agent.setJobConfig(autoDepositJobKey, true, false, true, true);
     }
     if (getAssignedKeeperToJob(autoDepositJobKey) == 0) {
       _assignKeeperToJob(autoDepositJobKey);
@@ -371,6 +372,14 @@ contract VRFAgentManager is Ownable {
     return owner;
   }
 
+  function isJobActive(bytes32 jobKey_) public view returns (bool) {
+    return isJobActivePure(IPPAgentV2Viewer(address(agent)).getJobRaw(jobKey_));
+  }
+
+  function isJobActivePure(uint256 config_) public pure returns (bool) {
+    return (config_ & CFG_ACTIVE) != 0;
+  }
+
   function getJobPendingOwner(bytes32 jobKey_) public view returns(address) {
     (, address pendingOwner, , , , ) = agent.getJob(jobKey_);
     return pendingOwner;
@@ -427,7 +436,7 @@ contract VRFAgentManager is Ownable {
   function getVrfResolverStruct() public view returns(PPAgentV2VRFBased.Resolver memory) {
     return IPPAgentV2Viewer.Resolver({
       resolverAddress: address(consumer),
-      resolverCalldata: abi.encodeWithSelector(VRFAgentConsumerInterface.fulfillRandomnessResolver.selector)
+      resolverCalldata: abi.encodeWithSelector(VRFAgentConsumerInterface.fulfillRandomnessOffchainResolver.selector)
     });
   }
 

@@ -32,13 +32,12 @@ contract MockVRFCoordinator is VRFAgentCoordinator {
     return lastRequestIdByConsumer[requestedByConsumer];
   }
 
-  function callFulfill() external {
-    uint256[] memory words = new uint256[](requestedNumWords);
-    uint256 requestId = lastRequestIdByConsumer[requestedByConsumer];
-    for (uint256 i = 0; i < words.length; i++) {
-      words[i] = i + requestId + 66;
+  function fulfillRandomWords(Proof memory proof, RequestCommitment memory rc) external override returns (uint256 requestId, uint256[] memory randomWords) {
+    randomWords = new uint256[](requestedNumWords);
+    requestId = lastRequestIdByConsumer[requestedByConsumer];
+    for (uint256 i = 0; i < randomWords.length; i++) {
+      randomWords[i] = i + requestId + 95;
     }
-    VRFAgentConsumer(requestedByConsumer).rawFulfillRandomWords(requestId, words);
     delete s_requestCommitments[requestId];
   }
 

@@ -24,6 +24,7 @@ abstract contract AbstractTestHelper is Test, PPAgentV2Flags {
   uint8 internal constant CALLDATA_SOURCE_SELECTOR = 0;
   uint8 internal constant CALLDATA_SOURCE_PRE_DEFINED = 1;
   uint8 internal constant CALLDATA_SOURCE_RESOLVER = 2;
+  uint8 internal constant CALLDATA_SOURCE_OFFCHAIN = 3;
 
   uint256 internal constant MIN_DEPOSIT_3000_CVP = 3_000 ether;
   uint256 internal constant CVP_TOTAL_SUPPLY = 100_000_000 ether;
