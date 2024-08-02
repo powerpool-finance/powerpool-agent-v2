@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {PPAgentV2VRFBased} from "./PPAgentV2VRFBased.sol";
 import { IPPAgentV2JobOwner, IPPAgentV2Viewer } from "./PPAgentV2Interfaces.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./interfaces/VRFAgentCoordinatorInterface.sol";
 import "./interfaces/VRFAgentConsumerInterface.sol";
 
 /**
@@ -112,8 +111,8 @@ contract VRFAgentManager is Ownable {
     agent.setVRFConsumer(address(consumer));
 
     IPPAgentV2JobOwner.RegisterJobParams memory params = IPPAgentV2JobOwner.RegisterJobParams({
-      jobAddress: address(coordinator),
-      jobSelector: VRFAgentCoordinatorInterface.fulfillRandomWords.selector,
+      jobAddress: address(consumer),
+      jobSelector: VRFAgentConsumerInterface.fulfillRandomWords.selector,
       useJobOwnerCredits: false,
       assertResolverSelector: true,
       maxBaseFeeGwei: maxBaseFeeGwei_,

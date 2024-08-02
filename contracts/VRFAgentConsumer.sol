@@ -2,7 +2,6 @@
 pragma solidity 0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./interfaces/VRFAgentCoordinatorInterface.sol";
 import "./interfaces/VRFAgentConsumerInterface.sol";
 import "./interfaces/VRFChainlinkCoordinatorInterface.sol";
 
@@ -80,7 +79,7 @@ contract VRFAgentConsumer is VRFAgentConsumerInterface, Ownable {
         emit SetOffChainIpfsHash(_ipfsHash);
     }
 
-    function fulfillRandomWords(VRFAgentCoordinatorInterface.Proof memory proof, VRFAgentCoordinatorInterface.RequestCommitment memory rc) external {
+    function fulfillRandomWords(VRFAgentCoordinatorInterface.Proof memory proof, VRFAgentCoordinatorInterface.RequestCommitment memory rc) external override {
         if (msg.sender != address(agent)) {
             revert OnlyAgent();
         }

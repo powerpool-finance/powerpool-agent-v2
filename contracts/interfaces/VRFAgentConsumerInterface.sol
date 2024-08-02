@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "./VRFAgentCoordinatorInterface.sol";
+
 interface VRFAgentConsumerInterface {
 
     function setInitialConfig(
@@ -21,4 +23,5 @@ interface VRFAgentConsumerInterface {
 
     function getPseudoRandom() external returns (uint256);
 
+    function fulfillRandomWords(VRFAgentCoordinatorInterface.Proof calldata proof, VRFAgentCoordinatorInterface.RequestCommitment calldata rc) external;
 }
