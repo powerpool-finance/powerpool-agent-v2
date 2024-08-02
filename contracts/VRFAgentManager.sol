@@ -257,16 +257,16 @@ contract VRFAgentManager is Ownable {
   }
 
   function assignKeeperToAllJobs() external onlyOwner {
-    if (getAssignedKeeperToJob(vrfJobKey) == 0) {
-      if (!isJobActive(vrfJobKey)) {
+    if (getAssignedKeeperToJob(vrfJobKey) == 0 && !isJobActive(vrfJobKey)) {
         agent.setJobConfig(vrfJobKey, true, false, true, true);
-      }
+    }
+    if (getAssignedKeeperToJob(vrfJobKey) == 0) {
       _assignKeeperToJob(vrfJobKey);
     }
-    if (getAssignedKeeperToJob(autoDepositJobKey) == 0) {
-      if (!isJobActive(autoDepositJobKey)) {
+    if (getAssignedKeeperToJob(autoDepositJobKey) == 0 && !isJobActive(autoDepositJobKey)) {
         agent.setJobConfig(autoDepositJobKey, true, false, true, true);
-      }
+    }
+    if (getAssignedKeeperToJob(autoDepositJobKey) == 0) {
       _assignKeeperToJob(autoDepositJobKey);
     }
   }
