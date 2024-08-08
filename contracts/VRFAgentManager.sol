@@ -313,15 +313,20 @@ contract VRFAgentManager is Ownable {
 
     acceptAllJobsTransfer();
 
-    uint256 autoDepositJobBalance = getAutoDepositJobBalance();
-    setJobConfig(autoDepositJobKey, false, false, false, false);
-    agent.withdrawJobCredits(autoDepositJobKey, payable(address(this)), autoDepositJobBalance);
     (, , uint256 jobMinKeeperCvp, PPAgentV2VRFBased.Job memory details, , ) = agent.getJob(autoDepositJobKey);
 
+    uint256 autoDepositJobBalance = deactivateJob(autoDepositJobKey);
     _registerAutoDepositJob(details.maxBaseFeeGwei, details.rewardPct, details.fixedReward, jobMinKeeperCvp, true, autoDepositJobBalance);
 
     setVrfConfig(oldVrfAgentManager_.vrfJobMinBalance(), oldVrfAgentManager_.vrfJobMaxDeposit());
     setAutoDepositConfig(oldVrfAgentManager_.autoDepositJobMinBalance(), oldVrfAgentManager_.autoDepositJobMaxDeposit());
+  }
+
+  function deactivateJob(bytes32 jobKey_) public onlyOwner returns(uint256 jobBalance) {
+    jobBalance = getJobBalance(jobKey_);
+
+    setJobConfig(jobKey_, false, false, false, false);
+    agent.withdrawJobCredits(jobKey_, payable(address(this)), jobBalance);
   }
 
   function acceptAllJobsTransfer() public onlyOwner {
@@ -335,18 +340,21 @@ contract VRFAgentManager is Ownable {
 
   /*** GETTER ***/
 
-  function getVrfFullfillJobBalance() public view returns(uint256) {
-    (, , , PPAgentV2VRFBased.Job memory details, , ) = agent.getJob(vrfJobKey);
-    return details.credits;
-  }
-
   function getVrfFullfillJobResolver() public view returns(IPPAgentV2Viewer.Resolver memory) {
     (, , , , , IPPAgentV2Viewer.Resolver memory resolver) = agent.getJob(vrfJobKey);
     return resolver;
   }
 
+  function getVrfFullfillJobBalance() public view returns(uint256) {
+    return getJobBalance(vrfJobKey);
+  }
+
   function getAutoDepositJobBalance() public view returns(uint256) {
-    (, , , PPAgentV2VRFBased.Job memory details, , ) = agent.getJob(autoDepositJobKey);
+    return getJobBalance(autoDepositJobKey);
+  }
+
+  function getJobBalance(bytes32 jobKey_) public view returns(uint256) {
+    (, , , PPAgentV2VRFBased.Job memory details, , ) = agent.getJob(jobKey_);
     return details.credits;
   }
 
