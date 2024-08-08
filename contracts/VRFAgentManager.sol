@@ -323,7 +323,7 @@ contract VRFAgentManager is Ownable {
   }
 
   function deactivateJob(bytes32 jobKey_) public onlyOwner returns(uint256 jobBalance) {
-    jobBalance = getAutoDepositJobBalance();
+    jobBalance = getJobBalance(jobKey_);
 
     setJobConfig(jobKey_, false, false, false, false);
     agent.withdrawJobCredits(jobKey_, payable(address(this)), jobBalance);
