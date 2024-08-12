@@ -146,3 +146,6 @@ interface IVestedEscrow{
     function fund(address[] calldata _recipient, uint256[] calldata _amount) external returns(bool);
 }
 
+interface IRewardStaking {
+    function stakeFor(address, uint256) external;
+}
