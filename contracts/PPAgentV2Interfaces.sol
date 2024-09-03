@@ -74,6 +74,15 @@ interface IPPAgentV2JobOwner {
     uint8 calldataSource;
     uint24 intervalSeconds;
   }
+
+  function registerJob(
+    RegisterJobParams calldata params_,
+    IPPAgentV2Viewer.Resolver calldata resolver_,
+    bytes calldata preDefinedCalldata_
+  ) external payable returns (bytes32 jobKey, uint256 jobId);
+
+  function initiateJobTransfer(bytes32 jobKey_, address to_) external;
+  function acceptJobTransfer(bytes32 jobKey_) external;
 }
 
 interface IPPAgentV2RandaoViewer {
